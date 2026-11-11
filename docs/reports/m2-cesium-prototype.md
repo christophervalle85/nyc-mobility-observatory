@@ -27,12 +27,31 @@ Open <http://127.0.0.1:5174/?mode=mock>. Mock mode never creates a Cesium viewer
 
 ## Completed checks
 
-- 19 unit tests passed, including cleanup and retry serialization. Retry waits for
-  pending resource creation to settle after Stop, timeout or failure.
-- 16 browser tests passed with external network requests blocked.
-- TypeScript checks and the isolated, token-free build passed.
-- 12 converter tests passed, including two identical exports of the frozen official source.
-- The unchanged M1 suite passed all 110 tests and lint.
+- The rendering/selection update passed 29 unit tests, TypeScript checks, the
+  isolated token-free build and diff checks.
+- Before this update, 16 external-network-blocked browser tests and 12 converter
+  tests passed, including deterministic exports of the frozen source. The retained
+  M1 suite passed all 110 tests and lint. Browser checks were not rerun for this
+  update; core ingestion and source geometry are unchanged.
+
+## Rendering and selection update
+
+Rendering uses CSS-pixel resolution at scale 1, without dividing again by device
+pixel ratio. Native 2× supersampling is not enabled. The artificial 30 FPS cap is
+removed; request-render mode and disabled clock animation remain. Tiles use
+screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. These
+settings are not a hard total-memory limit and can increase bandwidth/memory use.
+See the [Viewer reference](https://cesium.com/learn/cesiumjs/ref-doc/Viewer.html) and
+[tileset reference](https://cesium.com/learn/cesiumjs/ref-doc/Cesium3DTileset.html).
+
+Indexed fills change only the old and new selection groups. Offline checks across
+354 actual Cesium entities reduced repeated-selection `definitionChanged` events
+from 1,062 to zero; selection from zone 161 to 79 emitted two events. These are
+property-event counts, not live frame-rate measurements. Explicit clamped ring
+lines mark the selected zone while preserving holes, multipart geometry and cleanup.
+
+To load updated code, select **Stop / unload**, restart `npm run dev:live`, then
+refresh the page. File watching and hot reload are disabled.
 
 From `web/`, rerun the frontend checks with:
 
@@ -57,8 +76,10 @@ reproduction command, provenance, projection accuracy and validation limits.
 
 ## Live verification pending
 
-Automated mocks do not establish that imagery loads, credits are complete,
-ground-clamped polygons remain visible against the 3D mesh, or 3D picking works.
-Those observations and live request origins still need a bounded authorized live
-check. Account token permissions, URL restrictions and quota need separate review.
-No live acceptance result is claimed here.
+A user-supplied pre-update screenshot shows Google/Cesium imagery, East Village
+(79) highlighted and visible credits. This is limited visual evidence, not proof
+of complete attribution compliance, token permissions or quota settings.
+
+The updated rendering quality, live frame rate, overlay clamping and 3D picking
+remain unverified. Updated live acceptance and request-origin checks are pending.
+Account token permissions, URL restrictions and quota require separate review.

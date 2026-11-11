@@ -1,17 +1,18 @@
 # M2 visual spike: Cesium NYC prototype
 
 Status: the bounded local prototype and offline geometry converter are implemented.
-Automated checks passed: 19 unit tests, 16 external-network-blocked browser tests,
-TypeScript checks, the isolated build, 12 converter tests and the retained 110-test
-M1 suite plus lint. Live imagery, attribution, overlay clamping and 3D picking
-verification remain pending. This does not complete the original M2 date/zone/chart scope.
+The rendering/selection update passed 29 unit tests, TypeScript checks, an isolated
+build and diff checks. Earlier checks passed 16 external-network-blocked browser
+tests, 12 converter tests and the retained 110-test M1 suite plus lint. Browser
+checks were not rerun for this update. Updated live acceptance remains pending.
+This does not complete the original M2 date/zone/chart scope.
 See the [verification report](../reports/m2-cesium-prototype.md).
 
 ## Design and boundaries
 
 Use isolated `web/` Vite + TypeScript + CesiumJS, pinned dependencies and lockfile. No server/framework. Preserve `src/nyc_mobility/`, Python dependencies, tests and frozen `.data/` bytes. Existing provenance is in `src/nyc_mobility/acquisition.py`; source-coverage limits remain in `README.md` and `docs/reports/m1-pilot.md`.
 
-A controller owns UI state; a Cesium adapter owns one Viewer/tileset and cleanup; a zone module owns local GeoJSON, styling and selection. Setup/mock mode makes no external requests. Only **Load 3D** starts live tiles. Disable duplicate loads; distinguish loading, ready, partial streaming and sanitized failure. Allow one manual retry, no automatic loop/reload. Timeout/Stop must clean up late results and handlers. Use `requestRenderMode: true`, no clock animation, one fixed NYC camera and conservative memory/detail settings. This reduces idle rendering, not billing. Disable default imagery, terrain services, geocoder and asset pickers.
+A controller owns UI state; a Cesium adapter owns one Viewer/tileset and cleanup; a zone module owns local GeoJSON, styling and selection. Setup/mock mode makes no external requests. Only **Load 3D** starts live tiles. Disable duplicate loads; distinguish loading, ready, partial streaming and sanitized failure. Allow one manual retry, no automatic loop/reload. Timeout/Stop must clean up late results and handlers. Use `requestRenderMode: true`, no clock animation, one fixed NYC camera, CSS-pixel resolution at scale 1, screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. Do not divide resolution again by device pixel ratio or impose a 30 FPS cap; native 2× supersampling is not enabled. Cache settings are not a hard total-memory limit and can increase bandwidth/memory. This reduces idle rendering, not billing. Disable default imagery, terrain services, geocoder and asset pickers.
 
 ## Verified tile route and token
 
@@ -25,7 +26,7 @@ Prefer an offline converter under `web/scripts/` over a new endpoint. M1 already
 
 Use isolated pinned pyshp + pyproj, or an equivalently reputable JS parser/projection pair. Verify the archived hash; read only bounded expected ZIP members without extract-all; export WGS84 longitude/latitude with explicit axis order. Preserve holes/multipart geometry, source `LocationID` (not `OBJECTID`), name and borough. Validate geometry, NYC bounds and archived lookup joins. A sidecar records source terms/credit, input/output hashes, CRS and converter/dependency versions. Frozen assets remain unchanged; do not invent boundaries.
 
-Load local GeoJSON using [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html), ground clamping and translucent styling. Ellipsoid height zero can put polygons below the mesh: actual clamping/picking remains a live acceptance check. Do not sample/export Google heights. Selection shows zone ID/name/borough as text, metrics explicitly pending, with a zone-list fallback.
+Load local GeoJSON using [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html), ground clamping and translucent styling. Ellipsoid height zero can put polygons below the mesh: actual clamping/picking remains a live acceptance check. Do not sample/export Google heights. Selection shows zone ID/name/borough as text, metrics explicitly pending, with a zone-list fallback. Indexed fills update only the previous and newly selected groups. Explicit ground-clamped ring lines mark the selected zone, preserving source holes and multipart geometry and cleaning up with the scene.
 
 ## Acceptance and delivery
 
