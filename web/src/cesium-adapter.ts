@@ -11,6 +11,7 @@ import { SceneFailure } from './session.ts';
 import { resolveZone } from './zones.ts';
 import type { ZoneCollection } from './zones.ts';
 import { areaFocus } from './area-focus.ts';
+import { focusView } from './focus-view.ts';
 import { displayPolicy, tilePolicy } from './rendering-policy.ts';
 import { zoneHighlight } from './zone-highlight.ts';
 import { selectedBoundary } from './selected-boundary.ts';
@@ -103,11 +104,17 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     const focus = areaFocus(geography, {
       move(target, options) {
         focusMoving = true; waitForDetail();
+        const view = focusView(target, {heading:viewer.camera.heading,pitch:viewer.camera.pitch}, options.duration);
         viewer.camera.flyToBoundingSphere(new BoundingSphere(Cartesian3.fromDegrees(target.longitude, target.latitude), target.radius), {
-          duration: options.duration, maximumHeight: 20_000,
-          offset: new HeadingPitchRange(0, CesiumMath.toRadians(-45), target.range),
-          complete() { focusMoving = false; navigation.area(target); viewer.scene.requestRender(); options.complete(); },
-          cancel() { focusMoving = false; options.cancel(); },
+          duration: view.duration,
+          offset: new HeadingPitchRange(view.heading, view.pitch, view.range),
+          complete() {
+            if (!options.complete()) return;
+            focusMoving = false;
+            navigation.area(target, {heading:viewer.camera.heading,pitch:viewer.camera.pitch});
+            viewer.scene.requestRender();
+          },
+          cancel() { if (options.cancel()) focusMoving = false; },
         });
         viewer.scene.requestRender();
       },
