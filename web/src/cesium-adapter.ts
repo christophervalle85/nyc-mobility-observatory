@@ -1,13 +1,15 @@
 import {
   Viewer, Ion, Cesium3DTileset, GeoJsonDataSource, Cartesian3, Math as CesiumMath,
   Color, ColorMaterialProperty, ScreenSpaceEventHandler,
-  ScreenSpaceEventType, Entity, SceneMode, Cartesian2,
+  ScreenSpaceEventType, Entity, SceneMode, Cartesian2, BoundingSphere, HeadingPitchRange,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { managedAdapter } from './managed-adapter.ts';
 import type { OwnedResource, SceneRuntime } from './managed-adapter.ts';
 import { SceneFailure } from './session.ts';
+import { resolveZone } from './zones.ts';
 import type { ZoneCollection } from './zones.ts';
+import { areaFocus } from './area-focus.ts';
 import { displayPolicy, tilePolicy } from './rendering-policy.ts';
 import { zoneHighlight } from './zone-highlight.ts';
 import { selectedBoundary } from './selected-boundary.ts';
@@ -41,13 +43,24 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       destination: Cartesian3.fromDegrees(-74.008, 40.682, 6500),
       orientation: { heading: 0, pitch: CesiumMath.toRadians(-45), roll: 0 },
     });
+    const focus = areaFocus(geography, {
+      move(target, options) {
+        viewer.camera.flyToBoundingSphere(new BoundingSphere(Cartesian3.fromDegrees(target.longitude, target.latitude), target.radius), {
+          duration: options.duration, maximumHeight: 20_000,
+          offset: new HeadingPitchRange(0, CesiumMath.toRadians(-45), target.range),
+          complete: options.complete, cancel: options.cancel,
+        });
+        viewer.scene.requestRender();
+      },
+      cancel() { if (!viewer.isDestroyed()) viewer.camera.cancelFlight(); },
+    });
     const canvas = viewer.scene.canvas; canvas.setAttribute('aria-label', 'NYC 3D map. Use the zone list to select a zone.');
     canvas.setAttribute('tabindex', '-1');
     const style = getComputedStyle(document.documentElement);
     const boundary = Color.fromCssColorString(style.getPropertyValue('--color-map-line').trim());
     const selection = Color.fromCssColorString(style.getPropertyValue('--color-map-selected').trim());
-    const normalFill = new ColorMaterialProperty(boundary.withAlpha(0.08));
-    const selectedFill = new ColorMaterialProperty(selection.withAlpha(0.42));
+    const normalFill = new ColorMaterialProperty(boundary.withAlpha(0.025));
+    const selectedFill = new ColorMaterialProperty(selection.withAlpha(0.14));
     let highlight: ReturnType<typeof zoneHighlight<Entity>> | undefined;
     let entities: GeoJsonDataSource | undefined, selected: number | null = null, tileset: Cesium3DTileset | undefined;
     let boundaryId = 0;
@@ -84,7 +97,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         });
         return new Resource(value, () => { if (!value.isDestroyed()) value.destroy(); });
       },
-      async zones() { const value = await GeoJsonDataSource.load(geography, {clampToGround:true, fill:boundary.withAlpha(0.08), stroke:boundary}); return new Resource(value, () => value.entities.removeAll()); },
+      async zones() { const value = await GeoJsonDataSource.load(geography, {clampToGround:true, fill:boundary.withAlpha(0.025), stroke:boundary}); return new Resource(value, () => value.entities.removeAll()); },
       attachTiles(resource) {
         tileset = (resource as Resource<Cesium3DTileset>).value;
         // A registered listener suppresses Cesium's default raw-URL console logging.
@@ -104,10 +117,16 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         void viewer.dataSources.add(entities); colorSelection(); viewer.scene.requestRender();
       },
       watchPartial(change) { partial=change; return () => {partial=undefined;}; },
-      select(id) { selected=id; colorSelection(); },
+      focus(id, reducedMotion) { return id === selected ? focus.focus(id, reducedMotion) : Promise.resolve(false); },
+      cancelFocus() { focus.cancel(); },
+      select(id) {
+        const next = resolveZone(geography, id)?.id ?? null;
+        if (next !== selected) focus.cancel();
+        selected=next; colorSelection();
+      },
       destroy() {
         for (const remove of cleanup) remove(); handler.destroy();
-        selectedLines.dispose(); highlight=undefined;
+        focus.dispose(); selectedLines.dispose(); highlight=undefined;
         if (!viewer.isDestroyed()) viewer.destroy();
         Ion.defaultAccessToken = ''; entities=undefined;tileset=undefined;
       },

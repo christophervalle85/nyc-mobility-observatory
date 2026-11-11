@@ -1,8 +1,8 @@
 # NYC Mobility Observatory
 
-Explore official NYC taxi zones in a local map, with optional Google Photorealistic
-3D Tiles through Cesium ion. The bounded M2 prototype supports zone selection and
-scene controls. Date filters, mobility counts, charts and models are not implemented.
+Explore a city-centered dashboard with optional Google Photorealistic 3D Tiles
+through Cesium ion. The bounded M2 prototype supports local TLC area search,
+selection and a separate camera-focus action. Date filters, mobility counts, charts and models are not implemented.
 The separate M1 ingestion pipeline remains unchanged.
 
 ## Open the local map
@@ -16,11 +16,11 @@ npm run dev:live
 ```
 
 Open [the local preview](http://127.0.0.1:5173) while the server is running.
-The live preview disables hot reload and file watching. Local geography works
+The live preview disables hot reload and file watching. Local search and selection work
 without a token; **Load 3D** requires your public Cesium ion client token and makes
 external requests that can consume quota. Follow the [web setup and safety notes](web/README.md).
 For a token-free mock preview, use `npm run dev:verify` and open
-[the mock map](http://127.0.0.1:5174/?mode=mock).
+[the mock controls](http://127.0.0.1:5174/?mode=mock).
 
 See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
 checks and live-validation limits.

@@ -25,3 +25,46 @@ export function zonePath(zone: Zone): string {
   const polygons = zone.geometry.type === 'Polygon' ? [zone.geometry.coordinates] : zone.geometry.coordinates;
   return polygons.flatMap(polygon => polygon.map(ring => ring.map(([lon, lat], i) => `${i === 0 ? 'M' : 'L'}${((lon + 74.3) * 1370).toFixed(2)},${((40.95 - lat) * 1800).toFixed(2)}`).join('') + 'Z')).join('');
 }
+export interface ZoneExtent { west: number; south: number; east: number; north: number }
+export interface AreaTarget extends ZoneExtent { locationId: number; longitude: number; latitude: number; range: number; radius: number }
+export function resolveZone(collection: ZoneCollection, id: unknown): Zone | undefined {
+  const value = typeof id === 'string' && /^[1-9]\d{0,2}$/.test(id.trim()) ? Number(id.trim()) : id;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 263) return undefined;
+  return collection.features.find(zone => zone.id === value && zone.properties.location_id === value);
+}
+export function filterZones(collection: ZoneCollection, query: string): Zone[] {
+  const text = query.trim().toLowerCase();
+  const numeric = /^\d+$/.test(text);
+  const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
+  return collection.features.filter(zone => !text || (numeric
+    ? String(zone.properties.location_id) === text
+    : zone.properties.zone.toLowerCase().includes(text) || zone.properties.borough.toLowerCase().includes(text)))
+    .sort((a, b) => compare(a.properties.borough.toLowerCase(), b.properties.borough.toLowerCase()) || compare(a.properties.zone.toLowerCase(), b.properties.zone.toLowerCase()) || a.id - b.id);
+}
+export function zoneExtent(zone: Zone): ZoneExtent | undefined {
+  try { parseZones({ type: 'FeatureCollection', features: [zone] }); } catch { return undefined; }
+  const polygons = zone.geometry.type === 'Polygon' ? [zone.geometry.coordinates] : zone.geometry.coordinates;
+  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+  for (const polygon of polygons) for (const ring of polygon) for (const [longitude, latitude] of ring) {
+    west = Math.min(west, longitude); east = Math.max(east, longitude);
+    south = Math.min(south, latitude); north = Math.max(north, latitude);
+  }
+  if (!(west < east && south < north)) return undefined;
+  return { west, south, east, north };
+}
+export function areaTarget(collection: ZoneCollection, id: unknown): AreaTarget | undefined {
+  const zone = resolveZone(collection, id), extent = zone && zoneExtent(zone);
+  if (!zone || !extent) return undefined;
+  const fit = (low: number, high: number, minimum: number, maximum: number) => {
+    const span = Math.max(0.001, (high - low) * 1.12);
+    let start = Math.max(minimum, (low + high - span) / 2);
+    const end = Math.min(maximum, start + span); start = Math.max(minimum, end - span);
+    return [start, end];
+  };
+  const [west, east] = fit(extent.west, extent.east, -74.3, -73.6);
+  const [south, north] = fit(extent.south, extent.north, 40.45, 40.95);
+  const longitude = (west + east) / 2, latitude = (south + north) / 2;
+  const width = (east - west) * 111_320 * Math.cos(latitude * Math.PI / 180), height = (north - south) * 111_320;
+  const radius = Math.max(50, Math.hypot(width, height) / 2);
+  return { locationId: zone.id, west, south, east, north, longitude, latitude, radius, range: Math.min(20_000, Math.max(800, radius * 3.6)) };
+}

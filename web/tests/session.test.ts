@@ -11,11 +11,12 @@ function fixture(configured = true, timeout = 1000) {
   const calls = { create: 0, load: 0, dispose: 0, selection: null as number | null };
   const states: SessionState[] = [];
   const adapter: SceneAdapter = {
+    focus: async () => false, cancelFocus() {},
     load: (change) => { calls.load++; update = change; return pending; },
     whenSettled: () => pending.catch(() => undefined),
     dispose: () => { calls.dispose++; }, select: (id) => { calls.selection = id; },
   };
-  const controller = new SessionController(configured, () => { calls.create++; return adapter; }, (state) => states.push(state), timeout);
+  const controller = new SessionController(configured, () => { calls.create++; return adapter; }, (state) => states.push(state), timeout, id => id === 161);
   return { controller, calls, states, resolve, reject, update: (phase: 'ready' | 'partial') => update(phase) };
 }
 

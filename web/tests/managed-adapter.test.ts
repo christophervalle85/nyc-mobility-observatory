@@ -6,7 +6,7 @@ function setup() {
  let finish!: (resource: OwnedResource) => void;
  const calls = { open:0,destroy:0,late:0,attach:0,remove:0 };
  const pending = new Promise<OwnedResource>(resolve => { finish=resolve; });
- const scene: SceneRuntime = { tiles:()=>pending,zones:async()=>({destroy(){}}),attachTiles(){calls.attach++},attachZones(){},watchPartial(){return()=>{calls.remove++}},select(){},destroy(){calls.destroy++} };
+ const scene: SceneRuntime = { tiles:()=>pending,zones:async()=>({destroy(){}}),attachTiles(){calls.attach++},attachZones(){},watchPartial(){return()=>{calls.remove++}},select(){},focus:async()=>false,cancelFocus(){},destroy(){calls.destroy++} };
  const adapter=managedAdapter(()=>{calls.open++;return scene});
  return {adapter,calls,finish:()=>finish({destroy(){calls.late++}})};
 }
@@ -29,7 +29,7 @@ test('a failed geometry sibling cannot permit retry while tile factory remains u
  const calls = { open:0,destroy:0,late:0,attach:0 };
  const controller=new SessionController(true,()=>managedAdapter(()=>{
   calls.open++;
-  return { tiles:()=>tiles,zones:()=>zones,attachTiles(){calls.attach++},attachZones(){},watchPartial(){return()=>{}},select(){},destroy(){calls.destroy++} };
+  return { tiles:()=>tiles,zones:()=>zones,attachTiles(){calls.attach++},attachZones(){},watchPartial(){return()=>{}},select(){},focus:async()=>false,cancelFocus(){},destroy(){calls.destroy++} };
  }),()=>{});
  const first=controller.load();await new Promise<void>(resolve=>setImmediate(resolve));
  failZones({statusCode:403});await first;
@@ -50,7 +50,7 @@ for (const failing of ['tiles','zones'] as const) test(`${failing} synchronous f
  const controller=new SessionController(true,()=>managedAdapter(()=>{
   calls.open++;
   const fail=()=>{throw {statusCode:429}};
-  return {tiles:failing==='tiles'?fail:()=>pending,zones:failing==='zones'?fail:()=>pending,attachTiles(){},attachZones(){},watchPartial(){return()=>{}},select(){},destroy(){}};
+  return {tiles:failing==='tiles'?fail:()=>pending,zones:failing==='zones'?fail:()=>pending,attachTiles(){},attachZones(){},watchPartial(){return()=>{}},select(){},focus:async()=>false,cancelFocus(){},destroy(){}};
  }),()=>{});
  await controller.load();
  assert.equal(controller.state.failure,'rate');assert.equal(controller.state.draining,true);
@@ -58,4 +58,14 @@ for (const failing of ['tiles','zones'] as const) test(`${failing} synchronous f
  finish({destroy(){calls.late++}});await new Promise<void>(resolve=>setImmediate(resolve));
  assert.equal(calls.late,1);assert.equal(controller.state.draining,false);
  await controller.load();assert.equal(calls.open,2);
+});
+
+test('adapter focus never opens a scene and stays unavailable after partial load, including early partial callbacks',async()=>{
+ let finish!: (resource:OwnedResource)=>void;let partial!:()=>void;let opens=0,moves=0;
+ const pending=new Promise<OwnedResource>(resolve=>{finish=resolve});
+ const adapter=managedAdapter(()=>{opens++;return {tiles:()=>pending,zones:async()=>({destroy(){}}),attachTiles(){},attachZones(){},watchPartial(change){partial=change;return()=>{}},select(){},destroy(){},focus:async()=>{moves++;return true},cancelFocus(){}}});
+ assert.equal(await adapter.focus(1,false),false);assert.equal(opens,0);
+ const work=adapter.load(()=>{});assert.equal(await adapter.focus(1,false),false);
+ partial();finish({destroy(){}});await work;
+ assert.equal(await adapter.focus(1,false),false);assert.equal(moves,0);adapter.dispose();
 });

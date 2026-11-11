@@ -1,6 +1,6 @@
 # M2 local map prototype
 
-The bounded prototype provides a local TLC taxi-zone map, zone selection and an
+The bounded prototype provides one city viewport, local TLC search, zone selection, explicit camera focus and an
 optional Cesium ion Google Photorealistic 3D Tiles scene. M1 ingestion is unchanged.
 Date filters, mobility counts, statistical charts, models and deployment are not implemented.
 
@@ -13,7 +13,7 @@ npm run dev:live
 ```
 
 Open <http://127.0.0.1:5173>. This loopback-only preview has no file watching or hot
-reload. Local geography works without a token. Follow the [web README](../../web/README.md)
+reload. Local search and selection work without a token; the unloaded viewport shows status guidance. Follow the [web README](../../web/README.md)
 for public client-token setup, quota precautions and attribution requirements before
 selecting **Load 3D**. Token restrictions, asset enablement and account quota are not verified.
 
@@ -23,16 +23,20 @@ For a mock session that disables Vite env-file loading and uses an empty client 
 npm run dev:verify
 ```
 
-Open <http://127.0.0.1:5174/?mode=mock>. Mock mode never creates a Cesium viewer.
+Open <http://127.0.0.1:5174/?mode=mock>. Mock mode simulates controls and state without a Cesium viewer, imagery or a 2D map.
 
 ## Completed checks
 
-- The rendering/selection update passed 29 unit tests, TypeScript checks, the
-  isolated token-free build and diff checks.
-- Before this update, 16 external-network-blocked browser tests and 12 converter
-  tests passed, including deterministic exports of the frozen source. The retained
-  M1 suite passed all 110 tests and lint. Browser checks were not rerun for this
-  update; core ingestion and source geometry are unchanged.
+- The city-dashboard update passed 46 unit tests, TypeScript checks (including updated E2E source), the isolated token-free build and diff checks.
+- Static checks found all 26 required DOM IDs among 30 unique IDs, one normal city viewport and no 2D/SVG map. All 263 local zone IDs resolve to finite bounded focus targets; actual ranges were 1,057–20,000 metres.
+- M1's 110 tests and all 12 converter tests passed again. Core source, geography and exporter are unchanged against `ae33417`; 27 protected files matched.
+- Updated E2E source was not executed. The earlier 16 browser-test passes are historical, not evidence for this layout.
+
+## Local search and deliberate focus
+
+Compact TLC search filters name, borough or exact ID. Typing/clearing preserves selection. Selection and URL restoration update the inspector/highlight without auto-loading or camera movement. The inspector states that mobility data is not connected.
+
+A separate ready-only **Focus area** action uses local source geometry, an 800–20,000 metre range and maximum flight height of 20,000 metres. Duration is 1.2 seconds, or zero for reduced motion. Duplicate, cancellation and stale-session guards prevent obsolete movement. No new asset, service, geocoder or height query is added; camera movement can still request more tiles. Building materials remain realistic, with a lighter selection overlay.
 
 ## Rendering and selection update
 
@@ -51,7 +55,7 @@ property-event counts, not live frame-rate measurements. Explicit clamped ring
 lines mark the selected zone while preserving holes, multipart geometry and cleanup.
 
 To load updated code, select **Stop / unload**, restart `npm run dev:live`, then
-refresh the page. File watching and hot reload are disabled.
+refresh the page. The restarted server returns HTTP 200 at `127.0.0.1:5173`. Served HTML confirms one city viewport, no SVG elements and the search, focus, Stop and credits controls. This is HTTP/static evidence only; user refresh and live visual acceptance remain unverified. File watching and hot reload are disabled.
 
 From `web/`, rerun the frontend checks with:
 
@@ -80,6 +84,6 @@ A user-supplied pre-update screenshot shows Google/Cesium imagery, East Village
 (79) highlighted and visible credits. This is limited visual evidence, not proof
 of complete attribution compliance, token permissions or quota settings.
 
-The updated rendering quality, live frame rate, overlay clamping and 3D picking
-remain unverified. Updated live acceptance and request-origin checks are pending.
+The new layout, focus framing, rendering quality, live frame rate, overlay clamping,
+3D picking and rendered accessibility remain unverified. Updated live acceptance and request-origin checks are pending.
 Account token permissions, URL restrictions and quota require separate review.

@@ -29,3 +29,8 @@
   --space-control: 0.75rem;
   --layout-max: 1440px;
 }
+
+:root {
+  --color-city-idle: oklch(20% 0.014 262);
+  --color-city-ink: oklch(96% 0.005 250);
+}

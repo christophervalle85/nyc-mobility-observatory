@@ -3,44 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Explore official NYC TLC taxi zones with an optional Cesium photorealistic 3D view." />
+  <meta name="description" content="Inspect New York City's realistic 3D scene and official TLC areas in a local city workspace." />
   <title>NYC Mobility Observatory</title>
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to map controls</a>
-  <header class="masthead shell">
-    <div><h1>NYC Mobility Observatory</h1><p>Explore the city, one taxi zone at a time.</p></div>
-    <a href="#sources">Sources and limits</a>
+  <a class="skip-link" href="#main">Skip to city controls</a>
+  <header class="masthead">
+    <h1>NYC Mobility Observatory</h1>
+    <div class="actions"><button type="button" class="primary" id="load" disabled>Load 3D</button><button type="button" id="stop" disabled>Stop / unload</button></div>
   </header>
-  <main id="main" class="shell" tabindex="-1">
-    <div class="toolbar">
-      <div class="zone-control"><label for="zone-picker">Select a TLC zone</label><select id="zone-picker" name="zone" disabled><option value="">Loading local zones…</option></select></div>
-      <div class="actions"><button type="button" class="primary" id="load">Load 3D</button><button type="button" id="stop" disabled>Stop / unload</button></div>
-    </div>
-    <div class="session-info"><p id="status" role="status" aria-live="polite">Loading local zone boundaries…</p><p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p></div>
-    <section id="setup" class="setup" hidden aria-labelledby="setup-title"><h2 id="setup-title">Add your public Cesium ion token</h2><p>In web/.env.local, set VITE_CESIUM_ION_TOKEN, then restart the dev server. Use a read-only client token.</p></section>
-    <p id="cost-note" class="cost-note">3D is off. Loading and moving the 3D camera use your ion quota. Local zone selection is free of tile requests.</p>
-    <div class="workbench">
-      <section class="map-region" aria-labelledby="map-title">
-        <div class="map-label"><h2 id="map-title">New York City</h2><span id="map-mode">Local zone boundaries</span></div>
-        <div id="map-stage" class="map-stage">
-          <svg id="zone-map" viewBox="0 0 960 900" role="img" aria-label="Official NYC TLC taxi zone boundaries. Use the zone selector for keyboard selection."><title>Official NYC TLC taxi zones</title></svg>
+  <main id="main" class="app-shell" tabindex="-1">
+    <section class="controls" aria-label="TLC area controls">
+      <div class="search-control"><label for="area-search">TLC areas</label><div class="search-row"><input type="search" id="area-search" name="area-search" placeholder="Name, borough or TLC ID" autocomplete="off" spellcheck="false" aria-describedby="search-count" disabled /><button type="button" id="clear-search" disabled aria-label="Clear search">Clear</button></div></div>
+      <div class="result-control"><label for="zone-picker">Select a TLC area</label><select id="zone-picker" name="zone" aria-describedby="search-count" disabled><option value="">Loading TLC areas…</option></select><p id="search-count" class="control-hint" aria-live="polite">Loading the local TLC area list…</p></div>
+      <div class="session-info"><p id="status" role="status" aria-live="polite">3D is not loaded.</p><p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p></div>
+    </section>
+    <div class="workspace">
+      <section class="city-region" aria-labelledby="city-title">
+        <div class="city-label"><h2 id="city-title">New York City</h2><span id="map-mode">3D not loaded</span></div>
+        <div id="city-viewport" class="city-viewport">
           <div id="cesium-view" hidden></div>
-          <p id="map-empty" class="map-empty">Loading the local map…</p>
+          <div id="viewport-state" class="viewport-state"><div><h3 id="viewport-title">Open the city in 3D</h3><p id="viewport-message">Select Load 3D to inspect the realistic city. No imagery has been requested.</p><section id="setup" class="setup" hidden aria-labelledby="setup-title"><h4 id="setup-title">Add your public Cesium ion token</h4><p>In web/.env.local, set VITE_CESIUM_ION_TOKEN, then restart the dev server. Use a read-only client token.</p></section></div></div>
         </div>
         <div id="credits" class="credits"><p id="credits-placeholder">3D imagery is not loaded.</p></div>
       </section>
-      <aside class="selection" aria-labelledby="selection-title">
-        <h2 id="selection-title">Select a zone</h2><p id="selection-hint">Choose from the list or select a boundary on the map.</p>
-        <dl id="zone-details" hidden><div><dt>TLC location ID</dt><dd id="zone-id"></dd></div><div><dt>Borough</dt><dd id="zone-borough"></dd></div></dl>
-        <section class="metrics" aria-labelledby="metrics-title"><h3 id="metrics-title">Historical mobility data</h3><p>September 2026 ingestion is available in M1. Counts and charts are not connected to this prototype.</p><p class="muted">No live traffic or ridership estimates.</p></section>
-        <div class="legend"><span class="legend-boundary" aria-hidden="true"></span><span>TLC zone boundary</span><span class="legend-selected" aria-hidden="true"></span><span>Selected zone</span></div>
+      <aside class="inspector" aria-labelledby="selection-title">
+        <h2 id="selection-title">Inspect a TLC area</h2><p id="selection-hint">Search the local list, then select an area. Selection does not move the camera.</p>
+        <dl id="zone-details" hidden><div><dt>Borough</dt><dd id="zone-borough"></dd></div><div><dt>TLC location ID</dt><dd id="zone-id"></dd></div></dl>
+        <div class="inspector-actions"><button type="button" id="focus-area" disabled>Focus area</button><button type="button" id="clear-selection" disabled>Clear area</button></div>
+        <p id="focus-status" class="control-hint" aria-live="polite">Load 3D and select an area to enable Focus area.</p>
+        <p class="data-pending">Mobility data is not connected.</p>
+        <details id="sources"><summary>Sources and limits</summary><p><a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>. Independently sourced boundaries, not derived from imagery.</p><p>The static TLC geography does not describe current service. Google Photorealistic 3D Tiles are optional via Cesium ion. Imagery dates vary; this is not live traffic.</p><p>September 2026 M1 data, date filters, counts and charts are not connected. 3D clamping, focus framing and picking need live verification; use the area list if a boundary is occluded.</p><a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read boundary provenance</a></details>
       </aside>
     </div>
-    <footer id="sources"><p><a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>. Independently sourced boundaries, not derived from imagery.</p><details><summary>Sources and prototype limits</summary><p>Zone geography is a static official TLC export, not a statement of current service. Google Photorealistic 3D Tiles are optional via Cesium ion. Imagery date varies; this is not live activity.</p><p>3D boundary clamping and picking need a live check. Use the list if a boundary is occluded. Date filters, charts, metrics and deployment remain outside this prototype.</p><a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read boundary provenance</a></details></footer>
+    <p id="cost-note" class="cost-note">Loading 3D and moving or focusing the camera can request additional tiles and use your ion quota.</p>
   </main>
-  <noscript><p>This map needs JavaScript. Official TLC sources remain available at the link above.</p></noscript>
+  <noscript><p>This city workspace needs JavaScript. The official TLC source link remains available above.</p></noscript>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

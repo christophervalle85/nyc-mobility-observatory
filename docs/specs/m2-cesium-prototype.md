@@ -1,10 +1,7 @@
 # M2 visual spike: Cesium NYC prototype
 
 Status: the bounded local prototype and offline geometry converter are implemented.
-The rendering/selection update passed 29 unit tests, TypeScript checks, an isolated
-build and diff checks. Earlier checks passed 16 external-network-blocked browser
-tests, 12 converter tests and the retained 110-test M1 suite plus lint. Browser
-checks were not rerun for this update. Updated live acceptance remains pending.
+The city-dashboard update passed 46 unit tests, TypeScript checks, an isolated build and diff checks. M1's 110 tests and 12 converter tests passed again. Updated E2E source was typechecked but not executed; earlier 16 browser-test passes are historical. New-layout live acceptance remains pending. See the [city-dashboard contract](m2-city-dashboard.md) for local search, separate focus and the single-viewport layout.
 This does not complete the original M2 date/zone/chart scope.
 See the [verification report](../reports/m2-cesium-prototype.md).
 
