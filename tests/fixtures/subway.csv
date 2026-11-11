@@ -1,0 +1,4 @@
+transit_timestamp,transit_mode,station_complex_id,station_complex,borough,payment_method,fare_class_category,ridership,transfers,latitude,longitude
+2026-09-01T00:00:00.000,subway,100,Example Station,Manhattan,omny,full_fare,10,2,40.75,-73.99
+2026-09-01T00:00:00.000,subway,100,Example Station,Manhattan,metrocard,new_future_category,5,3,40.75,-73.99
+2026-09-01T01:00:00.000,subway,100,Example Station,Manhattan,omny,full_fare,0,0,40.75,-73.99
