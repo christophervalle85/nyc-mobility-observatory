@@ -240,8 +240,8 @@ def validate_subway(
             )
         _require_no_rows(
             connection,
-            "ridership_value<0 OR transfers_value<0 OR transfers_value>ridership_value",
-            "MTA ridership and transfers must be nonnegative with transfers<=ridership",
+            "ridership_value<0 OR transfers_value>ridership_value",
+            "MTA ridership must be nonnegative and transfers must not exceed ridership",
         )
         _require_no_rows(
             connection,
@@ -275,6 +275,19 @@ def validate_subway(
             "FROM typed JOIN clock ON typed.ts=clock.hour_local"
         )
         connection.execute("DROP TABLE typed")
+        connection.execute(
+            "CREATE TABLE negative_transfer_hours AS SELECT ts, station_id FROM classified "
+            "WHERE row_exclusion IS NULL AND transfers_value<0 GROUP BY ts, station_id"
+        )
+        # A single flagged category quarantines every category at that station-hour.
+        # Original DST/suspect reasons take precedence; the independent flag counters
+        # below still report negative-transfer impact when quarantine reasons overlap.
+        connection.execute(
+            "UPDATE classified SET comparison_quarantine="
+            "coalesce(comparison_quarantine, 'negative_transfer') "
+            "WHERE row_exclusion IS NULL AND EXISTS (SELECT 1 FROM negative_transfer_hours h "
+            "WHERE classified.ts=h.ts AND classified.station_id=h.station_id)"
+        )
         connection.execute(
             "CREATE TABLE observed AS SELECT ts, station_id, "
             "fsum(ridership_value ORDER BY source_row) AS ridership, "
@@ -319,8 +332,13 @@ def validate_subway(
         universe = _count(connection, "SELECT count(*) FROM reference")
         observed_count = _count(connection, "SELECT count(*) FROM station_hours WHERE observation")
         valid_labels = sum(valid for _, valid, _ in grid)
+        flagged_rows = _count(connection, "SELECT count(*) FROM classified WHERE transfers_value<0")
+        affected = (
+            "EXISTS (SELECT 1 FROM negative_transfer_hours h WHERE "
+            "classified.ts=h.ts AND classified.station_id=h.station_id)"
+        )
         quality = {
-            "contract_version": "m1-subway-v1",
+            "contract_version": "m1-subway-v2",
             "month": month,
             "timezone": "America/New_York",
             "timestamp_semantics": "local_clock_label_no_utc_or_fold",
@@ -333,6 +351,33 @@ def validate_subway(
             ),
             "aggregate_input_rows": input_rows - excluded_rows,
             "excluded_input_rows": excluded_rows,
+            "source_flag_counts": {"negative_transfer": flagged_rows},
+            "source_flags_overlap_aggregate_exclusions": True,
+            "negative_transfer_quarantine": {
+                "station_hours": _count(connection, "SELECT count(*) FROM negative_transfer_hours"),
+                "stations": _count(
+                    connection, "SELECT count(DISTINCT station_id) FROM negative_transfer_hours"
+                ),
+                "source_rows_at_affected_hours": _count(
+                    connection,
+                    "SELECT count(*) FROM classified WHERE row_exclusion IS NULL AND " + affected,
+                ),
+                "flagged_category_ridership": connection.execute(
+                    "SELECT coalesce(fsum(ridership_value ORDER BY source_row),0) FROM classified "
+                    "WHERE transfers_value<0"
+                ).fetchone()[0],
+                "affected_station_hour_ridership": connection.execute(
+                    "SELECT coalesce(fsum(ridership ORDER BY ts, station_id),0) FROM observed o "
+                    "WHERE EXISTS (SELECT 1 FROM negative_transfer_hours h "
+                    "WHERE o.ts=h.ts AND o.station_id=h.station_id)"
+                ).fetchone()[0],
+                "flagged_category_scope": (
+                    "all flagged source rows; may overlap aggregate exclusions"
+                ),
+                "affected_hour_scope": "ordinary subway hours; all observed categories retained",
+                "disposition": "observed ridership retained; whole affected hour model/comparison "
+                "ineligible pending source clarification",
+            },
             "row_exclusion_counts": row_exclusion_counts,
             "comparison_quarantine_row_counts": quarantine_counts,
             "model_quarantine_input_rows": sum(quarantine_counts.values()),
@@ -398,12 +443,23 @@ def validate_subway(
             "fare_class_category, ridership_value AS ridership, "
             "transfers_value AS transfers, coalesce(row_exclusion, "
             "comparison_quarantine) AS reason, "
+            "CASE WHEN row_exclusion IS NOT NULL THEN 'aggregate_and_model_comparison' "
+            "ELSE 'model_comparison' END AS exclusion_scope, "
             "row_exclusion IS NOT NULL AS excluded_from_aggregate, true AS "
             "excluded_from_model_comparison "
             "FROM classified WHERE row_exclusion IS NOT NULL OR "
             "comparison_quarantine IS NOT NULL ORDER BY source_row) "
             "TO ? (FORMAT CSV, HEADER true, NULL '')",
             [str(output_dir / "exclusions.csv")],
+        )
+        connection.execute(
+            "COPY (SELECT source_row, source_row+1 AS csv_record_number, transit_timestamp, "
+            "transit_mode, station_complex_id, payment_method, fare_class_category, "
+            "ridership_value AS ridership, transfers_value AS transfers, "
+            "'negative_transfer' AS flag, row_exclusion IS NOT NULL AS excluded_from_aggregate, "
+            "row_exclusion IS NULL AS station_hour_quarantined FROM classified "
+            "WHERE transfers_value<0 ORDER BY source_row) TO ? (FORMAT CSV, HEADER true, NULL '')",
+            [str(output_dir / "flags.csv")],
         )
         (output_dir / "quality.json").write_text(
             json.dumps(quality, sort_keys=True, indent=2, allow_nan=False) + "\n", encoding="utf-8"

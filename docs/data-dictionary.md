@@ -16,6 +16,14 @@ No DST fold or nonexistent instant is invented. Sources and hashes are in manife
   field, summed across payment/fare categories. These are not unique riders or
   destinations; transfers are never added. Missing hours are unknown, not generated zeroes.
   Consult subway/quality.json and exclusions for DST and suspect-window eligibility.
+- subway/flags.csv: negative-transfer category rows with source record references,
+  original source labels, numeric ridership/transfers and aggregation/quarantine flags.
+  Negative values and observed entry estimates remain unchanged. All categories at
+  an affected ordinary subway station-hour remain in the observed aggregate but are
+  ineligible for models/comparisons. The cause is unknown. Flags can overlap exclusions.
+- subway/exclusions.csv: aggregate exclusions and comparison-quarantined source rows;
+  exclusion_scope distinguishes aggregate exclusions from comparison quarantine.
+  This includes every category at an affected negative-transfer station-hour.
 - quality.json: row reconciliations, overlapping flags, coverage limitations and audit state.
   The monthly observed-source station reference is not independent station authority
   or a service calendar and cannot detect stations absent for the entire month.

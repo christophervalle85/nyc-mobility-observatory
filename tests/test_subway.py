@@ -118,7 +118,8 @@ def test_missing_observations_stay_null_and_observed_zero_is_preserved(tmp_path)
         ("ridership", "broken"),
         ("ridership", ""),
         ("transfers", "NaN"),
-        ("transfers", "-1"),
+        ("transfers", "broken"),
+        ("transfers", "inf"),
         ("transfers", "11"),
         ("latitude", "nan"),
         ("latitude", "91"),
@@ -430,3 +431,56 @@ def test_both_tram_ids_are_preserved_as_non_subway_exclusions(tmp_path):
     assert sum(float(row["ridership"] or 0) for row in output) == 10
     exclusions = read_output(directory / "exclusions.csv")
     assert [row["station_complex_id"] for row in exclusions] == ["TRAM1", "TRAM2"]
+
+
+def test_negative_transfer_flag_quarantines_entire_hour_without_dropping_entries(tmp_path):
+    source = [
+        dict(BASE, transfers="-1"),
+        dict(BASE, payment_method="metrocard", ridership="5", transfers="1"),
+        dict(BASE, transit_timestamp="2026-09-01T01:00:00.000", ridership="7"),
+    ]
+    quality, rows, output = run_rows(tmp_path, source)
+    # The roster also includes an unobserved station, so select this station explicitly.
+    observed = [
+        row for row in rows if row["station_complex_id"] == "100" and row["observation"] == "true"
+    ]
+    assert [float(row["ridership"]) for row in observed] == [15, 7]
+    assert observed[0]["model_eligible"] == "false"
+    assert observed[0]["comparison_eligible"] == "false"
+    assert observed[0]["exclusion_reason"] == "negative_transfer"
+    assert observed[1]["model_eligible"] == "true"
+    assert quality["input_rows"] == quality["aggregate_input_rows"] == 3
+    assert quality["excluded_input_rows"] == 0
+    assert quality["source_flag_counts"] == {"negative_transfer": 1}
+    impact = quality["negative_transfer_quarantine"]
+    assert impact["station_hours"] == 1
+    assert impact["stations"] == 1
+    assert impact["source_rows_at_affected_hours"] == 2
+    assert impact["affected_station_hour_ridership"] == 15
+    assert impact["flagged_category_ridership"] == 10
+    assert quality["comparison_quarantine_row_counts"] == {"negative_transfer": 2}
+    flags = read_output(output / "flags.csv")
+    assert len(flags) == 1
+    assert flags[0]["source_row"] == "1"
+    assert flags[0]["flag"] == "negative_transfer"
+    assert flags[0]["excluded_from_aggregate"] == "false"
+    ledger = read_output(output / "exclusions.csv")
+    assert len(ledger) == 2
+    assert {row["excluded_from_aggregate"] for row in ledger} == {"false"}
+    assert {row["exclusion_scope"] for row in ledger} == {"model_comparison"}
+
+
+def test_transfer_flags_are_independent_of_mode_exclusions(tmp_path):
+    quality, rows, output = run_rows(
+        tmp_path, [dict(BASE), dict(BASE, transit_mode="staten_island_railway", transfers="-1")]
+    )
+    assert quality["input_rows"] == 2
+    assert quality["aggregate_input_rows"] == quality["excluded_input_rows"] == 1
+    assert quality["source_flag_counts"] == {"negative_transfer": 1}
+    assert quality["negative_transfer_quarantine"]["station_hours"] == 0
+    assert quality["model_quarantine_input_rows"] == 0
+    station = next(row for row in rows if row["station_complex_id"] == "100")
+    assert station["ridership"] == "10.0"
+    assert station["model_eligible"] == "true"
+    assert read_output(output / "flags.csv")[0]["excluded_from_aggregate"] == "true"
+    assert read_output(output / "exclusions.csv")[0]["reason"] == "sir_mode"

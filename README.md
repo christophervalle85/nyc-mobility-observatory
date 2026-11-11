@@ -75,12 +75,11 @@ at 01:00. Missing hours stay unknown. See [the data dictionary](docs/data-dictio
   a ZIP, never extracted. DuckDB uses two threads, a 4 GiB memory limit,
   disabled extension auto-install/load and disabled HTTP filesystem reads.
 
-The September pilot captured 3,876,044 taxi rows and 1,527,909 MTA category rows
-(the MTA CSV is 208,664,134 bytes). Transformation fails closed on 42 negative-transfer
-rows spanning 42 station-hours at four stations. No aggregate was published; a
-policy decision is pending before the pilot can proceed. Live transformation and
-replay verification remain incomplete. Run identity records Python and DuckDB
-versions, but not the time-zone database version.
+The September pilot completed, and offline replays reproduced all nine output hashes.
+Negative-transfer source values remain unchanged; affected station-hours retain their
+entry estimates but are ineligible for comparisons and models. See the
+[pilot report](docs/reports/m1-pilot.md) for counts, replay commands and remaining limits.
+Run identity records Python and DuckDB versions, but not the time-zone database version.
 
 ## Develop
 

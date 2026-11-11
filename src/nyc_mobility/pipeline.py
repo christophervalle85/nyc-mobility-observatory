@@ -27,6 +27,8 @@ DICTIONARY = """# M1 data dictionary
 
 All derived timestamps are America/New_York local clock labels, not UTC instants.
 No DST fold or nonexistent instant is invented. Sources and hashes are in manifest.json.
+Calendar classification uses the host's America/New_York zoneinfo rules. The current
+manifest does not record or pin the time-zone database version; rule provenance is incomplete.
 
 - taxi/zone_hour.csv: one row per (dropoff_hour_local, DOLocationID). trip_count is an
   integer source-file trip-row count, including apparent duplicates. Only recognized
@@ -38,8 +40,16 @@ No DST fold or nonexistent instant is invented. Sources and hashes are in manife
   anomalies do not remove an otherwise valid dropoff. Distance/fare anomalies mean
   null, nonfinite or nonpositive trip_distance (miles) / total_amount (USD).
 - subway/station_hour.csv: observed station-hour ridership summed across payment/fare
-  categories; transfers are never added. Missing hours are unknown, not generated zeroes.
-  Consult subway/quality.json and exclusions for DST and suspect-window eligibility.
+  categories. These are MTA entry estimates, not unique riders or destinations.
+  Transfers are never added. Missing hours are unknown, not generated zeroes. Negative
+  transfer category rows remain in observed totals; every affected ordinary subway
+  station-hour is model/comparison ineligible pending source clarification.
+- subway/flags.csv: independent source-category quality flags with source-row references.
+  Flag counts may overlap aggregate exclusions and must not be added to dropped-row counts.
+- subway/exclusions.csv: aggregate exclusions and comparison quarantine rows, explicitly
+  distinguished by exclusion_scope and excluded_from_aggregate. Negative-transfer
+  quarantine includes all categories at an affected hour, not only the flagged rows.
+  Consult subway/quality.json for separate flag, affected-hour and eligibility counts.
 - quality.json: row reconciliations, overlapping flags, coverage limitations and audit state.
   The monthly observed-source station reference is not independent station authority
   or a service calendar and cannot detect stations absent for the entire month.
