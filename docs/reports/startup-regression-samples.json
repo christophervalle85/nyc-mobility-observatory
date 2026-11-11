@@ -1,0 +1,762 @@
+{
+  "date": "2026-11-11",
+  "origin": "Existing event times start at app diagnostics initialization; page.toApp is a document-time-origin snapshot only in the final probe",
+  "runs": [
+    {
+      "variant": "main-a1",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "uncontrolled, already warm",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 3.4
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 8.2
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 1.9
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 18.3
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 10.7
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 24.2
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 16.9
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 401.4
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 43.2
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 444.9
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 445
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 764.4
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1303.9
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1359.9
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 36,
+          "renderCpuMeanMs": 6.813888886736499,
+          "renderCpuMaxMs": 55.8999999910593,
+          "renderGapMeanMs": 35.36571428605488,
+          "longTasks": 4,
+          "longTaskMs": 233
+        }
+      ]
+    },
+    {
+      "variant": "main-a2",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "uncontrolled, already warm",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 2.9
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 8.1
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.2
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 18.8
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 9.8
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 7.4
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 29.7
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 12
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 369.7
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 41.1
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 411
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 411
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 772.5
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1269.2
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1325.3
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 33,
+          "renderCpuMeanMs": 8.857575756130796,
+          "renderCpuMaxMs": 75,
+          "renderGapMeanMs": 39.4406250002794,
+          "longTasks": 3,
+          "longTaskMs": 184
+        }
+      ]
+    },
+    {
+      "variant": "branch-b1",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "uncontrolled, already warm",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 3.6
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 8.4
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.2
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.9
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 28.3
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 9.9
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 6.7
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 28.8
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 12.5
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 374.3
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 41.3
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 415.9
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 415.9
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 775.4
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1374.1
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1424.8
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 35,
+          "renderCpuMeanMs": 7.248571429508073,
+          "renderCpuMaxMs": 75.5,
+          "renderGapMeanMs": 38.36764705882353,
+          "longTasks": 3,
+          "longTaskMs": 200
+        }
+      ]
+    },
+    {
+      "variant": "branch-b2",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "uncontrolled, already warm",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 3
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 21.1
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 38.1
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 9.5
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 22.6
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 16.3
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 564.4
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 37.7
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 602.3
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 602.3
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 843.1
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1373
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1432
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 37,
+          "renderCpuMeanMs": 7.445945946751414,
+          "renderCpuMaxMs": 69.59999999403954,
+          "renderGapMeanMs": 38.111111111111114,
+          "longTasks": 3,
+          "longTaskMs": 174
+        }
+      ]
+    },
+    {
+      "variant": "branch-forced-deps",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "Vite --force rebuild; browser/provider caches not cleared",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 2.7
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 7.8
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.4
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 25.9
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 7.8
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 19.8
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 16.3
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 238.6
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 45.7
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 284.6
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 284.6
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 551.5
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1112
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1155.8
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 30,
+          "renderCpuMeanMs": 8.169999999801318,
+          "renderCpuMaxMs": 78.5,
+          "renderGapMeanMs": 38.1965517242407,
+          "longTasks": 3,
+          "longTaskMs": 186
+        }
+      ]
+    },
+    {
+      "variant": "main-forced-deps",
+      "viewport": {
+        "width": 577,
+        "height": 871,
+        "dpr": 2
+      },
+      "cache": "Vite --force rebuild; browser/provider caches not cleared",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 3.5
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 8.9
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 10.6
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.2
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 20
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 8.9
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 9.1
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 22.1
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 15.9
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 380.3
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 42.8
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 423.3
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 423.3
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 748.1
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1293.2
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1351.4
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 33,
+          "renderCpuMeanMs": 7.50909090945215,
+          "renderCpuMaxMs": 62.79999999701977,
+          "renderGapMeanMs": 40.184375000186265,
+          "longTasks": 3,
+          "longTaskMs": 166
+        }
+      ]
+    },
+    {
+      "variant": "branch-page-clock-wide-probe",
+      "viewport": {
+        "canvas": [
+          {
+            "cssHeight": 676,
+            "cssWidth": 1280,
+            "height": 1014,
+            "width": 1920
+          }
+        ],
+        "dpr": 2,
+        "height": 720,
+        "width": 1280
+      },
+      "cache": "uncontrolled/browser-provider cache not cleared; not a matched baseline",
+      "records": [
+        {
+          "kind": "timing",
+          "label": "page.toApp",
+          "milliseconds": 45
+        },
+        {
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 8.3
+        },
+        {
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 16.6
+        },
+        {
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.8
+        },
+        {
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 1.6
+        },
+        {
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 2.2
+        },
+        {
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 230.7
+        },
+        {
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 14.2
+        },
+        {
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2.3
+        },
+        {
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 27
+        },
+        {
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 16.9
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 743.2
+        },
+        {
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 44.5
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 788
+        },
+        {
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 788.1
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 1022.1
+        },
+        {
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 2477.5
+        },
+        {
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 2733.8
+        },
+        {
+          "kind": "window",
+          "window": "startup",
+          "frames": 68,
+          "renderCpuMeanMs": 5.776470589506276,
+          "renderCpuMaxMs": 77,
+          "renderGapMeanMs": 36.89999999995552,
+          "longTasks": 3,
+          "longTaskMs": 251
+        }
+      ],
+      "limitation": "Another previously unloaded preview was found active at the end; this probe verifies the metric, not isolated startup performance."
+    }
+  ]
+}

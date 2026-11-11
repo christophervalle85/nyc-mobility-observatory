@@ -79,3 +79,23 @@ test('optional local land phases use the same fixed-label numeric timing contrac
  assert.deepEqual(f.entries.filter(entry=>entry.kind==='timing').map(entry=>[entry.label,entry.milliseconds]),[['land.fetch',3],['land.json',3],['land.validate',3]]);
  diagnostics.dispose();
 });
+test('page-to-app boot timing uses an optional navigation-origin snapshot without changing phase origins',()=>{
+ const f=fixture(),diagnostics=createDiagnostics(true,{...f.dependencies,pageToApp:4321.236});
+ f.advance(25);diagnostics.event('tiles.rootReady');
+ assert.deepEqual(f.entries.filter(entry=>entry.kind==='timing'),[
+  {kind:'timing',label:'page.toApp',milliseconds:4321.24},
+  {kind:'timing',label:'tiles.rootReady',milliseconds:25},
+ ]);
+ diagnostics.dispose();
+});
+test('unavailable, nonfinite or negative page boot timing is omitted',()=>{
+ for(const pageToApp of [undefined,NaN,Infinity,-1]){
+  const f=fixture(),diagnostics=createDiagnostics(true,{...f.dependencies,pageToApp});
+  assert.deepEqual(f.entries,[]);diagnostics.dispose();
+ }
+});
+test('disabled diagnostics does not even read the optional page boot snapshot',()=>{
+ const f=fixture();let reads=0;
+ const diagnostics=createDiagnostics(false,{...f.dependencies,get pageToApp(){reads++;return 500;}});
+ diagnostics.dispose();assert.equal(reads,0);assert.equal(f.counts().clockCalls,0);assert.equal(f.timers.size,0);assert.deepEqual(f.entries,[]);
+});
