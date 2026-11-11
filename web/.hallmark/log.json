@@ -1,0 +1,16 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "wayfind",
+  "axes": "light/mono/cool",
+  "signature": "official TLC zone geography with an optional fixed NYC scene",
+  "prompt": "NYC mobility observatory map-first Cesium workbench technical restrained historical TLC taxi zones",
+  "waived": [
+   "1: local monospace in app screen avoids external font request"
+  ],
+  "entry": "web/index.html",
+  "date": "2026-11-11",
+  "mode": "build"
+ }
+]

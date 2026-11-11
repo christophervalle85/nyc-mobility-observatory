@@ -1,10 +1,36 @@
 # NYC Mobility Observatory
 
-M1 is a local, replayable ingestion pipeline for yellow-taxi dropoffs and MTA subway
-entry estimates. It validates source bytes and row contracts before publishing a completed
-run. It does not build maps, models, a service, or historical backfills.
+Explore a city-stage prototype with optional Google Photorealistic 3D Tiles
+through Cesium ion. The bounded M2 prototype opens at the Midtown skyline with compact controls and a separate five-borough Overview. It supports local TLC area search,
+selection and a separate camera-focus action. Date filters, mobility counts, charts and models are not implemented.
+The separate M1 ingestion pipeline remains unchanged.
 
-## Run it
+## Open the local map
+
+Use Node 22.17 or newer:
+
+```sh
+cd web
+npm ci --ignore-scripts
+npm run dev:live
+```
+
+Open [the local preview](http://127.0.0.1:5173) while the server is running.
+The live preview disables hot reload and file watching. Local search and selection work
+without a token. With a configured public Cesium ion client token, the stage makes
+one automatic startup attempt after local geography validates and the page is visible.
+This makes external requests that can consume quota. **Stop / unload** cancels pending
+startup and prevents automatic resumption; **Resume 3D** is deliberate. Follow the [web setup and safety notes](web/README.md).
+For a token-free mock preview, use `npm run dev:verify` and open
+[the mock controls](http://127.0.0.1:5174/?mode=mock).
+
+See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
+checks and live-validation limits. The [loading/interaction diagnostics report](docs/reports/city-performance-diagnostics.md) records measured feedback delays and the optional natural-edge trial; the faster hull mask remains the default.
+
+## Run M1 ingestion
+
+From the repository root, M1 validates and archives yellow-taxi dropoffs and MTA
+subway entry estimates before publishing a completed run. It does not backfill history.
 
 Install [uv](https://docs.astral.sh/uv/) and use Python 3.12. Dependencies are pinned
 in `uv.lock`; the project environment stays in `.venv`.
@@ -89,5 +115,7 @@ uv run ruff check src tests
 uv run ruff format --check src tests
 ```
 
-Only tiny synthetic CSV fixtures belong in Git. No migration, deployment or remote
-publishing is part of M1.
+Only tiny synthetic CSV fixtures belong in Git for M1. The derived official TLC
+GeoJSON and its provenance are intentionally versioned under `web/public/data/`
+for M2. Raw trip/subway data and local credentials remain ignored. No deployment
+or remote publishing is included.

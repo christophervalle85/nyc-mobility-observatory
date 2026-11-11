@@ -1,0 +1,785 @@
+{
+  "date": "2026-11-11",
+  "browser": "in-app browser",
+  "warning": "CPU render wall time and render-event gaps are not GPU FPS. These are exploratory local measurements, not certified cold-cache runs.",
+  "experiments": [
+    {
+      "name": "exploratory-initial",
+      "verified_viewport": null,
+      "cache": "uncontrolled, previously warmed",
+      "records": [
+        {
+          "timestamp": "2026-11-11T19:33:52.318Z",
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 17.9
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.380Z",
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 11
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.380Z",
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 4.3
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.380Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 2
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.380Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 2.8
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.501Z",
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 167.8
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.526Z",
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 24.3
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.535Z",
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 1.6
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.535Z",
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 33.5
+        },
+        {
+          "timestamp": "2026-11-11T19:33:52.556Z",
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 21
+        },
+        {
+          "timestamp": "2026-11-11T19:33:53.019Z",
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 724
+        },
+        {
+          "timestamp": "2026-11-11T19:33:53.058Z",
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 38.6
+        },
+        {
+          "timestamp": "2026-11-11T19:33:53.058Z",
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 762.9
+        },
+        {
+          "timestamp": "2026-11-11T19:33:53.058Z",
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 763
+        },
+        {
+          "timestamp": "2026-11-11T19:33:53.330Z",
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 1027.6
+        },
+        {
+          "timestamp": "2026-11-11T19:33:54.360Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 2064.7
+        },
+        {
+          "timestamp": "2026-11-11T19:34:02.297Z",
+          "kind": "window",
+          "window": "startup",
+          "frames": 55,
+          "renderCpuMeanMs": 6.401818183064461,
+          "renderCpuMaxMs": 53.20000000298023,
+          "renderGapMeanMs": 33.33703703709222,
+          "longTasks": 3,
+          "longTaskMs": 242
+        },
+        {
+          "timestamp": "2026-11-11T19:34:21.454Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 1.6
+        },
+        {
+          "timestamp": "2026-11-11T19:34:21.455Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 3.5
+        },
+        {
+          "timestamp": "2026-11-11T19:34:21.467Z",
+          "kind": "timing",
+          "label": "selection.nextFrame",
+          "milliseconds": 16.6
+        },
+        {
+          "timestamp": "2026-11-11T19:34:22.952Z",
+          "kind": "window",
+          "window": "interaction",
+          "frames": 5,
+          "renderCpuMeanMs": 6.3800000041723255,
+          "renderCpuMaxMs": 18,
+          "renderGapMeanMs": 23,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T19:34:29.315Z",
+          "kind": "window",
+          "window": "interaction",
+          "frames": 54,
+          "renderCpuMeanMs": 2.8592592596455857,
+          "renderCpuMaxMs": 4.799999997019768,
+          "renderGapMeanMs": 27.558490566206427,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T19:34:33.625Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 41329.7
+        }
+      ]
+    },
+    {
+      "name": "exploratory-focus",
+      "verified_viewport": null,
+      "cache": "uncontrolled, previously warmed",
+      "records": [
+        {
+          "timestamp": "2026-11-11T19:37:02.816Z",
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 2.7
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.823Z",
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 8
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.828Z",
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 4.7
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.829Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.7
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.830Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.845Z",
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 15.1
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.854Z",
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 9.2
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.862Z",
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 4.1
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.862Z",
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 17.4
+        },
+        {
+          "timestamp": "2026-11-11T19:37:02.873Z",
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 10.4
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.238Z",
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 425.3
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.271Z",
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 33
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.271Z",
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 458.7
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.271Z",
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 458.7
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.290Z",
+          "kind": "timing",
+          "label": "selection.nextFrame",
+          "milliseconds": 18.1
+        },
+        {
+          "timestamp": "2026-11-11T19:37:03.396Z",
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 583.2
+        },
+        {
+          "timestamp": "2026-11-11T19:37:04.592Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1733.2
+        },
+        {
+          "timestamp": "2026-11-11T19:37:04.592Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 1779.3
+        },
+        {
+          "timestamp": "2026-11-11T19:37:12.814Z",
+          "kind": "window",
+          "window": "startup",
+          "frames": 62,
+          "renderCpuMeanMs": 4.674193547618005,
+          "renderCpuMaxMs": 30.799999997019768,
+          "renderGapMeanMs": 30.060655737753773,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T19:37:36.667Z",
+          "kind": "timing",
+          "label": "focus.duration",
+          "milliseconds": 1239.3
+        },
+        {
+          "timestamp": "2026-11-11T19:37:36.928Z",
+          "kind": "window",
+          "window": "interaction",
+          "frames": 43,
+          "renderCpuMeanMs": 3.020930232696755,
+          "renderCpuMaxMs": 6.0999999940395355,
+          "renderGapMeanMs": 30.840476190405234,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T19:37:37.178Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1749.8
+        },
+        {
+          "timestamp": "2026-11-11T19:37:37.178Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 34364.4
+        }
+      ]
+    },
+    {
+      "name": "full-land",
+      "verified_viewport": [
+        1440,
+        900
+      ],
+      "cache": "uncontrolled, previously warmed",
+      "records": [
+        {
+          "timestamp": "2026-11-11T19:52:26.125Z",
+          "kind": "timing",
+          "label": "land.fetch",
+          "milliseconds": 3.9
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.125Z",
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 3.8
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.131Z",
+          "kind": "timing",
+          "label": "land.json",
+          "milliseconds": 2.5
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.132Z",
+          "kind": "timing",
+          "label": "land.validate",
+          "milliseconds": 1.6
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.140Z",
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 16.2
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.143Z",
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.4
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.144Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.9
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.145Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.239Z",
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 94.2
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.247Z",
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 8.1
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.255Z",
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2.1
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.255Z",
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 16.1
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.268Z",
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 12.7
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.736Z",
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 615.6
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.742Z",
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 6.4
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.742Z",
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 622.2
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.742Z",
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 622.2
+        },
+        {
+          "timestamp": "2026-11-11T19:52:26.941Z",
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 820.3
+        },
+        {
+          "timestamp": "2026-11-11T19:52:34.208Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 7955.5
+        },
+        {
+          "timestamp": "2026-11-11T19:52:34.208Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 8088.3
+        },
+        {
+          "timestamp": "2026-11-11T19:52:36.123Z",
+          "kind": "window",
+          "window": "startup",
+          "frames": 66,
+          "renderCpuMeanMs": 16.390909089960836,
+          "renderCpuMaxMs": 552.0999999940395,
+          "renderGapMeanMs": 122.15538461529292,
+          "longTasks": 13,
+          "longTaskMs": 4053
+        }
+      ]
+    },
+    {
+      "name": "legacy-control",
+      "verified_viewport": [
+        1440,
+        900
+      ],
+      "cache": "uncontrolled, previously warmed",
+      "records": [
+        {
+          "timestamp": "2026-11-11T19:53:44.244Z",
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 2.8
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.253Z",
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 9
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.255Z",
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.5
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.256Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.257Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.276Z",
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 19.1
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.286Z",
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 9.6
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.294Z",
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2.1
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.294Z",
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 18.4
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.306Z",
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 11.3
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.730Z",
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 489.6
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.769Z",
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 38.5
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.769Z",
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 528.2
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.769Z",
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 528.2
+        },
+        {
+          "timestamp": "2026-11-11T19:53:44.968Z",
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 727.1
+        },
+        {
+          "timestamp": "2026-11-11T19:53:46.274Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 1980.6
+        },
+        {
+          "timestamp": "2026-11-11T19:53:46.274Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 2032.4
+        },
+        {
+          "timestamp": "2026-11-11T19:53:54.242Z",
+          "kind": "window",
+          "window": "startup",
+          "frames": 66,
+          "renderCpuMeanMs": 4.990909090322075,
+          "renderCpuMaxMs": 34.400000005960464,
+          "renderGapMeanMs": 30.440000000137548,
+          "longTasks": 0,
+          "longTaskMs": 0
+        }
+      ]
+    },
+    {
+      "name": "clean-land-and-feedback",
+      "verified_viewport": [
+        1440,
+        900
+      ],
+      "cache": "uncontrolled, previously warmed",
+      "records": [
+        {
+          "timestamp": "2026-11-11T20:02:36.897Z",
+          "kind": "timing",
+          "label": "geography.fetch",
+          "milliseconds": 5.7
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.897Z",
+          "kind": "timing",
+          "label": "land.fetch",
+          "milliseconds": 6
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.899Z",
+          "kind": "timing",
+          "label": "land.json",
+          "milliseconds": 3.8
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.901Z",
+          "kind": "timing",
+          "label": "land.validate",
+          "milliseconds": 1.8
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.907Z",
+          "kind": "timing",
+          "label": "geography.json",
+          "milliseconds": 11.8
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.910Z",
+          "kind": "timing",
+          "label": "geography.validate",
+          "milliseconds": 2.6
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.911Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0.8
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.912Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.940Z",
+          "kind": "timing",
+          "label": "cesium.import",
+          "milliseconds": 28.1
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.953Z",
+          "kind": "timing",
+          "label": "viewer.construct",
+          "milliseconds": 12.2
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.961Z",
+          "kind": "timing",
+          "label": "zones.index",
+          "milliseconds": 2
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.961Z",
+          "kind": "timing",
+          "label": "scene.construct",
+          "milliseconds": 21
+        },
+        {
+          "timestamp": "2026-11-11T20:02:36.974Z",
+          "kind": "timing",
+          "label": "zones.convert",
+          "milliseconds": 12.1
+        },
+        {
+          "timestamp": "2026-11-11T20:02:37.512Z",
+          "kind": "timing",
+          "label": "tiles.rootReady",
+          "milliseconds": 622.5
+        },
+        {
+          "timestamp": "2026-11-11T20:02:37.523Z",
+          "kind": "timing",
+          "label": "footprint.prepare",
+          "milliseconds": 10.7
+        },
+        {
+          "timestamp": "2026-11-11T20:02:37.523Z",
+          "kind": "timing",
+          "label": "tiles.attached",
+          "milliseconds": 633.5
+        },
+        {
+          "timestamp": "2026-11-11T20:02:37.523Z",
+          "kind": "timing",
+          "label": "scene.resourcesAttached",
+          "milliseconds": 633.5
+        },
+        {
+          "timestamp": "2026-11-11T20:02:37.757Z",
+          "kind": "timing",
+          "label": "tiles.firstFrame",
+          "milliseconds": 867.5
+        },
+        {
+          "timestamp": "2026-11-11T20:02:43.019Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 6059.5
+        },
+        {
+          "timestamp": "2026-11-11T20:02:43.019Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 6129.7
+        },
+        {
+          "timestamp": "2026-11-11T20:02:46.890Z",
+          "kind": "window",
+          "window": "startup",
+          "frames": 56,
+          "renderCpuMeanMs": 11.671428571322135,
+          "renderCpuMaxMs": 367.6000000089407,
+          "renderGapMeanMs": 109.89090909090909,
+          "longTasks": 13,
+          "longTaskMs": 3544
+        },
+        {
+          "timestamp": "2026-11-11T20:04:45.611Z",
+          "kind": "timing",
+          "label": "selection.options",
+          "milliseconds": 0
+        },
+        {
+          "timestamp": "2026-11-11T20:04:45.613Z",
+          "kind": "timing",
+          "label": "selection.handler",
+          "milliseconds": 1.1
+        },
+        {
+          "timestamp": "2026-11-11T20:04:45.628Z",
+          "kind": "timing",
+          "label": "selection.nextFrame",
+          "milliseconds": 14.3
+        },
+        {
+          "timestamp": "2026-11-11T20:04:47.112Z",
+          "kind": "window",
+          "window": "interaction",
+          "frames": 6,
+          "renderCpuMeanMs": 6.916666669150193,
+          "renderCpuMaxMs": 21.200000002980232,
+          "renderGapMeanMs": 23.719999998807907,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T20:05:00.873Z",
+          "kind": "timing",
+          "label": "focus.duration",
+          "milliseconds": 1235.1
+        },
+        {
+          "timestamp": "2026-11-11T20:05:01.139Z",
+          "kind": "window",
+          "window": "interaction",
+          "frames": 80,
+          "renderCpuMeanMs": 3.1325000004842876,
+          "renderCpuMaxMs": 17.399999991059303,
+          "renderGapMeanMs": 18.20759493678431,
+          "longTasks": 0,
+          "longTaskMs": 0
+        },
+        {
+          "timestamp": "2026-11-11T20:05:10.789Z",
+          "kind": "timing",
+          "label": "detail.wait",
+          "milliseconds": 11150.2
+        },
+        {
+          "timestamp": "2026-11-11T20:05:10.789Z",
+          "kind": "timing",
+          "label": "tiles.detailSettled",
+          "milliseconds": 153901.2
+        }
+      ]
+    }
+  ]
+}
