@@ -8,7 +8,7 @@ test('initial/overview and drag/button orbit are bounded one-shot operations wit
 });
 test('area pivot and wheel/pinch range are retained, nonfinite input ignored and dispose blocks movement',()=>{
  const poses:StagePose[]=[];const nav=stageNavigation(city,{lookAt(pose){poses.push(pose)},reset(){},range:()=>1200});
- nav.area({...city,longitude:-74,radius:500,range:2000});nav.orbit(.2,.1);assert.equal(poses[0]?.pivot.longitude,-74);assert.equal(poses[0]?.range,1200);
+ nav.area({...city,longitude:-74,radius:500,range:2000},{heading:0,pitch:-Math.PI/4});nav.orbit(.2,.1);assert.equal(poses[0]?.pivot.longitude,-74);assert.equal(poses[0]?.range,1200);
  assert.equal(nav.orbit(NaN,0),false);nav.dispose();assert.equal(nav.orbit(.2),false);
 });
 test('even a failed camera operation attempts identity reset',()=>{
@@ -23,4 +23,18 @@ test('skyline opening uses its own close pivot and overview still resets to the 
  assert.ok(poses[0].pitch<-Math.PI/6&&poses[0].pitch>-Math.PI/3);
  nav.overview();assert.equal(poses[1].pivot,city);assert.equal(poses[1].range,city.range);
  nav.dispose();assert.equal(nav.opening(skyline),false);
+});
+
+
+test('the first orbit after focus continues from the actual arrival orientation',()=>{
+ const poses:StagePose[]=[];
+ const nav=stageNavigation(city,{lookAt(pose){poses.push(pose)},reset(){}});
+ const area={...city,longitude:-73.98,latitude:40.75,radius:1000,range:3200};
+ const arrival={heading:2.4,pitch:-Math.PI*55/180};
+ nav.area(area,arrival);assert.equal(poses.length,0);
+ assert.equal(nav.orbit(.1,0),true);
+ assert.equal(poses[0].pivot,area);
+ assert.equal(poses[0].heading,arrival.heading+.1);
+ assert.equal(poses[0].pitch,arrival.pitch);
+ assert.equal(poses[0].range,area.range);
 });

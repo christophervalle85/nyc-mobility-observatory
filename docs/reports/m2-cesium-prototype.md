@@ -65,7 +65,7 @@ Bounded drag/buttons/tilt/zoom and overview use local TLC bounds. The implemente
 
 Compact TLC search filters name, borough or exact ID. Typing/clearing preserves selection. Selection and URL restoration update the inspector/highlight without auto-loading or camera movement. The inspector states that mobility data is not connected.
 
-A separate ready-only **Focus area** action uses local source geometry, an 800–20,000 metre range and maximum flight height of 20,000 metres. Duration is 1.2 seconds, or zero for reduced motion. Duplicate, cancellation and stale-session guards prevent obsolete movement. No new asset, service, geocoder or height query is added; camera movement can still request more tiles. Building materials remain realistic, with a lighter selection overlay.
+A separate ready-only **Focus area** action uses local source geometry, an 800–20,000 metre range. Correction from the clarity/focus follow-up: the former `maximumHeight: 20000` was a requested flight apex, not a ceiling. It is now omitted, so Cesium chooses the flight height and preserves the current orientation. Duration is 1.2 seconds, or zero for reduced motion. Duplicate, cancellation and stale-session guards prevent obsolete movement. No new asset, service, geocoder or height query is added; camera movement can still request more tiles. Building materials remain realistic, with a lighter selection overlay.
 
 ## Rendering and selection update
 

@@ -48,7 +48,7 @@ City picking uses camera-to-ellipsoid intersection and local TLC polygons. It is
 
 Search by zone name, borough or exact TLC ID. Typing and clearing the query preserve the current selection. Selecting a result or restoring `?zone=ID` updates the inspector and highlight without loading 3D or moving the camera. The inspector identifies the area and states that mobility data is not connected.
 
-Use **Focus area** separately once the scene is ready. It uses only the selected zone's local geometry, with an 800–20,000 metre range and a 20,000 metre maximum flight height. Movement lasts 1.2 seconds, or is immediate with reduced motion. Duplicate requests are ignored; selection changes and scene teardown cancel obsolete movement. Focus can request additional tiles. It adds no asset, geocoder, service or height query.
+Use **Focus area** separately once the scene is ready. It uses only the selected zone's local geometry, with an 800–20,000 metre source-derived range. Cesium chooses the flight height automatically; focus preserves the current viewing direction. Movement lasts 1.2 seconds, or is immediate with reduced motion. Duplicate requests are ignored; selection changes and scene teardown cancel obsolete movement. Focus can request additional tiles. It adds no asset, geocoder, service or height query.
 
 ## Safe preview and checks
 
