@@ -20,6 +20,8 @@ import { cityOverview, skylineOpening, footprintMask } from './study-footprint.t
 import { stageNavigation } from './stage-navigation.ts';
 import { zonePicker } from './zone-picker.ts';
 import { detailReadiness } from './detail-readiness.ts';
+import { imageryProgress } from './imagery-progress.ts';
+import type { ImageryStage } from './imagery-progress.ts';
 import { dragOrbit } from './drag-orbit.ts';
 import type { Diagnostics } from './diagnostics.ts';
 import { landFootprintMask } from './land-footprint.ts';
@@ -28,7 +30,7 @@ class Resource<T> implements OwnedResource {
   constructor(public value: T, private release: () => void) {}
   destroy() { this.release(); }
 }
-export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, landCandidate = false) {
+export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, landCandidate = false, onImagery?: (stage: ImageryStage) => void) {
   const profile = diagnostics?.enabled ? diagnostics : undefined;
   return managedAdapter((): SceneRuntime => {
     const constructed = profile?.span('scene.construct');
@@ -71,6 +73,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     let entities: GeoJsonDataSource | undefined, tileset: Cesium3DTileset | undefined;
     let mask: ReturnType<typeof footprintMask> | undefined, collection: ClippingPolygonCollection | undefined;
     let highlight: ReturnType<typeof zoneHighlight<Entity>> | undefined;
+    let imagery: ReturnType<typeof imageryProgress> | undefined;
     let partial: (() => void) | undefined;
     const cleanup: (() => void)[] = [];
     if (profile) cleanup.push(profile.watchFrames((before,after) => {
@@ -98,9 +101,9 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     const detail = detailReadiness(
       check => viewer.scene.postRender.addEventListener(check),
       () => ({tilesLoaded: !disposed && Boolean(tileset?.tilesLoaded), cameraMoving, focusMoving}),
-      () => { imageryReady=true; finishDetailWait?.(); finishDetailWait=undefined; profile?.event('tiles.detailSettled'); colorSelection(); viewer.scene.requestRender(); },
+      () => { imageryReady=true; finishDetailWait?.(); finishDetailWait=undefined; profile?.event('tiles.detailSettled'); imagery?.settled(); colorSelection(); viewer.scene.requestRender(); },
     );
-    function waitForDetail() { finishDetailWait ??= profile?.span('detail.wait'); detail.wait(); imageryReady = false; colorSelection(); }
+    function waitForDetail() { finishDetailWait ??= profile?.span('detail.wait'); detail.wait(); imageryReady = false; imagery?.wait(); colorSelection(); }
     const focus = areaFocus(geography, {
       move(target, options) {
         focusMoving = true; waitForDetail();
@@ -192,15 +195,17 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         const disable=()=>{if(collection)collection.enabled=false;};
         mask=landCandidate?landFootprintMask(geography,land,supported,replace,disable):footprintMask(geography,supported,replace,disable);
         clipped?.();
-        if (profile) {
-          let first=true,removeVisible=()=>{};
-          removeVisible=tileset.tileVisible.addEventListener(()=>{
-            if(!first)return;first=false;removeVisible();
-            const removeFrame=viewer.scene.postRender.addEventListener(()=>{removeFrame();if(!disposed)profile.event('tiles.firstFrame');});
-            cleanup.push(removeFrame);
-          });
-          cleanup.push(removeVisible);
-        }
+        let firstFrame = true;
+        imagery = imageryProgress(
+          callback => tileset!.tileVisible.addEventListener(callback),
+          callback => viewer.scene.postRender.addEventListener(callback),
+          stage => {
+            if (disposed) return;
+            if (firstFrame) { firstFrame = false; profile?.event('tiles.firstFrame'); }
+            onImagery?.(stage);
+          },
+        );
+        cleanup.push(() => imagery?.dispose());
         cleanup.push(tileset.tileFailed.addEventListener(reportPartial));
         cleanup.push(tileset.allTilesLoaded.addEventListener(detail.check));
         viewer.scene.primitives.add(tileset);tilesAttached=true;profile?.event('tiles.attached');viewer.scene.requestRender();

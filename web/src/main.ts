@@ -4,6 +4,9 @@ import { areaTarget, filterZones, parseZones, resolveZone } from './zones.ts';
 import type { ZoneCollection } from './zones.ts';
 import { areaFocus } from './area-focus.ts';
 import { startupGate } from './startup-gate.ts';
+import { engineLoader } from './engine-loader.ts';
+import { startupPresentation } from './imagery-progress.ts';
+import type { ImageryStage } from './imagery-progress.ts';
 import { createDiagnostics } from './diagnostics.ts';
 import { parseLandFootprint } from './land-footprint.ts';
 import type { LandFootprint } from './land-footprint.ts';
@@ -20,7 +23,15 @@ element('land-source').hidden = !landCandidate;
 element('land-provenance').hidden = !landCandidate;
 const verification = import.meta.env.MODE === 'verify';
 const configured = mock || (!verification && Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN));
+const engine = engineLoader(async () => {
+  const imported = diagnostics.span('cesium.import');
+  try { return await import('./cesium-adapter.ts'); } finally { imported(); }
+});
+let imageryStage: ImageryStage = 'waiting-first-frame', imageryAttempt = 0;
 let startup: ReturnType<typeof startupGate> | undefined;
+function warmEngine() {
+  engine.warm({configured, visible: document.visibilityState === 'visible', live: !mock && !verification, pending: startup?.pending ?? false});
+}
 let geographyReady = false, geographyFailed = false;
 let zones: ZoneCollection = { type: 'FeatureCollection', features: [] }, selected: number | null = null;
 const messages: Record<Failure, string> = {
@@ -31,6 +42,8 @@ const messages: Record<Failure, string> = {
   network: '3D could not load. Check your connection and ion asset access, then retry once.',
 };
 function render(state: SessionState) {
+  if (!mock && imageryAttempt !== state.attempts) { imageryAttempt = state.attempts; imageryStage = 'waiting-first-frame'; }
+  const presentation = startupPresentation(state.phase, imageryStage, mock, startup?.pending ?? false);
   const active = ['loading', 'ready', 'partial'].includes(state.phase);
   const stateMessages = {
     setup: '3D needs a public Cesium ion token.',
@@ -41,7 +54,8 @@ function render(state: SessionState) {
     error: state.failure ? messages[state.failure] : messages.network,
     stopped: '3D unloaded. No city imagery is displayed.',
   };
-  element('status').textContent = stateMessages[state.phase] + (state.draining && !active ? ' Waiting for previous requests to finish before retry.' : '');
+  element('opening-cue').hidden = !presentation.cue;
+  element('status').textContent = (presentation.status ?? stateMessages[state.phase]) + (state.draining && !active ? ' Waiting for previous requests to finish before retry.' : '');
   load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
   load.hidden = active || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
@@ -93,10 +107,12 @@ function liveAdapter(): SceneAdapter {
   let disposed = false, delegate: SceneAdapter | undefined;
   return {
     async load(change) {
-      const imported = diagnostics.span('cesium.import');
-      const { createCesiumAdapter } = await import('./cesium-adapter.ts').finally(imported);
+      const { createCesiumAdapter } = await engine.load();
       if (disposed) return;
-      delegate = createCesiumAdapter(element('cesium-view'), element('credits'), import.meta.env.VITE_CESIUM_ION_TOKEN, zones, selectZone, diagnostics, land, landCandidate);
+      delegate = createCesiumAdapter(element('cesium-view'), element('credits'), import.meta.env.VITE_CESIUM_ION_TOKEN, zones, selectZone, diagnostics, land, landCandidate, stage => {
+        if (disposed) return;
+        imageryStage = stage; render(controller.state);
+      });
       await delegate.load(change);
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
@@ -109,6 +125,7 @@ function liveAdapter(): SceneAdapter {
 }
 const controller = new SessionController(configured, mock ? mockAdapter : liveAdapter, render, 30_000, id => Boolean(resolveZone(zones, id)));
 startup = startupGate({configured, visible: document.visibilityState === 'visible', enabled: mock || !verification, start() { void controller.load(); }});
+warmEngine();
 render(controller.state);
 if (mock) element('cost-note').textContent = 'Mock mode runs locally. No imagery requests or ion quota use.';
 let resultQuery: string | undefined, pinnedResultId: number | null = null;
@@ -170,7 +187,7 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>('.stage-tools d
 clearSearch.addEventListener('click', () => { search.value = ''; renderResults(); search.focus(); });
 picker.addEventListener('change', () => selectZone(resolveZone(zones, picker.value)?.id ?? null));
 clearSelection.addEventListener('click', () => selectZone(null));
-load.addEventListener('click', () => { startup?.stop(); if (geographyReady) void controller.load(); });
+load.addEventListener('click', () => { startup?.stop(); if (geographyReady) { engine.retry(); void controller.load(); } });
 stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
 focusButton.addEventListener('click', async () => {
   diagnostics.interaction();
@@ -180,7 +197,7 @@ focusButton.addEventListener('click', async () => {
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });
-document.addEventListener('visibilitychange', () => { startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
+document.addEventListener('visibilitychange', () => { warmEngine(); startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
 window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); diagnostics.dispose(); }, { once: true });
 window.addEventListener('popstate', () => { if (geographyReady) selectZone(resolveZone(zones, new URLSearchParams(location.search).get('zone'))?.id ?? null); });
 async function loadZones() {
