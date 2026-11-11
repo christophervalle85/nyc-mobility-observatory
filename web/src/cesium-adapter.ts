@@ -14,7 +14,7 @@ import { areaFocus } from './area-focus.ts';
 import { displayPolicy, tilePolicy } from './rendering-policy.ts';
 import { zoneHighlight } from './zone-highlight.ts';
 import { selectedBoundary } from './selected-boundary.ts';
-import { cityOverview, footprintMask, visibleStudySelection } from './study-footprint.ts';
+import { cityOverview, skylineOpening, footprintMask, visibleStudySelection } from './study-footprint.ts';
 import { stageNavigation } from './stage-navigation.ts';
 import { zonePicker } from './zone-picker.ts';
 import { detailReadiness } from './detail-readiness.ts';
@@ -55,7 +55,8 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       reset() { if (!viewer.isDestroyed()) viewer.camera.lookAtTransform(Matrix4.IDENTITY); },
       range(pivot) { return Cartesian3.distance(viewer.camera.positionWC, Cartesian3.fromDegrees(pivot.longitude, pivot.latitude)); },
     });
-    navigation.overview(); // One initial fit, no entrance flight or resize-triggered refit.
+    const opening = skylineOpening(geography, container.clientWidth / Math.max(1, container.clientHeight), 'fovy' in viewer.camera.frustum ? viewer.camera.frustum.fovy ?? Math.PI/3 : Math.PI/3);
+    if (opening) navigation.opening(opening); else navigation.overview(); // One immediate fit; overview remains a deliberate action.
     let disposed = false, selected: number | null = null, imageryReady = false, cameraMoving = false, focusMoving = false;
     let tilesAttached = false, zonesAttached = false, partialSeen = false;
     let entities: GeoJsonDataSource | undefined, tileset: Cesium3DTileset | undefined;

@@ -27,7 +27,7 @@ function render(state: SessionState) {
     setup: '3D needs a public Cesium ion token.',
     idle: mock ? 'Preparing the mock stage…' : startup?.pending ? (document.visibilityState === 'visible' ? 'Opening NYC when the local footprint is ready…' : 'NYC will open when this page becomes visible.') : 'The city is stopped.',
     loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D… You can stop at any time.',
-    ready: mock ? 'Mock stage ready. No imagery loaded.' : 'Scene opened. City detail is streaming as needed.',
+    ready: mock ? 'Mock stage ready. No imagery loaded.' : 'Drag to orbit · Scroll to zoom',
     partial: 'Some tiles failed to stream. Stop / unload to prevent further requests.',
     error: state.failure ? messages[state.failure] : messages.network,
     stopped: '3D unloaded. No city imagery is displayed.',
@@ -43,7 +43,7 @@ function render(state: SessionState) {
   element('viewport-state').hidden = !mock && configured && !geographyFailed && state.phase !== 'error';
   element('credits-placeholder').hidden = liveActive;
   element('setup').hidden = configured || geographyFailed;
-  element('map-mode').textContent = mock ? 'Mock stage, no imagery' : liveActive ? 'Realistic city via Cesium ion' : 'City stage';
+  element('map-mode').textContent = mock ? 'Mock stage, no imagery' : liveActive ? 'Explore New York in 3D' : 'City stage';
   element('city-viewport').setAttribute('aria-busy', String(state.phase === 'loading'));
   element('viewport-title').textContent = geographyFailed ? 'Local footprint unavailable' : state.phase === 'error' ? 'The city could not open' : mock ? 'Mock city stage' : 'City configuration needed';
   element('viewport-message').textContent = geographyFailed ? 'Restore the local TLC geography file and reload.' : state.phase === 'error' ? stateMessages.error : mock ? 'Controls run locally. No city imagery is requested.' : 'Add the public read-only token to open this city stage.';
@@ -128,6 +128,17 @@ function selectZone(id: number | null) {
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
 }
 search.addEventListener('input', renderResults);
+for (const menu of document.querySelectorAll<HTMLDetailsElement>('.stage-tools details, #sources')) {
+  menu.addEventListener('focusout', event => {
+    if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
+  });
+  menu.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !menu.open) return;
+    event.preventDefault();
+    menu.open = false;
+    menu.querySelector<HTMLElement>('summary')?.focus();
+  });
+}
 clearSearch.addEventListener('click', () => { search.value = ''; renderResults(); search.focus(); });
 picker.addEventListener('change', () => selectZone(resolveZone(zones, picker.value)?.id ?? null));
 clearSelection.addEventListener('click', () => selectZone(null));

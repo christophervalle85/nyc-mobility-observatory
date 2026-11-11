@@ -1,6 +1,6 @@
 # NYC city-stage prototype
 
-The city-stage implementation passed offline checks and independent review. Visual/live acceptance remains pending.
+The city-stage presentation opens at the Midtown skyline with compact floating controls. It passed 76 unit tests, TypeScript, an isolated build and 24 browser tests; desktop/narrow-screen live composition was inspected. User acceptance and quantitative performance measurements remain pending.
 
 A standalone local Vite + TypeScript + CesiumJS client. A single city viewport uses official TLC zone geography from a local GeoJSON file; there is no separate 2D/SVG map. With usable configuration, Google Photorealistic 3D Tiles start through Cesium ion once local geography validates and the page first becomes visible. This prototype does not display mobility counts, charts, date filters or live traffic.
 
@@ -30,9 +30,9 @@ Keep the imagery credits visible. Zone geometry comes from TLC, not Google image
 
 ## Study footprint and navigation
 
-The full-window stage uses compact floating controls and a neutral background. Five source-only borough hulls (250 vertices) form a renderer-only “TLC-derived study footprint.” They are approximate masks, not exact shorelines, an exported Google model or a fabricated solid base. If clipping is unsupported, realistic 3D remains unclipped with a capability notice.
+The full-window stage opens on source-derived Midtown bounds with compact floating controls and a neutral background. **Overview** restores the complete five-borough fit; the initial camera does not move on selection or resize. Five source-only borough hulls (250 vertices) form a renderer-only “TLC-derived study footprint.” They are approximate masks, not exact shorelines, an exported Google model or a fabricated solid base. If clipping is unsupported, realistic 3D remains unclipped with a capability notice.
 
-All 263 TLC areas remain searchable. EWR is outside NYC: selection alone does not change the footprint. Explicit EWR focus adds its 61-vertex hull (311 total); **City overview** removes it. Overview, bounded drag, orbit/tilt buttons and zoom use local source bounds; camera motion can request more tiles. No Google heights are queried.
+All 263 TLC areas remain searchable. EWR is outside NYC: selection alone does not change the footprint. Explicit EWR focus adds its 61-vertex hull (311 total); **Overview** removes it. Overview, bounded drag, orbit/tilt buttons and zoom use local source bounds; camera motion can request more tiles. No Google heights are queried.
 
 City picking uses camera-to-ellipsoid intersection and local TLC polygons. It is approximate: it does not measure mesh surfaces or building heights. The implementation is unit-tested; live picking accuracy remains unverified.
 
@@ -63,6 +63,6 @@ Official geometry and provenance are under `public/data/`. The exporter and inde
 
 ## Verification limits
 
-The final city-stage revision passed 72 unit tests, TypeScript checks, an env-isolated build and diff checks. Independent review reran 72 tests, TypeScript and diff checks and found no remaining production defect. Preservation checks passed: 110 M1 tests, Ruff lint/format and 12 exporter tests; protected core/data/converter files are unchanged against `aa2ef1e`. Earlier city-dashboard results are historical and do not validate the current shell. Browser/E2E, live tiles and rendered checks remain pending. See the [verification report](../docs/reports/m2-cesium-prototype.md).
+The presentation refinement passed 76 unit tests, TypeScript, an env-isolated build and 24 mock/verification browser tests. Desktop and narrow-screen live opening views were inspected. These checks do not measure frame rate, memory usage or provider quota, and user acceptance remains pending. Earlier independent review and preservation checks on `2b5e6ea` recorded 110 M1 tests, Ruff lint/format and 12 exporter tests; this presentation pass does not change core/data/converter files. See the [verification report](../docs/reports/m2-cesium-prototype.md).
 
 A pre-update screenshot shows Google/Cesium imagery, East Village (79) highlighted and visible credits. It does not establish complete attribution compliance or validate the new layout, focus framing, rendering quality, frame rate, clamping, picking or rendered accessibility. Updated live acceptance remains pending. Token permissions and URL restrictions must be reviewed separately in the ion account. September 2026 M1 ingestion remains separate and unchanged; see the [prototype specification](../docs/specs/m2-cesium-prototype.md) for deferred scope.

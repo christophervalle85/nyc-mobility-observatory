@@ -45,3 +45,29 @@ test('over-budget EWR extension disables an already-active city cutout before re
  let active=0,disabled=0;const mask=footprintMask(synthetic,true,polygons=>{active=polygons.length},()=>{active=0;disabled++});
  assert.equal(active,5);mask.newark();assert.equal(mask.state().kind,'unavailable');assert.equal(active,0);assert.equal(disabled,1);
 });
+
+test('skyline opening fits source-derived central Manhattan substantially closer than whole NYC',async()=>{
+ const {skylineOpening}=await import('../src/study-footprint.ts');
+ for(const aspect of [.4,1,1.6,2.5]){
+  const opening=skylineOpening(geography,aspect,Math.PI/3),city=cityOverview(geography,aspect,Math.PI/3);
+  assert.ok(opening&&city);assert.ok(Object.values(opening).every(Number.isFinite));
+  assert.ok(opening.longitude>-74.03&&opening.longitude<-73.96);
+  assert.ok(opening.latitude>40.72&&opening.latitude<40.78);
+  assert.ok(opening.range<city.range*.4);if(aspect>=1)assert.ok(opening.range<6000);assert.ok(opening.range>=200&&opening.range<=40000);
+ }
+ assert.equal(skylineOpening({type:'FeatureCollection',features:[]},1,1),undefined);
+ const original=JSON.stringify(geography);skylineOpening(geography,NaN,Infinity);assert.equal(JSON.stringify(geography),original);
+});
+
+test('skyline opening declines a missing required area so the adapter can use the city overview',async()=>{
+ const {skylineOpening}=await import('../src/study-footprint.ts');
+ const missing={...geography,features:geography.features.filter(zone=>zone.id!==162)};
+ assert.equal(skylineOpening(missing,1.6,Math.PI/3),undefined);
+ assert.ok(cityOverview(missing,1.6,Math.PI/3));
+});
+test('skyline opening declines invalid source extents without producing a nonfinite camera target',async()=>{
+ const {skylineOpening}=await import('../src/study-footprint.ts');
+ const invalid=structuredClone(geography),zone=invalid.features.find(zone=>zone.id===161)!;
+ zone.geometry={type:'Polygon',coordinates:[[[NaN,40.75],[-73.98,40.75],[-73.98,40.76],[NaN,40.75]]]};
+ assert.equal(skylineOpening(invalid,1.6,Math.PI/3),undefined);
+});

@@ -1,6 +1,23 @@
 # M2 city-stage prototype
 
-Status: city-stage code is implemented and independently reviewed. Visual/browser/live acceptance remains pending.
+Status: city-stage presentation is refined; limited desktop/narrow-screen live inspection and automated browser regression checks completed. Christopher's visual acceptance and quantitative performance measurement remain pending.
+
+## Presentation refinement — November 11, 2026
+
+- The page now opens directly at the Midtown skyline using the local TLC extents of areas 161, 162, 163, 164 and 230, with an oblique camera pose. Missing skyline geography falls back to the existing full-city fit. Overview still resets to all five boroughs.
+- Large pale panels were replaced with a compact bottom toolbar, independent selection inspector, quiet heading/status and a smaller attribution strip. Find/View use exclusive native details menus; Sources & usage retains the quota explanation in the footer. All external imagery credits remain visible.
+- 76 unit tests, TypeScript, the token-isolated production build, 24 mock/verification browser tests and whitespace checks passed. Browser tests include 320/640/1440px layout, menu exclusivity, selection, Stop, retries, reduced motion and 200% text.
+- Live desktop (1440 × 900) and narrow in-app preview inspected the opening composition. This is limited visual evidence, not an FPS/memory benchmark, general device certification or account/quota verification.
+- Clipping geometry is unchanged. Angular TLC hull edges remain visible in overview and some camera positions; this pass improves composition without claiming exact shorelines or a solid floating model. Data ingestion, official geography, exporter and dependencies are unchanged.
+- The design detector reported four warnings: two root overflow warnings and two nested-surface warnings. These refer to the viewport-bound floating menus and their toolbar. Menu visibility/fit is covered by browser tests; they were retained intentionally rather than treated as proof of a rendering defect.
+
+### Specialist verification follow-up
+
+Separate delegated architect, frontend and QA workers used the saved role instructions in `~/.codex/agents`; this was not native local-profile invocation (the CLI rejected its configured model). Named optional architecture/Hallmark/Jakub/verify-change skills were unavailable, so workers used the actual repository and package commands.
+
+The architect found no additional architecture blocker and recommended bounded accessibility fixes. QA reproduced five failing browser cases before frontend changes: inspector focus obscured by a menu at 320/640px, toolbar label overflow at 320px/200% text, and Escape dismissal for area and source menus. The frontend agent added focus-exit/Escape dismissal and toolbar wrapping with intrinsic control widths. QA then verified 76/76 unit tests, 24/24 browser tests, TypeScript, the isolated build and whitespace checks. Parent inspected the refreshed live view and Escape interaction. No failing checks remain; this is not a performance benchmark or user visual acceptance.
+
+The remaining sections record the earlier prototype and its historical checks.
 
 The bounded prototype provides one city viewport, local TLC search, zone selection, explicit camera focus and an
 optional Cesium ion Google Photorealistic 3D Tiles scene. M1 ingestion is unchanged.

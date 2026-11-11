@@ -31,6 +31,17 @@ export interface OverviewTarget { longitude:number;latitude:number;radius:number
 export function cityOverview(geography:ZoneCollection,aspect:number,verticalFov:number):OverviewTarget|undefined {
   const city=geography.features.filter(zone=>boroughs.includes(zone.properties.borough));
   if(new Set(city.map(zone=>zone.properties.borough)).size!==5)return undefined;
+  return fitOverview(city,aspect,verticalFov);
+}
+/** Opening composition uses local TLC extents around the Midtown skyline. */
+export function skylineOpening(geography:ZoneCollection,aspect:number,verticalFov:number):OverviewTarget|undefined {
+  const ids = new Set([161,162,163,164,230]);
+  const skyline = geography.features.filter(zone=>ids.has(zone.id)&&zone.properties.borough==='Manhattan');
+  if(new Set(skyline.map(zone=>zone.id)).size!==ids.size)return undefined;
+  const target=fitOverview(skyline,aspect,verticalFov);
+  return target && target.range<=40000 ? target : undefined;
+}
+function fitOverview(city:ZoneCollection['features'],aspect:number,verticalFov:number):OverviewTarget|undefined {
   let west=Infinity,south=Infinity,east=-Infinity,north=-Infinity;
   for(const zone of city){const extent=zoneExtent(zone);if(!extent)return undefined;west=Math.min(west,extent.west);south=Math.min(south,extent.south);east=Math.max(east,extent.east);north=Math.max(north,extent.north);}
   const longitude=(west+east)/2,latitude=(south+north)/2;

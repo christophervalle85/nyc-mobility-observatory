@@ -1,5 +1,5 @@
 import{test,expect}from'@playwright/test';
-// Updated source only. Execution awaits explicit browser approval.
+// Verification mode blocks provider requests; live visual checks are separate.
 const fixture={type:'FeatureCollection',features:[{type:'Feature',id:161,properties:{location_id:161,zone:'Synthetic test area',borough:'Manhattan'},geometry:{type:'Polygon',coordinates:[[[-74,40.7],[-73.99,40.7],[-73.99,40.71],[-74,40.7]]]}}]};
 test.beforeEach(async({context})=>{await context.route('**/*',route=>{if(route.request().url().endsWith('/data/taxi-zones.geojson'))return route.fulfill({json:fixture});return new URL(route.request().url()).origin==='http://127.0.0.1:5175'?route.continue():route.abort('blockedbyclient')})});
 async function areas(page:import('@playwright/test').Page){await page.locator('#area-controls>summary').click();}
@@ -13,3 +13,73 @@ for(const width of[320,1280,1920])test(`credits/Stop/status remain accessible at
 for(const scenario of['rate','timeout','network','webgl','partial'])test(`mock${scenario} has an honest stage state`,async({page})=>{await page.goto(`/?mode=mock&scenario=${scenario}`);await expect(page.locator('#status')).not.toContainText('Preparing');await expect(page.locator('#status')).not.toContainText('Loading');await expect(page.locator('#focus-area')).toBeHidden();if(scenario==='rate'||scenario==='webgl')await expect(page.locator('#load')).toBeDisabled()});
 test('all263 official areas remain selectable without a second map',async({context,page})=>{await context.route('**/data/taxi-zones.geojson',route=>route.continue());await page.goto('/?mode=mock');await areas(page);await expect(page.locator('#zone-picker option')).toHaveCount(264);await page.locator('#zone-picker').selectOption('161');await expect(page.locator('#selection-title')).toHaveText('Midtown Center');await expect(page.locator('svg,#zone-map')).toHaveCount(0)});
 test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#credits')).toBeVisible()});
+
+for(const width of [320,640,1440])test(`compact controls preserve city space and selection at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.goto('/?mode=mock&zone=161');
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ const toolbar=await page.locator('.stage-tools').boundingBox();
+ const inspector=await page.locator('#inspector').boundingBox();
+ const credits=await page.locator('.attribution-strip').boundingBox();
+ expect(toolbar&&inspector&&credits).toBeTruthy();expect(toolbar!.height).toBeLessThan(80);
+ expect(toolbar!.y+toolbar!.height).toBeLessThanOrEqual(credits!.y);
+ if(width<=640){expect(inspector!.height).toBeLessThanOrEqual(235);expect(inspector!.y+inspector!.height).toBeLessThanOrEqual(toolbar!.y);}
+ await areas(page);await expect(page.locator('#area-search')).toBeVisible();
+ await page.locator('#view-controls>summary').click();await expect(page.locator('#area-search')).toBeHidden();
+ await expect(page.locator('[data-view="left"]')).toBeVisible();
+});
+
+for(const width of [320,640])test(`keyboard focus stays visible after leaving the area menu at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});
+ await page.goto('/?mode=mock&zone=161');
+ if(width===640)await page.evaluate(()=>{document.documentElement.style.fontSize='200%'});
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ await areas(page);
+ await page.locator('#zone-picker').focus();
+ // Native tab order exits the area menu through Overview and View to the inspector.
+ await page.keyboard.press('Tab');await page.keyboard.press('Tab');await page.keyboard.press('Tab');
+ const focus=page.locator('#focus-area');
+ await expect(focus).toBeFocused();
+ const unobscured=await focus.evaluate(button=>{
+  const bounds=button.getBoundingClientRect();
+  const hit=document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
+  return Boolean(hit&&(hit===button||button.contains(hit)));
+ });
+ expect(unobscured,'The focused inspector action must not remain underneath an open menu').toBe(true);
+});
+
+test('320px toolbar labels stay inside their controls with 200percent text',async({page})=>{
+ await page.setViewportSize({width:320,height:900});
+ await page.goto('/?mode=mock');
+ await page.evaluate(()=>{document.documentElement.style.fontSize='200%'});
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ for(const selector of ['#area-controls>summary','#city-overview','#view-controls>summary']){
+  const geometry=await page.locator(selector).evaluate(control=>{
+   const range=document.createRange();range.selectNodeContents(control);
+   const label=range.getBoundingClientRect(),bounds=control.getBoundingClientRect();
+   return {labelLeft:label.left,labelRight:label.right,left:bounds.left,right:bounds.right};
+  });
+  expect(geometry.labelLeft,`${selector} text must fit its left edge`).toBeGreaterThanOrEqual(geometry.left-1);
+  expect(geometry.labelRight,`${selector} text must fit its right edge`).toBeLessThanOrEqual(geometry.right+1);
+ }
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+for(const menu of ['area-controls','sources'])test(`${menu} keeps internal keyboard navigation and dismisses on Escape or focus exit`,async({page})=>{
+ await page.setViewportSize({width:640,height:900});
+ await page.goto('/?mode=mock');
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ const details=page.locator(`#${menu}`),summary=page.locator(`#${menu}>summary`);
+ await summary.click();
+ await page.keyboard.press('Tab');
+ await expect(details.locator('.tool-content :focus')).toHaveCount(1);
+ await expect(details).toHaveJSProperty('open',true);
+ await page.keyboard.press('Shift+Tab');
+ await expect(summary).toBeFocused();
+ await expect(details).toHaveJSProperty('open',true);
+ await page.keyboard.press('Tab');await page.keyboard.press('Escape');
+ await expect(details).toHaveJSProperty('open',false);
+ await expect(summary).toBeFocused();
+ await summary.click();await page.locator('#stop').focus();
+ await expect(details).toHaveJSProperty('open',false);
+ await expect(page.locator('#stop')).toBeFocused();
+});

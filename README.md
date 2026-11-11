@@ -1,7 +1,7 @@
 # NYC Mobility Observatory
 
 Explore a city-stage prototype with optional Google Photorealistic 3D Tiles
-through Cesium ion. The bounded M2 prototype supports local TLC area search,
+through Cesium ion. The bounded M2 prototype opens at the Midtown skyline with compact controls and a separate five-borough Overview. It supports local TLC area search,
 selection and a separate camera-focus action. Date filters, mobility counts, charts and models are not implemented.
 The separate M1 ingestion pipeline remains unchanged.
 
