@@ -1,6 +1,6 @@
 # NYC Mobility Observatory
 
-Explore a city-centered dashboard with optional Google Photorealistic 3D Tiles
+Explore a city-stage prototype with optional Google Photorealistic 3D Tiles
 through Cesium ion. The bounded M2 prototype supports local TLC area search,
 selection and a separate camera-focus action. Date filters, mobility counts, charts and models are not implemented.
 The separate M1 ingestion pipeline remains unchanged.
@@ -17,8 +17,10 @@ npm run dev:live
 
 Open [the local preview](http://127.0.0.1:5173) while the server is running.
 The live preview disables hot reload and file watching. Local search and selection work
-without a token; **Load 3D** requires your public Cesium ion client token and makes
-external requests that can consume quota. Follow the [web setup and safety notes](web/README.md).
+without a token. With a configured public Cesium ion client token, the stage makes
+one automatic startup attempt after local geography validates and the page is visible.
+This makes external requests that can consume quota. **Stop / unload** cancels pending
+startup and prevents automatic resumption; **Resume 3D** is deliberate. Follow the [web setup and safety notes](web/README.md).
 For a token-free mock preview, use `npm run dev:verify` and open
 [the mock controls](http://127.0.0.1:5174/?mode=mock).
 

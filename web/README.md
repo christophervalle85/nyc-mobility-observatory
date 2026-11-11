@@ -1,6 +1,8 @@
-# NYC map prototype
+# NYC city-stage prototype
 
-A standalone local Vite + TypeScript + CesiumJS client. A single city viewport uses official TLC zone geography from a local GeoJSON file; there is no separate 2D/SVG map. Optional Google Photorealistic 3D Tiles load through Cesium ion only after you select **Load 3D**. This prototype does not display mobility counts, charts, date filters or live traffic.
+The city-stage implementation passed offline checks and independent review. Visual/live acceptance remains pending.
+
+A standalone local Vite + TypeScript + CesiumJS client. A single city viewport uses official TLC zone geography from a local GeoJSON file; there is no separate 2D/SVG map. With usable configuration, Google Photorealistic 3D Tiles start through Cesium ion once local geography validates and the page first becomes visible. This prototype does not display mobility counts, charts, date filters or live traffic.
 
 ## Run locally
 
@@ -22,9 +24,17 @@ VITE_CESIUM_ION_TOKEN=
 
 Place your public Cesium ion client token after `=` and restart the server. Do not paste it into chat, commit it or include it in screenshots/logs. Vite exposes this value to the browser; it is not a secret store. Use only a read-only `assets:read` token restricted to the necessary asset, Google Photorealistic 3D Tiles (ion asset 2275207), and the local URL where supported. Never use an administrative, secret or write-enabled token. Check asset enablement and your current ion plan and usage in your account. This app cannot verify those account settings.
 
-The **Load 3D** button opens one fixed NYC scene. It does not load default imagery, terrain or geocoding services. Camera movement can request more tiles. Request-render mode avoids unnecessary idle rendering; it does not limit billing. Rendering uses CSS-pixel resolution at scale 1, without another device-pixel-ratio division, native 2× supersampling or an artificial 30 FPS cap. Tiles use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. These are not a hard total-memory limit and can increase bandwidth and memory use. **Stop / unload** destroys the viewer and listeners; requests already in flight may finish. One deliberate retry is available per page session, with no automatic retry loop. Retry stays disabled until all pending resource creation has settled, including work left after Stop or a timeout. A request-limit error asks you to stop and check usage instead. Reloading starts a new session, so avoid repeated reloads or loads.
+The stage makes one automatic startup attempt per document. **Stop / unload** cancels pending startup and prevents automatic resumption; **Resume 3D** uses the same two-attempt session budget and drain guard. Errors never retry automatically. Reloading creates a new startup entitlement. It does not load default imagery, terrain or geocoding services. Camera movement can request more tiles. Request-render mode avoids unnecessary idle rendering; it does not limit billing. Rendering uses CSS-pixel resolution at scale 1, without another device-pixel-ratio division, native 2× supersampling or an artificial 30 FPS cap. Tiles use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. These are not a hard total-memory limit and can increase bandwidth and memory use. **Stop / unload** destroys the viewer and listeners; requests already in flight may finish. One deliberate retry is available per page session, with no automatic retry loop. Retry stays disabled until all pending resource creation has settled, including work left after Stop or a timeout. A request-limit error asks you to stop and check usage instead. Reloading starts a new session, so avoid repeated reloads or loads.
 
 Keep the imagery credits visible. Zone geometry comes from TLC, not Google imagery. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
+
+## Study footprint and navigation
+
+The full-window stage uses compact floating controls and a neutral background. Five source-only borough hulls (250 vertices) form a renderer-only “TLC-derived study footprint.” They are approximate masks, not exact shorelines, an exported Google model or a fabricated solid base. If clipping is unsupported, realistic 3D remains unclipped with a capability notice.
+
+All 263 TLC areas remain searchable. EWR is outside NYC: selection alone does not change the footprint. Explicit EWR focus adds its 61-vertex hull (311 total); **City overview** removes it. Overview, bounded drag, orbit/tilt buttons and zoom use local source bounds; camera motion can request more tiles. No Google heights are queried.
+
+City picking uses camera-to-ellipsoid intersection and local TLC polygons. It is approximate: it does not measure mesh surfaces or building heights. The implementation is unit-tested; live picking accuracy remains unverified.
 
 ## Find and focus a TLC area
 
@@ -53,6 +63,6 @@ Official geometry and provenance are under `public/data/`. The exporter and inde
 
 ## Verification limits
 
-The city-dashboard update passed 46 unit tests, TypeScript checks (including updated E2E source), the isolated build and diff checks. M1's 110 tests and all 12 converter tests passed again; 27 protected files were unchanged. The updated E2E source was not executed. Earlier 16 browser-test passes are historical and do not validate this layout. See the [verification report](../docs/reports/m2-cesium-prototype.md).
+The final city-stage revision passed 72 unit tests, TypeScript checks, an env-isolated build and diff checks. Independent review reran 72 tests, TypeScript and diff checks and found no remaining production defect. Preservation checks passed: 110 M1 tests, Ruff lint/format and 12 exporter tests; protected core/data/converter files are unchanged against `aa2ef1e`. Earlier city-dashboard results are historical and do not validate the current shell. Browser/E2E, live tiles and rendered checks remain pending. See the [verification report](../docs/reports/m2-cesium-prototype.md).
 
 A pre-update screenshot shows Google/Cesium imagery, East Village (79) highlighted and visible credits. It does not establish complete attribution compliance or validate the new layout, focus framing, rendering quality, frame rate, clamping, picking or rendered accessibility. Updated live acceptance remains pending. Token permissions and URL restrictions must be reviewed separately in the ion account. September 2026 M1 ingestion remains separate and unchanged; see the [prototype specification](../docs/specs/m2-cesium-prototype.md) for deferred scope.

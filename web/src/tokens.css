@@ -34,3 +34,5 @@
   --color-city-idle: oklch(20% 0.014 262);
   --color-city-ink: oklch(96% 0.005 250);
 }
+
+:root { --color-scene-background: #17202a; }

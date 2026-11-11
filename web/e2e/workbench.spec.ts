@@ -1,96 +1,15 @@
-import { test, expect } from '@playwright/test';
-// Source updated for the city dashboard. Execution awaits explicit browser approval.
-test.beforeEach(async ({ context }) => {
-  await context.route('**/*', route => {
-    if (route.request().url().endsWith('/data/taxi-zones.geojson')) return route.fulfill({json:{type:'FeatureCollection',features:[{type:'Feature',id:161,properties:{location_id:161,zone:'Synthetic test area',borough:'Manhattan'},geometry:{type:'Polygon',coordinates:[[[-74,40.7],[-73.99,40.7],[-73.99,40.71],[-74,40.7]]]}}]}});
-    const url = new URL(route.request().url());
-    return url.origin === 'http://127.0.0.1:5175' ? route.continue() : route.abort('blockedbyclient');
-  });
-});
-test('normal no-token startup is honest, has one city viewport and no2D map', async ({ page }) => {
-  const external: string[] = [];
-  page.on('request', request => { if (new URL(request.url()).hostname !== '127.0.0.1') external.push('external request'); });
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'NYC Mobility Observatory' })).toBeVisible();
-  await expect(page.locator('#city-viewport')).toHaveCount(1);
-  await expect(page.locator('#zone-map, svg')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Load 3D', exact: true })).toBeDisabled();
-  await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();
-  const picker = page.getByLabel('Select a TLC area'); await expect(picker).toBeEnabled();
-  await picker.selectOption('161'); await expect(page.locator('#zone-id')).toHaveText('161');
-  await picker.focus(); await expect(picker).toBeFocused();
-  expect(await picker.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
-  await expect(page.getByRole('button',{name:'Focus area',exact:true})).toBeDisabled();
-  expect(external).toEqual([]);
-});
-test('local search and clearing search preserve selection without loading or focusing',async({page})=>{
- await page.goto('/?mode=mock&zone=161');await expect(page.locator('#zone-id')).toHaveText('161');
- await page.getByRole('searchbox',{name:'TLC areas'}).fill('no matching area');
- await expect(page.locator('#search-count')).toContainText('No matching');await expect(page.locator('#zone-id')).toHaveText('161');
- await expect(page.locator('#zone-picker')).toHaveValue('161');
- await page.getByRole('button',{name:'Clear search'}).click();await expect(page.locator('#zone-picker')).toHaveValue('161');
- await expect(page.locator('#status')).toContainText('Mock mode');
- await expect(page.locator('#focus-area')).toBeDisabled();
- await page.getByRole('button',{name:'Clear area'}).click();await expect(page.locator('#zone-details')).toBeHidden();
- expect(new URL(page.url()).searchParams.has('zone')).toBe(false);
-});
-test('mock mode loads once, explicit focus is guarded, and unload stays honest', async ({ page }) => {
-  await page.goto('/?mode=mock&zone=161');
-  await expect(page.locator('#focus-area')).toBeDisabled();
-  await page.getByRole('button', { name: 'Load mock scene' }).click();
-  await expect(page.locator('#status')).toContainText('Mock scene ready');
-  await expect(page.getByRole('button', { name: 'Load mock scene' })).toBeDisabled();
-  await page.getByRole('button',{name:'Focus area',exact:true}).click();
-  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','true');
-  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');
-  await page.getByRole('button', { name: 'Stop / unload' }).click();
-  await expect(page.locator('#status')).toContainText('3D unloaded');
-  await expect(page.locator('#zone-map')).toHaveCount(0);
-});
-test('mock failures are sanitized, with one manual retry only', async ({ page }) => {
-  await page.goto('/?mode=mock&scenario=auth');
-  await page.getByRole('button', { name: 'Load mock scene' }).click();
-  await expect(page.locator('#status')).toContainText('Access denied');
-  await page.getByRole('button', { name: 'Retry once' }).click();
-  await expect(page.locator('#session-limit')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Retry once' })).toBeDisabled();
-});
-for (const width of [320, 1280, 1920]) test(`city controls/status/credits reflow at ${width}px`, async ({ page }) => {
-  await page.setViewportSize({width,height:900}); await page.goto('/?mode=mock');
-  await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toBeVisible();
-  await expect(page.locator('#status')).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
-for (const scenario of ['rate','timeout','network','webgl','partial']) test(`mock ${scenario} retains a usable city state`, async ({page}) => {
- await page.goto(`/?mode=mock&scenario=${scenario}`);
- await page.getByRole('button',{name:'Load mock scene'}).click();
- await expect(page.locator('#status')).not.toContainText('Loading');
- if(scenario==='partial') await expect(page.locator('#stop')).toBeEnabled();
- if(scenario==='rate'||scenario==='webgl') await expect(page.locator('#load')).toBeDisabled();
- await expect(page.locator('#focus-area')).toBeDisabled();await expect(page.locator('#zone-map')).toHaveCount(0);
-});
-for (const width of [320,1280,1920]) test(`all official TLC areas remain available at ${width}px`, async ({context,page}) => {
- await context.route('**/data/taxi-zones.geojson',route=>route.continue());
- await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');
- await expect(page.locator('#zone-picker option')).toHaveCount(264);
- await page.getByLabel('Select a TLC area').selectOption('161');
- await expect(page.locator('#selection-title')).toHaveText('Midtown Center');
- await expect(page.locator('#zone-borough')).toHaveText('Manhattan');
- await expect(page.locator('#credits')).toBeVisible();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-});
-test('200 percent text, reduced motion and RTL retain native controls', async ({page}) => {
- await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');
- await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl';});
- await page.setViewportSize({width:640,height:900});await expect(page.getByLabel('Select a TLC area')).toBeVisible();
- await page.getByRole('button',{name:'Load mock scene'}).click();await expect(page.locator('#focus-area')).toBeEnabled();
- await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');
- await expect(page.locator('#stop')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-});
-test('Stop disables Retry until unresolved mock load drains', async ({page}) => {
- await page.clock.install({time:new Date('2026-01-01T00:00:00Z')});await page.clock.pauseAt(new Date('2026-01-01T00:00:00Z'));
- await page.goto('/?mode=mock');await expect(page.getByLabel('Select a TLC area')).toBeEnabled();
- await page.locator('#load').dispatchEvent('click');await expect(page.locator('#stop')).toBeEnabled();await page.locator('#stop').dispatchEvent('click');
- await expect(page.locator('#status')).toContainText('Waiting for previous requests');await expect(page.getByRole('button',{name:'Retry once'})).toBeDisabled();
- await page.clock.runFor(150);await expect(page.getByRole('button',{name:'Retry once'})).toBeEnabled();
-});
+import{test,expect}from'@playwright/test';
+// Updated source only. Execution awaits explicit browser approval.
+const fixture={type:'FeatureCollection',features:[{type:'Feature',id:161,properties:{location_id:161,zone:'Synthetic test area',borough:'Manhattan'},geometry:{type:'Polygon',coordinates:[[[-74,40.7],[-73.99,40.7],[-73.99,40.71],[-74,40.7]]]}}]};
+test.beforeEach(async({context})=>{await context.route('**/*',route=>{if(route.request().url().endsWith('/data/taxi-zones.geojson'))return route.fulfill({json:fixture});return new URL(route.request().url()).origin==='http://127.0.0.1:5175'?route.continue():route.abort('blockedbyclient')})});
+async function areas(page:import('@playwright/test').Page){await page.locator('#area-controls>summary').click();}
+test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg,#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
+test('mock stage starts automatically once, Stop stays stopped until deliberate Resume',async({page})=>{await page.goto('/?mode=mock');await expect(page.locator('#status')).toContainText('Mock stage ready');await expect(page.locator('#load')).toBeHidden();await page.locator('#stop').click();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeVisible();await page.locator('#load').click();await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#stop').click();await expect(page.locator('#load')).toBeDisabled()});
+test('Stop before delayed geography prevents automatic startup',async({context,page})=>{let release!:()=>void;const wait=new Promise<void>(resolve=>{release=resolve});await context.route('**/data/taxi-zones.geojson',async route=>{await wait;await route.fulfill({json:fixture})});await page.goto('/?mode=mock');await page.locator('#stop').click();release();await areas(page);await expect(page.locator('#zone-picker')).toBeEnabled();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeEnabled()});
+test('local filtering preserves selection and never causes a camera focus',async({page})=>{await page.goto('/?mode=mock&zone=161');await expect(page.locator('#zone-id')).toHaveText('161');await areas(page);await page.getByRole('searchbox',{name:'Search TLC areas'}).fill('no match');await expect(page.locator('#search-count')).toContainText('No matching');await expect(page.locator('#zone-id')).toHaveText('161');await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await page.locator('#clear-search').click();await expect(page.locator('#zone-picker')).toHaveValue('161');await page.locator('#clear-selection').click();await expect(page.locator('#inspector')).toBeHidden()});
+test('native focus/overview/view controls have bounded mock behavior',async({page})=>{await page.goto('/?mode=mock&zone=161');await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','true');await page.locator('#city-overview').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await page.locator('#view-controls>summary').click();for(const action of ['left','right','up','down','in','out'])await page.locator(`[data-view="${action}"]`).click()});
+test('automatic failure does not auto-retry and shares the two-attempt budget',async({page})=>{await page.goto('/?mode=mock&scenario=auth');await expect(page.locator('#status')).toContainText('Access denied');await expect(page.locator('#load')).toHaveText('Retry once');await page.locator('#load').click();await expect(page.locator('#session-limit')).toBeVisible();await expect(page.locator('#load')).toBeDisabled()});
+for(const width of[320,1280,1920])test(`credits/Stop/status remain accessible at${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#status')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)});
+for(const scenario of['rate','timeout','network','webgl','partial'])test(`mock${scenario} has an honest stage state`,async({page})=>{await page.goto(`/?mode=mock&scenario=${scenario}`);await expect(page.locator('#status')).not.toContainText('Preparing');await expect(page.locator('#status')).not.toContainText('Loading');await expect(page.locator('#focus-area')).toBeHidden();if(scenario==='rate'||scenario==='webgl')await expect(page.locator('#load')).toBeDisabled()});
+test('all263 official areas remain selectable without a second map',async({context,page})=>{await context.route('**/data/taxi-zones.geojson',route=>route.continue());await page.goto('/?mode=mock');await areas(page);await expect(page.locator('#zone-picker option')).toHaveCount(264);await page.locator('#zone-picker').selectOption('161');await expect(page.locator('#selection-title')).toHaveText('Midtown Center');await expect(page.locator('svg,#zone-map')).toHaveCount(0)});
+test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#credits')).toBeVisible()});

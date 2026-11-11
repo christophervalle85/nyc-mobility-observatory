@@ -1,3 +1,4 @@
+import type { FootprintState } from './study-footprint.ts';
 export type Phase = 'setup' | 'idle' | 'loading' | 'ready' | 'partial' | 'error' | 'stopped';
 export type Failure = 'auth' | 'rate' | 'timeout' | 'webgl' | 'network';
 export interface SessionState { phase: Phase; attempts: number; failure?: Failure; draining: boolean; focusing: boolean }
@@ -8,6 +9,7 @@ export interface SceneAdapter {
   whenSettled(): Promise<void>;
   focus(id: number, reducedMotion: boolean): Promise<boolean>;
   cancelFocus(): void;
+  overview?(): boolean; orbit?(horizontal: number, vertical?: number): boolean; zoom?(factor: number): boolean; footprint?(): FootprintState | undefined;
 }
 export class SceneFailure extends Error {
   readonly category: Failure;
@@ -96,7 +98,9 @@ export class SessionController {
     const epoch = ++this.focusEpoch, generation = this.generation;
     this.state = { ...this.state, focusing: true }; this.change(this.state);
     try {
-      const moved = await this.adapter.focus(this.selected, reducedMotion);
+      const movement = this.adapter.focus(this.selected, reducedMotion);
+      this.change(this.state);
+      const moved = await movement;
       return epoch === this.focusEpoch && generation === this.generation && moved;
     } catch { return false; }
     finally {
@@ -105,6 +109,18 @@ export class SessionController {
       }
     }
   }
+  overview(): boolean {
+    if (this.state.phase !== 'ready' || this.state.draining || !this.adapter) return false;
+    this.cancelMovement(); const moved = this.adapter.overview?.() ?? false; this.change(this.state); return moved;
+  }
+  view(action: 'left'|'right'|'up'|'down'|'in'|'out'): boolean {
+    if (this.state.phase !== 'ready' || this.state.draining || !this.adapter) return false;
+    this.cancelMovement();
+    const moved = action === 'in' || action === 'out' ? this.adapter.zoom?.(action === 'in' ? .8 : 1.25)
+      : this.adapter.orbit?.(action === 'left' ? -Math.PI/12 : action === 'right' ? Math.PI/12 : 0, action === 'up' ? -Math.PI/18 : action === 'down' ? Math.PI/18 : 0);
+    this.change(this.state); return moved ?? false;
+  }
+  footprint(): FootprintState | undefined { return this.adapter?.footprint?.(); }
   select(id: number | null): void {
     const next = id !== null && this.isKnownZone(id) ? id : null;
     if (next === this.selected) return;

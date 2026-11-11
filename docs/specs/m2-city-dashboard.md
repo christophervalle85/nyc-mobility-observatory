@@ -1,5 +1,7 @@
 # M2: city-centered dashboard
 
+Supersession note: [the city-stage revision](m2-city-stage.md) replaces this document's manual-start and dashboard-shell behavior. Its code is implemented and independently reviewed: configured startup is automatic once after validated geography and first visibility, Stop prevents auto-resume, and the stage adds source-only footprint/overview navigation. Earlier acceptance results below are historical; the final revision passed 72 unit tests, TypeScript, an isolated build and diff checks; live/rendered acceptance remains pending.
+
 Status: the bounded city-dashboard implementation is complete. It passed 46 unit tests, TypeScript checks, an isolated build and diff checks. Independent review found no verified defect. This does not complete M2 data/date/chart work. Updated E2E source has not been executed; live layout, focus framing, picking, frame rate and rendered accessibility remain unverified.
 
 ## Decision

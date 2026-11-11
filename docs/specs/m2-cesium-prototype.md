@@ -1,5 +1,7 @@
 # M2 visual spike: Cesium NYC prototype
 
+Supersession note: [the city-stage revision](m2-city-stage.md) replaces this document's manual-start and dashboard-shell behavior. Its code is implemented and independently reviewed: configured startup is automatic once after validated geography and first visibility, Stop prevents auto-resume, and the stage adds source-only footprint/overview navigation. Earlier acceptance results below are historical; the final revision passed 72 unit tests, TypeScript, an isolated build and diff checks; live/rendered acceptance remains pending.
+
 Status: the bounded local prototype and offline geometry converter are implemented.
 The city-dashboard update passed 46 unit tests, TypeScript checks, an isolated build and diff checks. M1's 110 tests and 12 converter tests passed again. Updated E2E source was typechecked but not executed; earlier 16 browser-test passes are historical. New-layout live acceptance remains pending. See the [city-dashboard contract](m2-city-dashboard.md) for local search, separate focus and the single-viewport layout.
 This does not complete the original M2 date/zone/chart scope.
