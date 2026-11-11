@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Explore official NYC TLC taxi zones with an optional Cesium photorealistic 3D view." />
+  <title>NYC Mobility Observatory</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to map controls</a>
+  <header class="masthead shell">
+    <div><h1>NYC Mobility Observatory</h1><p>Explore the city, one taxi zone at a time.</p></div>
+    <a href="#sources">Sources and limits</a>
+  </header>
+  <main id="main" class="shell" tabindex="-1">
+    <div class="toolbar">
+      <div class="zone-control"><label for="zone-picker">Select a TLC zone</label><select id="zone-picker" name="zone" disabled><option value="">Loading local zones…</option></select></div>
+      <div class="actions"><button type="button" class="primary" id="load">Load 3D</button><button type="button" id="stop" disabled>Stop / unload</button></div>
+    </div>
+    <div class="session-info"><p id="status" role="status" aria-live="polite">Loading local zone boundaries…</p><p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p></div>
+    <section id="setup" class="setup" hidden aria-labelledby="setup-title"><h2 id="setup-title">Add your public Cesium ion token</h2><p>In web/.env.local, set VITE_CESIUM_ION_TOKEN, then restart the dev server. Use a read-only client token.</p></section>
+    <p id="cost-note" class="cost-note">3D is off. Loading and moving the 3D camera use your ion quota. Local zone selection is free of tile requests.</p>
+    <div class="workbench">
+      <section class="map-region" aria-labelledby="map-title">
+        <div class="map-label"><h2 id="map-title">New York City</h2><span id="map-mode">Local zone boundaries</span></div>
+        <div id="map-stage" class="map-stage">
+          <svg id="zone-map" viewBox="0 0 960 900" role="img" aria-label="Official NYC TLC taxi zone boundaries. Use the zone selector for keyboard selection."><title>Official NYC TLC taxi zones</title></svg>
+          <div id="cesium-view" hidden></div>
+          <p id="map-empty" class="map-empty">Loading the local map…</p>
+        </div>
+        <div id="credits" class="credits"><p id="credits-placeholder">3D imagery is not loaded.</p></div>
+      </section>
+      <aside class="selection" aria-labelledby="selection-title">
+        <h2 id="selection-title">Select a zone</h2><p id="selection-hint">Choose from the list or select a boundary on the map.</p>
+        <dl id="zone-details" hidden><div><dt>TLC location ID</dt><dd id="zone-id"></dd></div><div><dt>Borough</dt><dd id="zone-borough"></dd></div></dl>
+        <section class="metrics" aria-labelledby="metrics-title"><h3 id="metrics-title">Historical mobility data</h3><p>September 2026 ingestion is available in M1. Counts and charts are not connected to this prototype.</p><p class="muted">No live traffic or ridership estimates.</p></section>
+        <div class="legend"><span class="legend-boundary" aria-hidden="true"></span><span>TLC zone boundary</span><span class="legend-selected" aria-hidden="true"></span><span>Selected zone</span></div>
+      </aside>
+    </div>
+    <footer id="sources"><p><a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>. Independently sourced boundaries, not derived from imagery.</p><details><summary>Sources and prototype limits</summary><p>Zone geography is a static official TLC export, not a statement of current service. Google Photorealistic 3D Tiles are optional via Cesium ion. Imagery date varies; this is not live activity.</p><p>3D boundary clamping and picking need a live check. Use the list if a boundary is occluded. Date filters, charts, metrics and deployment remain outside this prototype.</p><a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read boundary provenance</a></details></footer>
+  </main>
+  <noscript><p>This map needs JavaScript. Official TLC sources remain available at the link above.</p></noscript>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

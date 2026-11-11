@@ -10,3 +10,18 @@ __pycache__/
 .DS_Store
 
 .data-*/
+
+# Standalone frontend dependencies, local credentials, and generated artifacts.
+web/node_modules/
+web/.env
+web/.env.*
+!web/.env.example
+web/dist/
+web/coverage/
+web/playwright-report/
+web/test-results/
+web/.vite/
+web/*.tsbuildinfo
+web/public/cesium/
+web/.hallmark/sloplint-*/
+web/.hallmark/salt
