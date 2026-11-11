@@ -25,7 +25,7 @@ For a token-free mock preview, use `npm run dev:verify` and open
 [the mock controls](http://127.0.0.1:5174/?mode=mock).
 
 See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
-checks and live-validation limits.
+checks and live-validation limits. The [loading/interaction diagnostics report](docs/reports/city-performance-diagnostics.md) records measured feedback delays and the optional natural-edge trial; the faster hull mask remains the default.
 
 ## Run M1 ingestion
 

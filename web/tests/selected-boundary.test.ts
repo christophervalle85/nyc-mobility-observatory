@@ -23,3 +23,15 @@ test('changing, clearing and disposing selection removes only its owned rings, w
  boundary.select(null);assert.equal(live.size,0);assert.deepEqual(removed,[1,2,3,4]);
  boundary.select(1);boundary.dispose();boundary.dispose();assert.equal(live.size,0);assert.equal(removed.length,7);
 });
+
+test('readiness changes retain the selected outline rings instead of rebuilding them',async()=>{
+ const {selectionPresentation}=await import('../src/selection-presentation.ts');
+ let added=0,removed=0;
+ const boundary=selectedBoundary(geography,()=>++added,()=>{removed++});
+ for(const detailReady of [false,true,false,true]){
+  boundary.select(selectionPresentation(2,false,detailReady).outlineId);
+  assert.equal(added,1);assert.equal(removed,0);
+ }
+ boundary.select(selectionPresentation(null,false,false).outlineId);
+ assert.equal(removed,1);
+});

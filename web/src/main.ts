@@ -4,11 +4,20 @@ import { areaTarget, filterZones, parseZones, resolveZone } from './zones.ts';
 import type { ZoneCollection } from './zones.ts';
 import { areaFocus } from './area-focus.ts';
 import { startupGate } from './startup-gate.ts';
+import { createDiagnostics } from './diagnostics.ts';
+import { parseLandFootprint } from './land-footprint.ts';
+import type { LandFootprint } from './land-footprint.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element<HTMLSelectElement>('zone-picker'), search = element<HTMLInputElement>('area-search');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
+const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
+const landCandidate = query.get('cutout') === 'land';
+let land: LandFootprint | undefined;
+element('hull-source').hidden = landCandidate;
+element('land-source').hidden = !landCandidate;
+element('land-provenance').hidden = !landCandidate;
 const verification = import.meta.env.MODE === 'verify';
 const configured = mock || (!verification && Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN));
 let startup: ReturnType<typeof startupGate> | undefined;
@@ -48,7 +57,9 @@ function render(state: SessionState) {
   element('viewport-title').textContent = geographyFailed ? 'Local footprint unavailable' : state.phase === 'error' ? 'The city could not open' : mock ? 'Mock city stage' : 'City configuration needed';
   element('viewport-message').textContent = geographyFailed ? 'Restore the local TLC geography file and reload.' : state.phase === 'error' ? stateMessages.error : mock ? 'Controls run locally. No city imagery is requested.' : 'Add the public read-only token to open this city stage.';
   const footprint = controller.footprint();
-  element('footprint-notice').textContent = footprint?.kind === 'unavailable' ? 'City cutout unavailable. Showing unclipped realistic 3D.' : footprint?.kind === 'newark' ? 'NYC + Newark airport study area' : 'TLC-derived study footprint';
+  element('footprint-notice').textContent = landCandidate
+    ? footprint?.kind === 'unavailable' ? 'DCP land cutout unavailable. Showing unclipped realistic 3D.' : footprint?.kind === 'newark' ? 'DCP generalized NYC land + Newark airport study area' : 'DCP generalized NYC land'
+    : footprint?.kind === 'unavailable' ? 'City cutout unavailable. Showing unclipped realistic 3D.' : footprint?.kind === 'newark' ? 'NYC + Newark airport study area' : 'TLC-derived study footprint';
   element('outside-city').hidden = selected !== 1;
   element('outside-city').textContent = footprint?.includesNewark ? 'Newark airport is outside NYC. The study area now includes it.' : 'Newark airport is outside NYC. Focus area adds its study footprint.';
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view], #city-overview')) button.disabled = state.phase !== 'ready' || state.draining;
@@ -82,10 +93,12 @@ function liveAdapter(): SceneAdapter {
   let disposed = false, delegate: SceneAdapter | undefined;
   return {
     async load(change) {
-      const { createCesiumAdapter } = await import('./cesium-adapter.ts');
+      const imported = diagnostics.span('cesium.import');
+      const { createCesiumAdapter } = await import('./cesium-adapter.ts').finally(imported);
       if (disposed) return;
-      delegate = createCesiumAdapter(element('cesium-view'), element('credits'), import.meta.env.VITE_CESIUM_ION_TOKEN, zones, selectZone);
+      delegate = createCesiumAdapter(element('cesium-view'), element('credits'), import.meta.env.VITE_CESIUM_ION_TOKEN, zones, selectZone, diagnostics, land, landCandidate);
       await delegate.load(change);
+      if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
     overview() { return delegate?.overview?.() ?? false; }, orbit(horizontal, vertical) { return delegate?.orbit?.(horizontal, vertical) ?? false; }, zoom(factor) { return delegate?.zoom?.(factor) ?? false; }, footprint() { return delegate?.footprint?.(); },
@@ -98,9 +111,20 @@ const controller = new SessionController(configured, mock ? mockAdapter : liveAd
 startup = startupGate({configured, visible: document.visibilityState === 'visible', enabled: mock || !verification, start() { void controller.load(); }});
 render(controller.state);
 if (mock) element('cost-note').textContent = 'Mock mode runs locally. No imagery requests or ion quota use.';
+let resultQuery: string | undefined, pinnedResultId: number | null = null;
+let matchedResultIds = new Set<number>();
 function renderResults() {
   if (!geographyReady) return;
-  const results = filterZones(zones, search.value), current = resolveZone(zones, selected);
+  const measured = diagnostics.span('selection.options');
+  const current = resolveZone(zones, selected);
+  if (resultQuery === search.value && pinnedResultId === null && (!current || matchedResultIds.has(current.id))) {
+    picker.value = current ? String(current.id) : '';
+    clearSearch.disabled = search.value.length === 0;
+    measured(); return;
+  }
+  const results = filterZones(zones, search.value);
+  resultQuery = search.value; matchedResultIds = new Set(results.map(zone => zone.id));
+  pinnedResultId = current && !matchedResultIds.has(current.id) ? current.id : null;
   picker.replaceChildren(new Option('Choose a TLC area', ''));
   if (current && !results.some(zone => zone.id === current.id)) {
     const group = document.createElement('optgroup'); group.label = 'Selected area (outside search results)';
@@ -115,8 +139,11 @@ function renderResults() {
   picker.value = current ? String(current.id) : ''; picker.disabled = results.length === 0 && !current;
   element('search-count').textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.' : new Intl.PluralRules('en').select(results.length) === 'one' ? '1 matching TLC area.' : `${new Intl.NumberFormat('en').format(results.length)} matching TLC areas.`;
   clearSearch.disabled = search.value.length === 0;
+  measured();
 }
-function selectZone(id: number | null) {
+function selectZone(id: number | null, interaction = true) {
+  if (interaction) diagnostics.interaction();
+  const measured = diagnostics.span('selection.handler');
   const zone = resolveZone(zones, id); selected = zone?.id ?? null;
   element('inspector').hidden = !zone;
   element('selection-title').textContent = zone?.properties.zone ?? 'Inspect a TLC area';
@@ -126,8 +153,9 @@ function selectZone(id: number | null) {
   controller.select(selected); renderResults(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
+  measured();
 }
-search.addEventListener('input', renderResults);
+search.addEventListener('input', () => { diagnostics.interaction(); renderResults(); });
 for (const menu of document.querySelectorAll<HTMLDetailsElement>('.stage-tools details, #sources')) {
   menu.addEventListener('focusout', event => {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
@@ -144,18 +172,42 @@ picker.addEventListener('change', () => selectZone(resolveZone(zones, picker.val
 clearSelection.addEventListener('click', () => selectZone(null));
 load.addEventListener('click', () => { startup?.stop(); if (geographyReady) void controller.load(); });
 stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
-focusButton.addEventListener('click', () => { void controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches); });
-element('city-overview').addEventListener('click', () => controller.overview());
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'));
+focusButton.addEventListener('click', async () => {
+  diagnostics.interaction();
+  const focused = diagnostics.span('focus.duration');
+  const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if (moved) focused();
+});
+element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });
 document.addEventListener('visibilitychange', () => { startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
-window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); }, { once: true });
+window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); diagnostics.dispose(); }, { once: true });
 window.addEventListener('popstate', () => { if (geographyReady) selectZone(resolveZone(zones, new URLSearchParams(location.search).get('zone'))?.id ?? null); });
 async function loadZones() {
   try {
-    const response = await fetch('/data/taxi-zones.geojson'); if (!response.ok) throw new Error('Local geography unavailable');
-    zones = parseZones(await response.json()); if (!zones.features.length) throw new Error('No local zones');
+    const landAsset = landCandidate ? (async () => {
+      const abort = new AbortController();
+      const timeout = setTimeout(() => abort.abort(), 3000);
+      try {
+        const fetched = diagnostics.span('land.fetch');
+        const response = await fetch('/data/city-land.json', {signal: abort.signal}).finally(fetched);
+        if (!response.ok) return undefined;
+        const decoded = diagnostics.span('land.json');
+        const input = await response.json().finally(decoded);
+        const validated = diagnostics.span('land.validate');
+        try { return parseLandFootprint(input); } finally { validated(); }
+      } catch { return undefined; } finally { clearTimeout(timeout); }
+    })() : undefined;
+    const fetched = diagnostics.span('geography.fetch');
+    const response = await fetch('/data/taxi-zones.geojson').finally(fetched); if (!response.ok) throw new Error('Local geography unavailable');
+    const decoded = diagnostics.span('geography.json');
+    const input = await response.json().finally(decoded);
+    const validated = diagnostics.span('geography.validate');
+    try { zones = parseZones(input); } finally { validated(); }
+    if (!zones.features.length) throw new Error('No local zones');
     geographyReady = true; search.disabled = false;
-    selectZone(resolveZone(zones, query.get('zone'))?.id ?? null);
+    selectZone(resolveZone(zones, query.get('zone'))?.id ?? null, false);
+    if (landAsset) land = await landAsset;
     startup?.ready();
   } catch {
     geographyFailed = true; startup?.stop();

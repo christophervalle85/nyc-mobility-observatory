@@ -1,6 +1,6 @@
 # NYC city-stage prototype
 
-The city-stage presentation opens at the Midtown skyline with compact floating controls. It passed 76 unit tests, TypeScript, an isolated build and 24 browser tests; desktop/narrow-screen live composition was inspected. User acceptance and quantitative performance measurements remain pending.
+The city-stage opens at the Midtown skyline with compact floating controls. The diagnostics follow-up passed 96 unit tests, 30 browser tests, TypeScript, an isolated build and 9 offline exporter tests. Limited live startup/feedback measurements are recorded below; user acceptance, cold-device profiling and GPU performance remain unverified.
 
 A standalone local Vite + TypeScript + CesiumJS client. A single city viewport uses official TLC zone geography from a local GeoJSON file; there is no separate 2D/SVG map. With usable configuration, Google Photorealistic 3D Tiles start through Cesium ion once local geography validates and the page first becomes visible. This prototype does not display mobility counts, charts, date filters or live traffic.
 
@@ -27,6 +27,14 @@ Place your public Cesium ion client token after `=` and restart the server. Do n
 The stage makes one automatic startup attempt per document. **Stop / unload** cancels pending startup and prevents automatic resumption; **Resume 3D** uses the same two-attempt session budget and drain guard. Errors never retry automatically. Reloading creates a new startup entitlement. It does not load default imagery, terrain or geocoding services. Camera movement can request more tiles. Request-render mode avoids unnecessary idle rendering; it does not limit billing. Rendering uses CSS-pixel resolution at scale 1, without another device-pixel-ratio division, native 2× supersampling or an artificial 30 FPS cap. Tiles use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. These are not a hard total-memory limit and can increase bandwidth and memory use. **Stop / unload** destroys the viewer and listeners; requests already in flight may finish. One deliberate retry is available per page session, with no automatic retry loop. Retry stays disabled until all pending resource creation has settled, including work left after Stop or a timeout. A request-limit error asks you to stop and check usage instead. Reloading starts a new session, so avoid repeated reloads or loads.
 
 Keep the imagery credits visible. Zone geometry comes from TLC, not Google imagery. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
+
+## Diagnostics and natural-edge trial
+
+Append `?diagnostics=1` to record bounded, numeric-only timings in the browser console under `[NYC diagnostics]`. Diagnostics are off by default and add no profiling clock, timer, observer or render listener in that mode. Records distinguish geography/body decoding, Cesium import/runtime construction, tile roots/first rendered tiles/full detail, selection and deliberate focus flight. Frame samples measure CPU render wall time and render-event gaps, **not GPU FPS**. No provider URLs, credentials or raw errors are recorded.
+
+`?cutout=land` tries the separately versioned NYC DCP water-excluded land mask. This gives a more natural edge but was materially slower to settle in the matched local trial, so the default still uses the TLC hulls. The local asset is optional; its fetch/body timeout is three seconds, the TLC list stays usable while waiting, and failure shows unclipped imagery with an explicit notice. Sources & usage identifies the active mask and its provenance. This display source never replaces TLC area IDs, picking geometry or data joins.
+
+Selected outlines now remain available through tile refinement and camera movement; fills wait for detail. Ordinary unchanged-query selections retain their native selector options. See [measured results and limits](../docs/reports/city-performance-diagnostics.md).
 
 ## Study footprint and navigation
 

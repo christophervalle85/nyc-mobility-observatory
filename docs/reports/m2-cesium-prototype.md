@@ -1,5 +1,7 @@
 # M2 city-stage prototype
 
+Latest follow-up: see [city loading and interaction diagnostics](city-performance-diagnostics.md) for the outline/selector fixes, optional DCP land mask, measured tradeoff and current validation. The sections below preserve the earlier presentation checkpoint evidence.
+
 Status: city-stage presentation is refined; limited desktop/narrow-screen live inspection and automated browser regression checks completed. Christopher's visual acceptance and quantitative performance measurement remain pending.
 
 ## Presentation refinement — November 11, 2026

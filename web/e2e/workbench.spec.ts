@@ -83,3 +83,83 @@ for(const menu of ['area-controls','sources'])test(`${menu} keeps internal keybo
  await expect(details).toHaveJSProperty('open',false);
  await expect(page.locator('#stop')).toBeFocused();
 });
+
+test('selection changes retain the existing native area options when the search is unchanged',async({context,page})=>{
+ await context.route('**/data/taxi-zones.geojson',route=>route.continue());
+ await page.goto('/?mode=mock');await areas(page);
+ const picker=page.locator('#zone-picker');
+ await expect(picker.locator('option')).toHaveCount(264);
+ const originalOptions=await picker.evaluateHandle(select=>Array.from((select as HTMLSelectElement).options));
+ try{
+  for(const [id,title] of [['161','Midtown Center'],['162','Midtown East']]){
+   await picker.selectOption(id);
+   await expect(picker).toHaveValue(id);
+   await expect(page.locator('#selection-title')).toHaveText(title);
+   const retained=await picker.evaluate((select,previous)=>{
+    const current=Array.from((select as HTMLSelectElement).options);
+    return current.length===previous.length&&current.every((option,index)=>option===previous[index]);
+   },originalOptions);
+   expect(retained,'Selecting an area without changing the search must preserve the existing native options').toBe(true);
+  }
+ }finally{await originalOptions.dispose();}
+});
+
+// These tests cover local asset loading and geography recovery, not live clipping.
+test('default and differently cased cutout flags do not request the candidate land asset',async({page})=>{
+ const assetRequests:string[]=[];
+ page.on('request',request=>{if(new URL(request.url()).pathname==='/data/city-land.json')assetRequests.push('land')});
+ for(const suffix of ['', '&cutout=LAND']){
+  await page.goto(`/?mode=mock${suffix}`);
+  await expect(page.locator('#status')).toContainText('Mock stage ready');
+ }
+ expect(assetRequests).toEqual([]);
+});
+
+test('exact land cutout flag requests its local asset once',async({page})=>{
+ const assetRequests:string[]=[],external:string[]=[];
+ page.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/data/city-land.json')assetRequests.push('land');if(url.hostname!=='127.0.0.1')external.push('external')});
+ await page.goto('/?mode=mock&cutout=land');
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ expect(assetRequests).toEqual(['land']);expect(external).toEqual([]);
+ await page.locator('#sources>summary').click();
+ await expect(page.locator('#sources a[href="/data/city-land.provenance.json"]')).toBeVisible({timeout:1000});
+ await expect(page.locator('#sources a[href*="gthc-hcne"]')).toBeVisible({timeout:1000});
+});
+
+for(const failure of ['missing','invalid'])test(`${failure} optional land asset preserves local area selection and isolated startup`,async({context,page})=>{
+ await context.route('**/data/city-land.json',route=>failure==='missing'?route.fulfill({status:404,body:'Not found'}):route.fulfill({json:{type:'not-a-land-footprint'}}));
+ const assetRequests:string[]=[],external:string[]=[];
+ page.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/data/city-land.json')assetRequests.push('land');if(url.hostname!=='127.0.0.1')external.push('external')});
+ await page.goto('/?mode=mock&cutout=land');
+ await expect(page.locator('#status')).toContainText('Mock stage ready');
+ await areas(page);await page.locator('#zone-picker').selectOption('161');
+ await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
+ await expect(page.locator('#zone-picker')).toBeEnabled();
+ expect(assetRequests).toEqual(['land']);expect(external).toEqual([]);
+});
+
+test('stalled optional land asset leaves local controls usable and reaches isolated startup after its timeout',async({context,page})=>{
+ let release!:()=>void;
+ const held=new Promise<void>(resolve=>{release=resolve});
+ await context.route('**/data/city-land.json',async route=>{
+  await held;
+  await route.fulfill({json:{type:'not-a-land-footprint'}}).catch(()=>{});
+ });
+ const external:string[]=[];
+ page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});
+ try{
+  await page.goto('/?mode=mock&cutout=land');await areas(page);
+  // Optional display geometry must not hold the already-fetched local area list.
+  await expect(page.locator('#area-search')).toBeEnabled({timeout:1000});
+  await page.locator('#zone-picker').selectOption('161');
+  await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
+  // The unresolved route stays held: startup must recover through the 3s timeout.
+  await expect(page.locator('#status')).toContainText('Mock stage ready',{timeout:5500});
+  expect(external).toEqual([]);
+ }finally{
+  release();
+  // The asset request was aborted by the app; detach its deliberately held route
+  // before fixture teardown so a late response cannot keep the test worker alive.
+  await context.unrouteAll({behavior:'ignoreErrors'});
+ }
+});
