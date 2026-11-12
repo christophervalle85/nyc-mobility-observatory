@@ -48,9 +48,9 @@
   --color-map-capsule-solid: oklch(27% 0.016 78);
   --color-map-capsule-fill: oklch(25% 0.017 78 / 0.59);
   --color-map-capsule-highlight: oklch(32% 0.022 89 / 0.59);
-  --color-map-capsule-edge: oklch(94% 0.012 90 / 0.31);
+  --color-map-capsule-edge: oklch(94% 0.012 90 / 0.26);
   --color-map-capsule-action: oklch(98% 0.008 95 / 0.10);
-  --shadow-map-capsule: inset 1px 1px 1px oklch(98% 0.012 90 / 0.28),
-    inset -1px -1px 2px oklch(15% 0.014 75 / 0.45),
-    0 4px 12px oklch(12% 0.012 75 / 0.28);
+  --shadow-map-capsule: inset 1px 1px 1px oklch(98% 0.012 90 / 0.34),
+    inset -1px -1px 2px oklch(15% 0.014 75 / 0.39),
+    0 4px 12px oklch(12% 0.012 75 / 0.24);
 }
