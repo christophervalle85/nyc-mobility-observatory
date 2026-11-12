@@ -12,7 +12,7 @@ npm ci --ignore-scripts
 npm run dev:live
 ```
 
-Open <http://127.0.0.1:5173>. Local TLC search and the native result selector work without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, select **Stop 3D**, restart `npm run dev:live`, then refresh the page.
+Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, select **Stop 3D**, restart `npm run dev:live`, then refresh the page.
 
 For 3D, edit the ignored `web/.env.local` file locally:
 
@@ -39,9 +39,15 @@ The cutouts use generalized source boundaries and leave TLC area IDs, picking ge
 
 ## Find and focus a TLC area
 
-Use **Search areas** to find any of the 263 TLC areas by name, borough or exact TLC ID. Typing and clearing the query preserve the current selection. Choose a result, pick a point in the live scene or open `?zone=ID` to show area details and highlight the zone without moving the camera. Close the details to clear the selection and return to search.
+Use **Search areas** to filter by name, borough or exact TLC ID. Leave the field blank to browse all 263 TLC areas. Each result shows the area's name, borough and TLC ID. Click or tap a row to select it.
 
-Select **Focus** once 3D is ready. The flight uses local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current viewing direction. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
+Use the Up and Down arrow keys to move through the results. With the list open, Enter chooses the active row or the first match if no row is active. Escape closes the list and keeps the query and selection.
+
+Choosing a result closes the list, keeps the query and opens the area details. When 3D is ready, the map highlights the selection and the camera flies to it. If the initial startup is still pending, the flight waits for it to finish. Choosing a result leaves a stopped scene unloaded.
+
+Picking a point in the live scene or opening `?zone=ID` selects an area without moving the camera. Editing or clearing the query keeps the selected area, even if it falls outside the results. Close the details to clear the selection and return to search.
+
+Use **Focus** to recenter on the selected area once 3D is ready. Both automatic and manual flights use local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current viewing direction. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
 
 **Show all NYC** restores the five-borough fit. The opening view uses source-derived Midtown bounds. Bounded drag, zoom and the orbit and tilt buttons under **Camera controls** use local source bounds. Resizing keeps the current camera. Newark Airport is searchable and can be selected and flown to in any mode. In either cutout mode, flying to Newark adds its 61-vertex hull to an active cutout (311 vertices total in borough mode). **Show all NYC** removes the added hull.
 
@@ -51,7 +57,7 @@ Map picking intersects the camera ray with the ellipsoid and checks the point ag
 
 Append `?diagnostics=1` to record bounded, numeric-only timings in the browser console under `[NYC diagnostics]`. With diagnostics off, the app adds no profiling clock, timer, observer or render listener. Records cover local geography, Cesium startup, tile readiness, selection and camera flights. Frame samples measure CPU render wall time and render-event gaps. Diagnostics exclude GPU FPS, provider URLs, credentials and raw errors.
 
-Selected outlines stay available through tile refinement and camera movement. Fills wait for detail. When the query stays the same, ordinary selections reuse the native selector options. See [measured results and limits](../docs/reports/city-performance-diagnostics.md).
+Selected outlines stay available through tile refinement and camera movement. Fills wait for detail. See [measured results and limits](../docs/reports/city-performance-diagnostics.md).
 
 ## Safe preview and checks
 

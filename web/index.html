@@ -36,16 +36,16 @@
                 <circle cx="10.75" cy="10.75" r="5.75"/><path d="m15 15 4 4"/>
               </svg>
             </label>
-            <input type="search" id="area-search" name="area-search" placeholder="Loading TLC areas…" autocomplete="off" spellcheck="false" aria-controls="area-results" disabled />
+            <input type="text" inputmode="search" enterkeyhint="search" id="area-search" name="area-search" placeholder="Loading TLC areas…" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="zone-picker" disabled />
             <button type="button" id="clear-search" aria-label="Clear search" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7.5 7.5 9 9m0-9-9 9"/></svg>
             </button>
           </div>
-          <div id="area-results">
-            <label for="zone-picker" class="visually-hidden">Area results</label>
-            <select id="zone-picker" name="zone" aria-describedby="search-count" hidden disabled><option value="">Loading TLC areas…</option></select>
-            <p id="search-count" class="control-hint visually-hidden" role="status"></p>
+          <div id="area-results" hidden>
+            <ul id="zone-picker" role="listbox" aria-label="Area results" tabindex="-1"></ul>
+            <p id="search-count" class="control-hint" role="status"></p>
           </div>
+          <p id="search-announcement" class="visually-hidden" role="status"></p>
         </section>
         <div id="viewport-state" class="viewport-state" hidden>
           <div>

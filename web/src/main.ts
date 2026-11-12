@@ -14,8 +14,9 @@ import { cutoutMode } from './cutout-mode.ts';
 import { areaCardPosition } from './area-card-position.ts';
 import type { SelectionAnchor } from './selection-anchor.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const picker = element<HTMLSelectElement>('zone-picker'), search = element<HTMLInputElement>('area-search');
-const areaControls = element('area-controls'), searchCount = element('search-count');
+const picker = element('zone-picker'), search = element<HTMLInputElement>('area-search');
+const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
+const searchAnnouncement = element('search-announcement');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
@@ -92,6 +93,7 @@ function warmEngine() {
 }
 let geographyReady = false, geographyFailed = false;
 let zones: ZoneCollection = { type: 'FeatureCollection', features: [] }, selected: number | null = null;
+let pendingSearchFocus = false;
 const messages: Record<Failure, string> = {
   auth: 'Access denied. Check the token asset access and allowed localhost URL, then retry once.',
   rate: 'Request limit reached. Stop here and check your Cesium ion usage before another session.',
@@ -157,6 +159,11 @@ function render(state: SessionState) {
     : known && !target ? 'Camera target unavailable.'
     : known && focusButton.disabled ? 'Available when 3D is ready.' : '';
   if (focusStatus.textContent !== focusText) focusStatus.textContent = focusText;
+  if (state.phase === 'stopped' || state.phase === 'partial' || state.phase === 'error') pendingSearchFocus = false;
+  if (pendingSearchFocus && !focusButton.disabled) {
+    pendingSearchFocus = false;
+    void focusSelectedArea();
+  }
 }
 function mockAdapter(): SceneAdapter {
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -210,37 +217,66 @@ startup = startupGate({configured, visible: document.visibilityState === 'visibl
 warmEngine();
 render(controller.state);
 if (mock) element('cost-note').textContent = 'Mock mode runs locally. No imagery requests or ion quota use.';
-let resultQuery: string | undefined, pinnedResultId: number | null = null;
-let matchedResultIds = new Set<number>();
+let resultQuery: string | undefined;
+let resultRows: HTMLLIElement[] = [];
+let selectedRow: HTMLElement | null = null;
+let activeResult = -1;
+const numberFormat = new Intl.NumberFormat('en');
+const pluralRules = new Intl.PluralRules('en');
+
+function updateSelectedResult() {
+  const row = selected === null ? null : document.getElementById(`area-result-${selected}`);
+  if (row === selectedRow) return;
+  selectedRow?.setAttribute('aria-selected', 'false');
+  row?.setAttribute('aria-selected', 'true');
+  selectedRow = row;
+}
+
+function setActiveResult(index: number) {
+  resultRows[activeResult]?.removeAttribute('data-active');
+  activeResult = index;
+  const row = resultRows[index];
+  if (!row) {
+    search.removeAttribute('aria-activedescendant');
+    return;
+  }
+  row.setAttribute('data-active', '');
+  search.setAttribute('aria-activedescendant', row.id);
+  const rowBounds = row.getBoundingClientRect(), listBounds = picker.getBoundingClientRect();
+  if (rowBounds.top < listBounds.top) picker.scrollTop += rowBounds.top - listBounds.top;
+  else if (rowBounds.bottom > listBounds.bottom) picker.scrollTop += rowBounds.bottom - listBounds.bottom;
+}
+
 function renderResults() {
   if (!geographyReady) return;
   clearSearch.hidden = search.value.length === 0;
+  if (resultQuery === search.value) return;
   const measured = diagnostics.span('selection.options');
-  const current = resolveZone(zones, selected);
-  const pinnedCurrent = current && !matchedResultIds.has(current.id) ? current.id : null;
-  if (resultQuery === search.value && pinnedResultId === pinnedCurrent) {
-    picker.value = current ? String(current.id) : '';
-    measured(); return;
-  }
+  setActiveResult(-1);
   const results = filterZones(zones, search.value);
-  resultQuery = search.value; matchedResultIds = new Set(results.map(zone => zone.id));
-  pinnedResultId = current && !matchedResultIds.has(current.id) ? current.id : null;
-  picker.replaceChildren(new Option('Choose a TLC area', ''));
-  if (current && pinnedResultId !== null) {
-    const group = document.createElement('optgroup'); group.label = 'Selected area (outside search results)';
-    group.append(new Option(`${current.properties.zone} (${current.id})`, String(current.id))); picker.append(group);
-  }
-  const groups = new Map<string, HTMLOptGroupElement>();
-  for (const zone of results) {
-    let group = groups.get(zone.properties.borough);
-    if (!group) { group = document.createElement('optgroup'); group.label = zone.properties.borough; groups.set(group.label, group); picker.append(group); }
-    group.append(new Option(`${zone.properties.zone} (${zone.id})`, String(zone.id)));
-  }
-  picker.value = current ? String(current.id) : ''; picker.disabled = results.length === 0 && !current;
-  searchCount.textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.' : new Intl.PluralRules('en').select(results.length) === 'one' ? '1 matching TLC area.' : `${new Intl.NumberFormat('en').format(results.length)} matching TLC areas.`;
+  resultQuery = search.value;
+  resultRows = results.map(zone => {
+    const row = document.createElement('li');
+    row.id = `area-result-${zone.id}`;
+    row.dataset.zone = String(zone.id);
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', 'false');
+    const name = document.createElement('span'), metadata = document.createElement('span');
+    name.textContent = zone.properties.zone;
+    metadata.textContent = `${zone.properties.borough} · TLC ID ${zone.id}`;
+    row.append(name, metadata);
+    return row;
+  });
+  picker.replaceChildren(...resultRows);
+  picker.scrollTop = 0;
+  selectedRow = null;
+  updateSelectedResult();
+  searchCount.textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.'
+    : pluralRules.select(results.length) === 'one' ? '1 matching TLC area.' : `${numberFormat.format(results.length)} matching TLC areas.`;
   measured();
 }
 function selectZone(id: number | null, interaction = true) {
+  pendingSearchFocus = false;
   if (interaction) diagnostics.interaction();
   const measured = diagnostics.span('selection.handler');
   const zone = resolveZone(zones, id);
@@ -251,48 +287,92 @@ function selectZone(id: number | null, interaction = true) {
   element('selection-title').textContent = zone?.properties.zone ?? 'TLC area';
   element('zone-id').textContent = zone ? String(zone.properties.location_id) : '';
   element('zone-borough').textContent = zone?.properties.borough ?? '';
-  controller.select(selected); renderResults(); render(controller.state);
+  controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
   measured();
 }
 function showAreaResults(open: boolean) {
-  if (picker.hidden === !open || (open && !geographyReady)) return;
-  areaControls.toggleAttribute('data-expanded', open);
-  picker.hidden = !open;
-  searchCount.classList.toggle('visually-hidden', !open);
+  if (resultsPanel.hidden === !open || (open && !geographyReady)) return;
+  resultsPanel.hidden = !open;
+  search.setAttribute('aria-expanded', String(open));
+  if (open) {
+    searchAnnouncement.textContent = '';
+    renderResults();
+  } else setActiveResult(-1);
+}
+
+function chooseResult(row: HTMLElement | undefined) {
+  if (resultsPanel.hidden || !row) return;
+  const zone = resolveZone(zones, row.dataset.zone);
+  if (!zone) return;
+  selectZone(zone.id);
+  search.focus({ preventScroll: true });
+  showAreaResults(false);
+  searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
+  const { phase, draining } = controller.state;
+  if (!focusButton.disabled) void focusSelectedArea();
+  else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
 }
 search.addEventListener('focus', () => showAreaResults(true));
 search.addEventListener('click', () => showAreaResults(true));
 search.addEventListener('input', () => { diagnostics.interaction(); showAreaResults(true); renderResults(); });
 search.addEventListener('keydown', event => {
-  if (event.isComposing || (event.key !== 'ArrowDown' && (event.key !== 'Enter' || !picker.hidden))) return;
-  event.preventDefault();
-  showAreaResults(true);
-  if (event.key === 'ArrowDown' && !picker.disabled) picker.focus();
+  if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    showAreaResults(true);
+    if (!resultRows.length) return;
+    const last = resultRows.length - 1;
+    const next = event.key === 'ArrowDown' ? Math.min(last, activeResult + 1)
+      : activeResult === -1 ? last : Math.max(0, activeResult - 1);
+    setActiveResult(next);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    if (resultsPanel.hidden) showAreaResults(true);
+    else chooseResult(resultRows[Math.max(0, activeResult)]);
+  } else if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    setActiveResult(-1);
+  }
 });
 areaControls.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || event.isComposing) return;
+  if (event.key !== 'Escape' || event.isComposing || resultsPanel.hidden) return;
   event.preventDefault();
-  search.focus();
+  search.focus({ preventScroll: true });
   showAreaResults(false);
 });
-// Wait for the outside click to land before collapsing the in-flow panel.
-let outsidePointer: number | undefined;
+picker.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'mouse' && event.button === 0 && (event.target as Element).closest('[role="option"]')) event.preventDefault();
+});
+picker.addEventListener('focus', () => search.focus({ preventScroll: true }));
+picker.addEventListener('click', event => {
+  chooseResult((event.target as Element).closest<HTMLElement>('[role="option"]') ?? undefined);
+});
+// Keep the in-flow panel in place until the current pointer gesture can deliver its click.
+let pointer: number | undefined;
+let pointerRelease: ReturnType<typeof setTimeout> | undefined;
 document.addEventListener('pointerdown', event => {
-  if (!picker.hidden && !areaControls.contains(event.target as Node)) outsidePointer = event.pointerId;
+  clearTimeout(pointerRelease);
+  if (!resultsPanel.hidden) pointer = event.pointerId;
 }, true);
-for (const type of ['pointerup', 'pointercancel'] as const) {
-  document.addEventListener(type, event => {
-    if (event.pointerId === outsidePointer) outsidePointer = undefined;
-  }, true);
-}
+document.addEventListener('pointerup', event => {
+  if (event.pointerId !== pointer) return;
+  pointerRelease = setTimeout(() => {
+    pointer = undefined;
+    if (!areaControls.contains(document.activeElement)) showAreaResults(false);
+  }, 0);
+}, true);
+document.addEventListener('pointercancel', event => {
+  if (event.pointerId === pointer) pointer = undefined;
+}, true);
 areaControls.addEventListener('focusout', event => {
-  if (outsidePointer === undefined && event.relatedTarget instanceof Node && !areaControls.contains(event.relatedTarget)) {
+  if (pointer === undefined && !areaControls.contains(event.relatedTarget as Node | null)) {
     showAreaResults(false);
   }
 });
 document.addEventListener('click', event => {
+  clearTimeout(pointerRelease);
+  pointer = undefined;
   if (!areaControls.contains(event.target as Node)) showAreaResults(false);
 }, true);
 for (const menu of document.querySelectorAll<HTMLDetailsElement>('#view-controls, #sources')) {
@@ -312,7 +392,6 @@ clearSearch.addEventListener('click', () => {
   showAreaResults(true);
   renderResults();
 });
-picker.addEventListener('change', () => selectZone(resolveZone(zones, picker.value)?.id ?? null));
 clearSelection.addEventListener('click', () => { selectZone(null); search.focus(); });
 load.addEventListener('click', () => {
   if (load.disabled) return;
@@ -321,11 +400,14 @@ load.addEventListener('click', () => {
   void controller.load();
 });
 stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
-focusButton.addEventListener('click', async () => {
-  diagnostics.interaction();
+async function focusSelectedArea() {
   const focused = diagnostics.span('focus.duration');
   const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (moved) focused();
+}
+focusButton.addEventListener('click', () => {
+  diagnostics.interaction();
+  void focusSelectedArea();
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });
@@ -364,9 +446,9 @@ async function loadZones() {
     startup?.ready();
   } catch {
     geographyFailed = true; startup?.stop();
-    picker.replaceChildren(new Option('Local TLC areas unavailable', '')); picker.disabled = true; search.disabled = true;
+    search.disabled = true;
     search.placeholder = 'Area search unavailable';
-    searchCount.textContent = 'The local area list could not load. Restore the TLC geography file and reload.';
+    searchAnnouncement.textContent = 'The local area list could not load. Restore the TLC geography file and reload.';
     render(controller.state);
   }
 }
