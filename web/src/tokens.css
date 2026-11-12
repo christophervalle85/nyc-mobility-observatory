@@ -41,8 +41,6 @@
   --color-map-glass-fill: oklch(99.5% 0.005 250 / 0.76);
   --color-map-glass-highlight: oklch(99.5% 0.005 250 / 0.93);
   --color-map-glass-edge: oklch(99.5% 0.005 250 / 0.82);
-  --color-map-glass-action: oklch(94% 0.026 260);
-  --color-map-glass-action-hover: oklch(90% 0.044 262);
   --shadow-map-glass: 0 0 0 1px oklch(15% 0.015 260 / 0.14),
     0 5px 14px oklch(15% 0.015 260 / 0.18), inset 0 1px 0 var(--color-map-glass-highlight);
   --color-map-capsule-solid: oklch(27% 0.016 78);
@@ -50,6 +48,7 @@
   --color-map-capsule-highlight: oklch(32% 0.022 89 / 0.59);
   --color-map-capsule-edge: oklch(94% 0.012 90 / 0.26);
   --color-map-capsule-action: oklch(98% 0.008 95 / 0.10);
+  --color-map-capsule-action-hover: oklch(98% 0.008 95 / 0.14);
   --color-map-search-fill: oklch(25% 0.017 78 / 0.67);
   --color-map-search-highlight: oklch(32% 0.022 89 / 0.67);
   --shadow-map-capsule: inset 1px 1px 1px oklch(98% 0.012 90 / 0.34),

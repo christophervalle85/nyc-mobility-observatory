@@ -62,11 +62,15 @@ if (!mock) {
 }
 
 if (CSS.supports('backdrop-filter', 'url("#area-search-lens")')) {
-  const row = search.parentElement!;
-  new ResizeObserver(([entry]) => {
-    const size = entry.borderBoxSize[0];
-    row.toggleAttribute('data-lens', size?.inlineSize === 272 && size.blockSize === 48);
-  }).observe(row, { box: 'border-box' });
+  const searchRow = search.parentElement!;
+  const resizeLenses = new ResizeObserver(entries => {
+    for (const { target, borderBoxSize } of entries) {
+      const size = borderBoxSize[0];
+      const [width, height] = target === searchRow ? [272, 48] : [224, 104];
+      target.toggleAttribute('data-lens', size?.inlineSize === width && size.blockSize === height);
+    }
+  });
+  for (const target of [searchRow, inspector]) resizeLenses.observe(target, { box: 'border-box' });
 }
 
 const mode = cutoutMode(query.get('cutout'));

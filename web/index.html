@@ -58,19 +58,30 @@
           </div>
         </div>
         <aside id="inspector" class="inspector" aria-labelledby="selection-title" hidden>
-          <div class="inspector-heading">
-            <h2 id="selection-title">TLC area</h2>
+          <div class="inspector-identity">
+            <div>
+              <h2 id="selection-title">TLC area</h2>
+              <dl id="zone-details">
+                <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
+                <div><dt>TLC ID</dt><dd id="zone-id"></dd></div>
+              </dl>
+            </div>
             <button type="button" id="clear-selection" disabled aria-label="Close area details">
-              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg>
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <defs>
+                  <filter id="area-card-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+                    <feImage href="/area-card-displacement.png" x="0" y="0" width="224" height="104" preserveAspectRatio="none" result="rim"/>
+                    <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                </defs>
+                <path d="m4.5 4.5 7 7m0-7-7 7"/>
+              </svg>
             </button>
           </div>
-          <div class="inspector-actions">
-            <dl id="zone-details">
-              <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
-              <div><dt><span aria-hidden="true">TLC</span><span class="visually-hidden">TLC ID</span></dt><dd id="zone-id"></dd></div>
-            </dl>
-            <button type="button" id="focus-area" disabled>Focus</button>
-          </div>
+          <button type="button" id="focus-area" disabled>
+            <span>Focus</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
+          </button>
           <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <p id="focus-status" class="control-hint" role="status"></p>
         </aside>

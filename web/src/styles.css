@@ -116,28 +116,33 @@ button[aria-busy=true] { cursor: progress; }
 #search-count { min-block-size: 1lh; }
 
 .inspector {
-  --area-card-width: 12.25rem;
+  --area-card-width: max(224px, 14rem);
+  --glass-fill: var(--color-map-capsule-solid);
   grid-area: details;
   display: grid;
-  gap: var(--space-3xs);
+  gap: 6px;
   align-self: start;
   inline-size: min(var(--area-card-width), 100%);
   min-inline-size: 0;
-  padding-block: 6px 7px;
-  padding-inline: 10px var(--space-xs);
-  border-radius: 16px;
+  padding: 10px;
+  border: 1px solid var(--color-map-capsule-edge);
+  border-radius: 18px;
+  background: var(--glass-fill);
+  box-shadow: var(--shadow-map-capsule);
+  color: var(--color-paper-3);
   pointer-events: auto;
 }
 .inspector[data-anchored] { position: absolute; grid-area: auto; z-index: var(--z-base); inline-size: min(var(--area-card-width), calc(100% - 2 * var(--rail-inline-pad))); left: var(--card-left); top: var(--card-top); }
 .inspector[data-anchored]::after { content: ''; position: absolute; left: var(--card-pointer); top: 100%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--glass-fill); border-bottom: 0; pointer-events: none; }
-.inspector-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2xs); }
-.inspector h2 { min-inline-size: 0; font-size: var(--text-sm); font-weight: 680; letter-spacing: -.01em; }
-#clear-selection { flex: none; display: grid; place-items: center; inline-size: 30px; min-block-size: 30px; padding: 0; border-color: transparent; border-radius: var(--radius-pill); background: transparent; color: var(--color-ink-2); }
-#clear-selection svg { inline-size: 15px; block-size: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
-.inspector dl { flex: 1 1 0; min-inline-size: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3xs) var(--space-xs); font-size: var(--text-xs); line-height: 1.3; color: var(--color-ink-2); }
-.inspector dl div { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3xs); min-inline-size: 0; overflow-wrap: anywhere; }
-.inspector-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-#focus-area { flex: none; min-block-size: 32px; padding-inline: 10px; border-color: transparent; border-radius: var(--radius-pill); background: var(--color-map-glass-action); color: var(--color-ink); font-size: var(--text-xs); font-weight: 650; }
+.inspector-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-xs); min-block-size: 44px; }
+.inspector h2 { font-size: var(--text-md); font-weight: 680; letter-spacing: -.01em; line-height: 1.25; }
+#clear-selection { display: grid; place-items: center; inline-size: 32px; min-block-size: 32px; padding: 0; border-color: transparent; border-radius: var(--radius-pill); background: var(--color-map-capsule-action); color: inherit; }
+#clear-selection svg, #focus-area svg { inline-size: 1em; block-size: 1em; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.inspector dl { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-xs); row-gap: var(--space-3xs); margin-block-start: var(--space-2xs); font-size: var(--text-xs); line-height: 1.3; color: var(--color-city-ink); }
+.inspector dl div { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2xs); min-inline-size: 0; overflow-wrap: anywhere; }
+#focus-area { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); min-block-size: 32px; min-inline-size: 0; padding: var(--space-2xs) var(--space-xs); border-color: var(--color-map-capsule-edge); border-radius: 8px; background: var(--color-map-capsule-action); color: inherit; font-size: var(--text-xs); font-weight: 650; text-align: start; }
+#focus-area svg { flex: none; }
+.inspector .control-hint { color: var(--color-city-ink); }
 #focus-status:empty { position: absolute; }
 
 .viewport-state { grid-area: viewport; display: grid; place-content: center; min-inline-size: 0; padding: var(--space-md); color: var(--color-city-ink); }
@@ -215,14 +220,14 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border-radius: 16px;
 }
-.inspector, .view-buttons {
+.view-buttons {
   --glass-fill: var(--color-paper-3);
   background: var(--glass-fill);
   border: 1px solid var(--color-map-glass-edge);
   box-shadow: var(--shadow-map-glass);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .inspector, .view-buttons {
+  .view-buttons {
     --glass-fill: var(--color-map-glass-fill);
     background: linear-gradient(155deg, var(--color-map-glass-highlight), var(--glass-fill));
   }
@@ -231,12 +236,12 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
     -webkit-backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
     backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
   }
-  .search-row {
+  .search-row, .inspector {
     background: linear-gradient(155deg, var(--color-map-search-highlight), var(--color-map-search-fill));
     -webkit-backdrop-filter: blur(8px) saturate(125%) brightness(72%);
     backdrop-filter: blur(8px) saturate(125%) brightness(72%);
   }
-  .inspector, .view-buttons {
+  .view-buttons {
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
   }
@@ -244,14 +249,15 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @supports (backdrop-filter: url("#map-capsule-lens")) {
   .stage-tools::before { backdrop-filter: url("#map-capsule-lens") blur(1.7px) saturate(125%) brightness(78%); }
   .search-row[data-lens] { backdrop-filter: url("#area-search-lens") blur(5px) saturate(125%) brightness(72%); }
+  .inspector[data-lens] { backdrop-filter: url("#area-card-lens") blur(5px) saturate(125%) brightness(72%); }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .inspector, .view-buttons {
+  .view-buttons {
     --glass-fill: var(--color-paper-3);
     background: var(--glass-fill);
   }
-  .stage-tools::before, .search-row[data-lens], .search-row { background: var(--color-map-capsule-solid); }
-  .inspector, .stage-tools::before, .view-buttons, .search-row[data-lens], .search-row {
+  .stage-tools::before, .search-row, .inspector { background: var(--color-map-capsule-solid); }
+  .inspector[data-lens], .inspector, .stage-tools::before, .view-buttons, .search-row[data-lens], .search-row {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -276,8 +282,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 .skip-link { position: absolute; inset-inline-start: var(--space-xs); inset-block-start: var(--space-xs); z-index: var(--z-sticky-nav); padding: var(--space-xs); background: var(--color-paper-3); }
 @media (hover: hover) {
   button:hover:not(:disabled), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
-  #focus-area:hover:not(:disabled) { background: var(--color-map-glass-action-hover); }
-  #clear-selection:hover:not(:disabled) { background: var(--color-map-glass-action); }
+  #focus-area:hover:not(:disabled), #clear-selection:hover:not(:disabled) { background: var(--color-map-capsule-action-hover); }
   .map-icon:hover:not(:disabled), #view-controls > summary.map-icon:hover { background: var(--color-map-capsule-action); }
   #clear-search:hover { background: var(--color-map-capsule-action); }
   a:hover { color: var(--color-accent); }
@@ -303,5 +308,6 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   .search-row { --color-search-focus: Highlight; }
   :focus-visible, #cesium-view:has(canvas:focus-visible)::after { outline-color: Highlight; }
   .session-info, .search-row, #area-controls[data-expanded] #area-results, .inspector, .tool-content, .stage-tools::before, .map-icon, #focus-area { border: 1px solid CanvasText; }
+  .inspector { --glass-fill: CanvasText; }
   #area-search::placeholder { color: CanvasText; }
 }

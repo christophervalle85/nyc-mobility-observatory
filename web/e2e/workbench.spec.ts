@@ -128,16 +128,27 @@ test('desktop area details stay compact and usable', async ({ context, page }) =
   await page.goto('/?mode=mock&zone=161');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
   const card = page.locator('#inspector');
-  await expect(card.getByRole('heading', { name: 'Midtown Center' })).toBeInViewport();
+  const title = card.getByRole('heading', { name: 'Midtown Center' });
+  const metadata = card.locator('#zone-details');
+  const focus = card.getByRole('button', { name: 'Focus', exact: true });
+  await expect(title).toBeInViewport();
   await expect(card.locator('#zone-borough')).toHaveText('Manhattan');
   await expect(card.locator('#zone-id')).toHaveText('161');
   await expect(card.locator('#zone-borough')).toBeInViewport();
   await expect(card.locator('#zone-id')).toBeInViewport();
 
   const bounds = (await card.boundingBox())!;
-  expect.soft(bounds.width, 'The normal desktop card should leave room for the map').toBeLessThanOrEqual(208);
-  expect.soft(bounds.height, 'A short area title should fit in the compact card').toBeLessThanOrEqual(103);
-  await card.getByRole('button', { name: 'Focus', exact: true }).click({ trial: true });
+  expect.soft(bounds.width, 'The normal desktop card should leave room for the map').toBeLessThanOrEqual(230);
+  expect.soft(bounds.height, 'A short area title should fit in the compact card').toBeLessThanOrEqual(118);
+  const titleBox = (await title.boundingBox())!;
+  const metadataBox = (await metadata.boundingBox())!;
+  const focusBox = (await focus.boundingBox())!;
+  expect(metadataBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+  expect(focusBox.y, 'Focus should occupy a separate row below the area identity').toBeGreaterThanOrEqual(metadataBox.y + metadataBox.height);
+  const idLabel = metadata.getByText('TLC ID', { exact: true });
+  await expect(idLabel).toBeInViewport();
+  expect((await idLabel.boundingBox())!.width).toBeGreaterThan(1);
+  await focus.click({ trial: true });
   await card.getByRole('button', { name: 'Close area details' }).click({ trial: true });
 });
 
