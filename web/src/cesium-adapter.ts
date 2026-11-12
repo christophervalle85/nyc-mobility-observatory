@@ -138,6 +138,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     };
     let anchorId: number | null = null;
     let anchorPosition: Cartesian3 | undefined;
+    let anchorOutline: Cartesian3[] = [];
     function updateSelectionAnchor() {
       if (!anchor) return;
       if (!canInteract() || container.hidden || outlined === null) {
@@ -149,8 +150,15 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         const zone = resolveZone(geography, anchorId);
         const point = zone && selectionAnchorPosition(zone.geometry);
         anchorPosition = point && Cartesian3.fromDegrees(point.longitude, point.latitude, 0, viewer.scene.ellipsoid);
+        anchorOutline = [];
+        if (point) {
+          const ring = point.outerRing;
+          const samples = Math.min(ring.length, 96);
+          const degrees = Array.from({ length: samples }, (_, index) => ring[Math.floor(index * ring.length / samples)].slice(0, 2)).flat();
+          anchorOutline = Cartesian3.fromDegreesArray(degrees, viewer.scene.ellipsoid);
+        }
       }
-      anchor.publish(outlined, anchorPosition ? anchor.project(anchorPosition) : null);
+      anchor.publish(outlined, anchorPosition ? anchor.project(anchorPosition, anchorOutline) : null);
     }
     if (anchor) {
       cleanup.push(viewer.scene.postRender.addEventListener(updateSelectionAnchor));

@@ -100,7 +100,8 @@ select { text-overflow: ellipsis; }
 .viewport-state p, #setup { margin-block-start: var(--space-xs); }
 #setup p { font-size: var(--text-xs); }
 
-.stage-tools { --map-control-width: max(48px, 3.5rem); grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
+/* Two 58px targets and 3px of padding match the 64×122 lens texture. */
+.stage-tools { --map-control-width: 58px; grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
 .stage-tools::before {
   content: '';
   position: absolute;
@@ -114,20 +115,17 @@ select { text-overflow: ellipsis; }
 }
 .map-icon, #view-controls > summary.map-icon {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3xs);
   inline-size: var(--map-control-width);
-  min-block-size: 54px;
-  padding: 5px var(--space-2xs);
+  block-size: var(--map-control-width);
+  padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-paper-3);
 }
-.map-icon svg { flex: none; inline-size: 24px; block-size: 24px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.map-icon-label { font-size: var(--text-xs); font-weight: 600; line-height: 1.15; text-align: center; }
+.map-icon svg { flex: none; inline-size: 29px; block-size: 29px; fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 summary {
   display: flex;
   align-items: center;
@@ -163,7 +161,6 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   box-shadow: var(--shadow-card);
   scrollbar-color: var(--color-muted) var(--color-paper-3);
 }
-#view-controls { border-block-start: 1px solid var(--color-map-capsule-divider); }
 #view-controls[open] > summary.map-icon { background: var(--color-map-capsule-action); }
 #view-controls > summary::after { display: none; }
 .view-buttons {
@@ -186,13 +183,18 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   }
   .stage-tools::before {
     background: linear-gradient(155deg, var(--color-map-capsule-highlight), var(--color-map-capsule-fill));
+    -webkit-backdrop-filter: blur(3px) saturate(125%) brightness(78%);
+    backdrop-filter: blur(3px) saturate(125%) brightness(78%);
   }
-  .inspector, .stage-tools::before, .view-buttons {
+  .inspector, .view-buttons {
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
   }
 }
-@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+@supports (backdrop-filter: url("#map-capsule-lens")) {
+  .stage-tools::before { backdrop-filter: url("#map-capsule-lens") blur(2px) saturate(125%) brightness(78%); }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   .inspector, .view-buttons {
     --glass-fill: var(--color-paper-3);
     background: var(--glass-fill);

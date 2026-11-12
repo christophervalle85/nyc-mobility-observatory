@@ -1,8 +1,8 @@
 import { Cartesian2, Cartesian3 } from 'cesium';
 import type { Camera, Scene } from 'cesium';
-import type { ZoneGeometry } from './zones.ts';
+import type { Ring, ZoneGeometry } from './zones.ts';
 
-export interface SelectionAnchor { x: number; y: number }
+export interface SelectionAnchor { x: number; y: number; outlineTop?: number }
 
 interface ProjectionScene {
   canvas: Pick<HTMLCanvasElement, 'clientWidth' | 'clientHeight'>;
@@ -12,7 +12,7 @@ interface ProjectionScene {
 
 export function selectionAnchorPosition(geometry: ZoneGeometry) {
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-  let position: { longitude: number; latitude: number } | undefined;
+  let position: { longitude: number; latitude: number; outerRing: Ring } | undefined;
   let widest = 0;
   for (const rings of polygons) {
     let south = Infinity, north = -Infinity;
@@ -47,7 +47,7 @@ export function selectionAnchorPosition(geometry: ZoneGeometry) {
       const left = crossings[index - 1], right = crossings[index];
       if (right - left <= widest) continue;
       widest = right - left;
-      position = { longitude: (left + right) / 2, latitude };
+      position = { longitude: (left + right) / 2, latitude, outerRing: rings[0] };
     }
   }
   return position;
@@ -58,7 +58,8 @@ export function selectionAnchorPublisher(publish: (point: SelectionAnchor | null
   let previousPoint: SelectionAnchor | null = null;
   return (id: number | null, point: SelectionAnchor | null) => {
     const nextId = point ? id : null;
-    if (nextId === previousId && previousPoint?.x === point?.x && previousPoint?.y === point?.y) return;
+    if (nextId === previousId && previousPoint?.x === point?.x && previousPoint?.y === point?.y &&
+        previousPoint?.outlineTop === point?.outlineTop) return;
     previousId = nextId;
     previousPoint = point;
     publish(point);
@@ -68,15 +69,46 @@ export function selectionAnchorPublisher(publish: (point: SelectionAnchor | null
 export function selectionAnchorProjection(scene: ProjectionScene) {
   const offset = new Cartesian3();
   const screen = new Cartesian2();
-  return (position: Cartesian3): SelectionAnchor | null => {
+  const previousScreen = new Cartesian2();
+  return (position: Cartesian3, outline: readonly Cartesian3[] = []): SelectionAnchor | null => {
     const { camera, canvas } = scene;
     const { clientWidth: width, clientHeight: height } = canvas;
     if (!width || !height) return null;
-    const depth = Cartesian3.dot(Cartesian3.subtract(position, camera.positionWC, offset), camera.directionWC);
-    if (!(depth >= camera.frustum.near && depth <= camera.frustum.far)) return null;
-    const point = scene.cartesianToCanvasCoordinates(position, screen);
+    const { positionWC, directionWC, frustum } = camera;
+    function project(world: Cartesian3, result: Cartesian2) {
+      const depth = Cartesian3.dot(Cartesian3.subtract(world, positionWC, offset), directionWC);
+      if (!(depth >= frustum.near && depth <= frustum.far)) return undefined;
+      const point = scene.cartesianToCanvasCoordinates(world, result);
+      return point && Number.isFinite(point.x) && Number.isFinite(point.y) ? point : undefined;
+    }
+    const point = project(position, screen);
     if (!point || !(point.x >= 0 && point.x < width && point.y >= 0 && point.y < height)) return null;
     // Ignore subpixel changes without rounding an in-bounds point past the viewport edge.
-    return { x: Math.floor(point.x), y: Math.floor(point.y) };
+    const x = Math.floor(point.x), y = Math.floor(point.y);
+    const last = outline.at(-1);
+    if (!last) return { x, y };
+
+    // Clear the whole projected component so a widened or edge-clamped card cannot cover its apex.
+    let outlineTop = Infinity;
+    let previous = project(last, previousScreen);
+    for (const vertex of outline) {
+      const next = project(vertex, screen);
+      if (next) {
+        if (next.x >= 0 && next.x <= width) outlineTop = Math.min(outlineTop, next.y);
+        if (previous) outlineTop = Math.min(outlineTop, topOfSegment(previous, next, width));
+      }
+      previous = next && Cartesian2.clone(next, previousScreen);
+    }
+    return outlineTop < y ? { x, y, outlineTop: Math.floor(outlineTop) } : { x, y };
   };
+}
+
+function topOfSegment(start: Cartesian2, end: Cartesian2, width: number) {
+  const firstX = Math.max(0, Math.min(start.x, end.x));
+  const lastX = Math.min(width, Math.max(start.x, end.x));
+  if (firstX > lastX) return Infinity;
+  if (start.x === end.x) return Math.min(start.y, end.y);
+  const upperX = start.y < end.y ? start.x : end.x;
+  const clippedX = Math.max(firstX, Math.min(lastX, upperX));
+  return start.y + (end.y - start.y) * (clippedX - start.x) / (end.x - start.x);
 }

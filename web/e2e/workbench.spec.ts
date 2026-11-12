@@ -7,7 +7,7 @@ test('area search is visible without opening a menu', async ({ page }) => {
   await expect(page.locator('#area-search')).toBeVisible();
   await expect(page.locator('#area-search')).toBeEnabled();
 });
-test('the map omits the visible title and stacks named camera controls', async ({ page }) => {
+test('the map omits the visible title and stacks named symbol controls', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
@@ -23,13 +23,21 @@ test('the map omits the visible title and stacks named camera controls', async (
   const camera = page.locator('#view-controls>summary');
   await expect(overview).toHaveAccessibleName('Show all NYC');
   await expect(camera).toHaveAccessibleName('Camera controls');
+  await expect(overview).toHaveText('');
+  await expect(camera).toHaveText('');
+  await expect(overview).toHaveAttribute('title', 'Show all NYC');
+  await expect(camera).toHaveAttribute('title', 'Camera controls');
   const overviewBox = (await overview.boundingBox())!;
   const cameraBox = (await camera.boundingBox())!;
+  for (const target of [overviewBox, cameraBox]) {
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+  }
   expect.soft(cameraBox.y, 'Camera controls should sit below Show all NYC').toBeGreaterThanOrEqual(overviewBox.y + overviewBox.height);
   expect.soft(Math.abs(cameraBox.x + cameraBox.width - overviewBox.x - overviewBox.width)).toBeLessThanOrEqual(2);
   expect(cameraBox.x).toBeGreaterThan(1280 / 2);
   expect(cameraBox.y).toBeGreaterThan(900 / 2);
-  await camera.click();
+  await camera.press('Enter');
   const panel = page.locator('#view-controls .tool-content');
   await expect(panel).toBeVisible();
   const panelBox = (await panel.boundingBox())!;

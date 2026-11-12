@@ -12,6 +12,7 @@ import { parseLandFootprint } from './land-footprint.ts';
 import type { LandFootprint } from './land-footprint.ts';
 import { cutoutMode } from './cutout-mode.ts';
 import { areaCardPosition } from './area-card-position.ts';
+import type { SelectionAnchor } from './selection-anchor.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element<HTMLSelectElement>('zone-picker'), search = element<HTMLInputElement>('area-search');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
@@ -23,7 +24,7 @@ const cityViewport = element('city-viewport');
 const cardObstacles = [element('area-controls'), document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
 const cardDisclosures = [element<HTMLDetailsElement>('view-controls'), element<HTMLDetailsElement>('sources')];
-let selectionAnchor: { x: number; y: number } | null = null;
+let selectionAnchor: SelectionAnchor | null = null;
 
 function positionAreaCard() {
   if (!selectionAnchor || inspector.hidden) {
@@ -33,7 +34,8 @@ function positionAreaCard() {
   const map = cityViewport.getBoundingClientRect();
   const openPanels = cardDisclosures.filter(menu => menu.open).map(menu => menu.querySelector('.tool-content')!);
   const position = areaCardPosition(
-    { x: map.left + selectionAnchor.x, y: map.top + selectionAnchor.y },
+    { x: map.left + selectionAnchor.x, y: map.top + selectionAnchor.y,
+      outlineTop: selectionAnchor.outlineTop === undefined ? undefined : map.top + selectionAnchor.outlineTop },
     { width: inspector.offsetWidth, height: inspector.offsetHeight },
     { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
       bottom: Math.min(innerHeight, map.bottom, attribution.getBoundingClientRect().top) },

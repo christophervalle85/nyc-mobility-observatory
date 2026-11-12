@@ -7,7 +7,7 @@ import type { SelectionAnchor } from '../src/selection-anchor.ts';
 import { parseZones } from '../src/zones.ts';
 import { zonePicker } from '../src/zone-picker.ts';
 
-function fixture() {
+function fixture(projectPosition?: (position: Cartesian3) => Cartesian2) {
   let screenPoint: Cartesian2 | undefined = new Cartesian2(49.8, 74.2);
   let calls = 0;
   const canvas = { clientWidth: 100, clientHeight: 150 };
@@ -18,7 +18,7 @@ function fixture() {
       directionWC: new Cartesian3(0, 0, -1),
       frustum: { near: 1, far: 200 },
     },
-    cartesianToCanvasCoordinates() { calls++; return screenPoint; },
+    cartesianToCanvasCoordinates(position) { calls++; return projectPosition ? projectPosition(position) : screenPoint; },
   });
   return { project, canvas, calls: () => calls, setPoint(point?: Cartesian2) { screenPoint = point; } };
 }
@@ -46,6 +46,39 @@ test('anchor rejects undefined, nonfinite and off-screen projected points', () =
     setPoint(point);
     assert.equal(project(Cartesian3.ZERO), null);
   }
+});
+
+test('outline top includes visible edges outside the normal card width', () => {
+  const { project, canvas } = fixture(position => new Cartesian2(position.x, position.y));
+  canvas.clientWidth = 800;
+  canvas.clientHeight = 500;
+  const outline = [
+    new Cartesian3(100, 100, 0), new Cartesian3(700, 280, 0),
+    new Cartesian3(700, 340, 0), new Cartesian3(100, 340, 0),
+  ];
+  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: 100 });
+});
+
+test('outline top includes a crossing edge from outside the visible viewport', () => {
+  const { project, canvas } = fixture(position => new Cartesian2(position.x, position.y));
+  canvas.clientWidth = 800;
+  canvas.clientHeight = 500;
+  const outline = [
+    new Cartesian3(100, -200, 0), new Cartesian3(700, 100, 0),
+    new Cartesian3(700, 340, 0), new Cartesian3(100, 340, 0),
+  ];
+  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: -200 });
+});
+
+test('outline top includes a remote apex under a widened, edge-clamped card', () => {
+  const { project, canvas } = fixture(position => new Cartesian2(position.x, position.y));
+  canvas.clientWidth = 320;
+  canvas.clientHeight = 568;
+  const outline = [
+    new Cartesian3(20, 380, 0), new Cartesian3(152, 350, 0), new Cartesian3(260, 280, 0),
+    new Cartesian3(280, 470, 0), new Cartesian3(20, 470, 0),
+  ];
+  assert.deepEqual(project(new Cartesian3(40, 410, 0), outline), { x: 40, y: 410, outlineTop: 280 });
 });
 
 test('anchor stays within each official TLC area, including concave and multipart areas', () => {
@@ -81,4 +114,15 @@ test('anchor republishes identical coordinates for a different selected area', (
   publish(null, null);
   publish(null, null);
   assert.deepEqual(changes, [point, point, null]);
+});
+
+test('anchor republishes a changed outline at the same center', () => {
+  const changes: (SelectionAnchor | null)[] = [];
+  const publish = selectionAnchorPublisher(point => changes.push(point));
+  const point = { x: 40, y: 100, outlineTop: 60 };
+  const moved = { ...point, outlineTop: 50 };
+  publish(1, point);
+  publish(1, { ...point });
+  publish(1, moved);
+  assert.deepEqual(changes, [point, moved]);
 });
