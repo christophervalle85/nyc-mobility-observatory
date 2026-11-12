@@ -36,3 +36,14 @@
 }
 
 :root { --color-scene-background: #17202a; }
+
+:root {
+  --color-map-glass-fill: oklch(99.5% 0.005 250 / 0.76);
+  --color-map-glass-highlight: oklch(99.5% 0.005 250 / 0.93);
+  --color-map-glass-edge: oklch(99.5% 0.005 250 / 0.82);
+  --color-map-glass-divider: oklch(16% 0.014 262 / 0.15);
+  --color-map-glass-action: oklch(94% 0.026 260);
+  --color-map-glass-action-hover: oklch(90% 0.044 262);
+  --shadow-map-glass: 0 0 0 1px oklch(15% 0.015 260 / 0.14),
+    0 5px 14px oklch(15% 0.015 260 / 0.18), inset 0 1px 0 var(--color-map-glass-highlight);
+}

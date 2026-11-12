@@ -75,6 +75,47 @@ for(const scenario of['rate','timeout','network','webgl','partial'])test(`mock${
 test('all 263 official areas remain selectable without a second map',async({context,page})=>{await context.route('**/data/taxi-zones.geojson',route=>route.continue());await page.goto('/?mode=mock');await expect(page.locator('#zone-picker option')).toHaveCount(264);await page.locator('#zone-picker').selectOption('161');await expect(page.locator('#selection-title')).toHaveText('Midtown Center');await expect(page.locator('svg:not(button svg, summary svg),#zone-map')).toHaveCount(0)});
 test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#credits')).toBeVisible()});
 
+test('desktop area details stay compact and usable', async ({ context, page }) => {
+  await context.route('**/data/taxi-zones.geojson', route => route.continue());
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?mode=mock&zone=161');
+  await expect(page.locator('#status')).toContainText('Mock stage ready');
+  const card = page.locator('#inspector');
+  await expect(card.getByRole('heading', { name: 'Midtown Center' })).toBeInViewport();
+  await expect(card.locator('#zone-borough')).toHaveText('Manhattan');
+  await expect(card.locator('#zone-id')).toHaveText('161');
+  await expect(card.locator('#zone-borough')).toBeInViewport();
+  await expect(card.locator('#zone-id')).toBeInViewport();
+
+  const bounds = (await card.boundingBox())!;
+  expect.soft(bounds.width, 'The normal desktop card should leave room for the map').toBeLessThanOrEqual(208);
+  expect.soft(bounds.height, 'A short area title should fit in the compact card').toBeLessThanOrEqual(103);
+  await card.getByRole('button', { name: 'Focus', exact: true }).click({ trial: true });
+  await card.getByRole('button', { name: 'Close area details' }).click({ trial: true });
+});
+
+test('a long area title fits the card at 320px with 200 percent text', async ({ context, page }) => {
+  await context.route('**/data/taxi-zones.geojson', route => route.continue());
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto('/?mode=mock&zone=103');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await expect(page.locator('#status')).toContainText('Mock stage ready');
+
+  const card = page.locator('#inspector');
+  const title = card.getByRole('heading', { name: "Governor's Island/Ellis Island/Liberty Island" });
+  await expect(title).toBeInViewport({ ratio: 1 });
+  await expect(card.locator('#zone-borough')).toBeInViewport();
+  await expect(card.locator('#zone-id')).toBeInViewport();
+  for (const content of [title, card]) {
+    const fits = await content.evaluate(element =>
+      element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
+    );
+    expect(fits, 'The long title and area details should fit without clipping').toBe(true);
+  }
+  await card.getByRole('button', { name: 'Focus', exact: true }).click({ trial: true });
+  await card.getByRole('button', { name: 'Close area details' }).click({ trial: true });
+});
+
 for (const width of [320, 640, 1440]) test(`map controls and selected area stay in view at ${width}px`, async ({ page }) => {
   const height = 900;
   await page.setViewportSize({ width, height });

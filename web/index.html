@@ -45,25 +45,29 @@
         <aside id="inspector" class="inspector" aria-labelledby="selection-title" hidden>
           <div class="inspector-heading">
             <h2 id="selection-title">TLC area</h2>
-            <button type="button" id="clear-selection" disabled aria-label="Close area details"><span aria-hidden="true">×</span></button>
+            <button type="button" id="clear-selection" disabled aria-label="Close area details">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg>
+            </button>
           </div>
-          <dl id="zone-details">
-            <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
-            <div><dt>TLC ID</dt><dd id="zone-id"></dd></div>
-          </dl>
-          <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <div class="inspector-actions">
+            <dl id="zone-details">
+              <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
+              <div><dt><span aria-hidden="true">TLC</span><span class="visually-hidden">TLC ID</span></dt><dd id="zone-id"></dd></div>
+            </dl>
             <button type="button" id="focus-area" disabled>Focus</button>
-            <p id="focus-status" class="control-hint" role="status"></p>
           </div>
+          <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
+          <p id="focus-status" class="control-hint" role="status"></p>
         </aside>
         <section class="stage-tools" aria-label="Map controls">
-          <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+          <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 9 4.5 4.5m0 4.5V4.5H9M15 9l4.5-4.5M15 4.5h4.5V9M9 15l-4.5 4.5M4.5 15v4.5H9m6-4.5 4.5 4.5M15 19.5h4.5V15"/></svg>
+            <span class="map-icon-label" aria-hidden="true">All NYC</span>
           </button>
           <details id="view-controls">
-            <summary class="map-icon" aria-label="Camera controls" title="Camera controls">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>
+            <summary class="map-icon" aria-label="Camera controls">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h8.5m5 0H20M4 17h2.5m5 0H20"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>
+              <span class="map-icon-label" aria-hidden="true">Camera</span>
             </summary>
             <div class="tool-content view-buttons">
               <button type="button" data-view="in" disabled>Zoom in</button>
