@@ -1,8 +1,9 @@
 # NYC Mobility Observatory
 
-Explore a city-stage prototype with optional Google Photorealistic 3D Tiles
-through Cesium ion. The bounded M2 prototype opens at the Midtown skyline with compact controls and a separate five-borough Overview. It supports local TLC area search,
-selection and a separate camera-focus action. Date filters, mobility counts, charts and models are not implemented.
+The city-stage prototype opens on the Midtown skyline with continuous Google
+Photorealistic 3D Tiles through Cesium ion when configured. Search and select
+local TLC areas, use **Fly to area** to move the camera, or select **Show all NYC**
+to frame the five boroughs. Date filters, mobility counts, charts and models are not implemented.
 The separate M1 ingestion pipeline remains unchanged.
 
 ## Open the local map
@@ -19,13 +20,15 @@ Open [the local preview](http://127.0.0.1:5173) while the server is running.
 The live preview disables hot reload and file watching. Local search and selection work
 without a token. With a configured public Cesium ion client token, the stage makes
 one automatic startup attempt after local geography validates and the page is visible.
-This makes external requests that can consume quota. **Stop / unload** cancels pending
-startup and prevents automatic resumption; **Resume 3D** is deliberate. Follow the [web setup and safety notes](web/README.md).
+This makes external requests that can consume quota. **Stop 3D** cancels pending
+startup and prevents automatic resumption. Use **Resume 3D** to start another attempt.
+Follow the [web setup and safety notes](web/README.md).
 For a token-free mock preview, use `npm run dev:verify` and open
 [the mock controls](http://127.0.0.1:5174/?mode=mock).
 
 See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
-checks and live-validation limits. The [loading/interaction diagnostics report](docs/reports/city-performance-diagnostics.md) records measured feedback delays and the optional natural-edge trial; the faster hull mask remains the default.
+checks and live-validation limits. The previous borough and land masks are available
+as [comparison modes](web/README.md#compare-imagery-cutouts).
 
 ## Run M1 ingestion
 

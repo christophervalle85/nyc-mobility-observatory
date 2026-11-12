@@ -10,28 +10,91 @@
 <body>
   <a class="skip-link" href="#main">Skip to city controls</a>
   <main id="main" class="city-stage" tabindex="-1">
-    <div id="city-viewport" class="city-viewport" aria-label="NYC interactive city stage">
+    <div id="city-viewport" class="city-viewport">
       <div id="cesium-view" hidden></div>
-      <div id="viewport-state" class="viewport-state" hidden><div><h2 id="viewport-title">City stage</h2><p id="viewport-message"></p><section id="setup" hidden aria-labelledby="setup-title"><h3 id="setup-title">Add your public Cesium ion token</h3><p>Set VITE_CESIUM_ION_TOKEN in web/.env.local, then restart the dev server. Use a public read-only client token.</p></section></div></div>
       <div class="floating-rail">
-        <header class="stage-title"><h1>NYC Mobility Observatory</h1><p id="map-mode">City stage</p><p id="opening-cue" hidden>Starting point · Midtown Manhattan</p></header>
-        <div class="session-actions"><button type="button" id="load" hidden disabled>Resume 3D</button><button type="button" id="stop">Stop</button></div>
-        <div class="session-info"><p id="status" role="status" aria-live="polite">Preparing the city…</p><p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p></div>
-        <section class="stage-tools" aria-label="City controls">
-          <details id="area-controls" name="stage-menu"><summary>Find an area</summary><div class="tool-content"><label for="area-search">Search TLC areas</label><div class="search-row"><input type="search" id="area-search" name="area-search" placeholder="Name, borough or TLC ID" autocomplete="off" spellcheck="false" aria-describedby="search-count" disabled /><button type="button" id="clear-search" disabled aria-label="Clear search">Clear</button></div><label for="zone-picker">Select a TLC area</label><select id="zone-picker" name="zone" aria-describedby="search-count" disabled><option value="">Loading TLC areas…</option></select><p id="search-count" class="control-hint" aria-live="polite">Loading the local list…</p></div></details>
-          <div class="view-tools"><button type="button" id="city-overview" disabled>Overview</button><details id="view-controls" name="stage-menu"><summary>View</summary><div class="tool-content view-buttons"><button type="button" data-view="left" disabled>Orbit left</button><button type="button" data-view="right" disabled>Orbit right</button><button type="button" data-view="up" disabled>Tilt up</button><button type="button" data-view="down" disabled>Tilt down</button><button type="button" data-view="in" disabled>Zoom in</button><button type="button" data-view="out" disabled>Zoom out</button></div></details></div>
-
+        <header class="stage-title">
+          <h1>NYC Mobility Observatory</h1>
+          <p id="opening-cue" hidden>Starting point · Midtown Manhattan</p>
+        </header>
+        <div class="session-info">
+          <div class="session-row">
+            <p id="status" role="status" tabindex="-1">Preparing the city…</p>
+            <button type="button" id="load" hidden disabled>Resume 3D</button>
+            <button type="button" id="stop">Stop 3D</button>
+          </div>
+          <p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p>
+        </div>
+        <section id="area-controls" class="area-controls" aria-labelledby="area-label">
+          <label id="area-label" for="area-search">Search areas</label>
+          <div class="search-row">
+            <input type="search" id="area-search" name="area-search" placeholder="Midtown, Queens or 161" autocomplete="off" spellcheck="false" aria-describedby="search-count" disabled />
+            <button type="button" id="clear-search" disabled aria-label="Clear search"><span aria-hidden="true">×</span></button>
+          </div>
+          <label for="zone-picker" class="visually-hidden">Area results</label>
+          <select id="zone-picker" name="zone" aria-describedby="search-count" disabled><option value="">Loading TLC areas…</option></select>
+          <p id="search-count" class="control-hint" role="status"></p>
         </section>
+        <div id="viewport-state" class="viewport-state" hidden>
+          <div>
+            <h2 id="viewport-title">City stage</h2>
+            <p id="viewport-message"></p>
+            <section id="setup" hidden aria-labelledby="setup-title">
+              <h3 id="setup-title">Add your public Cesium ion token</h3>
+              <p>Set VITE_CESIUM_ION_TOKEN in web/.env.local, then restart the dev server. Use a public read-only client token.</p>
+            </section>
+          </div>
+        </div>
         <aside id="inspector" class="inspector" aria-labelledby="selection-title" hidden>
-          <h2 id="selection-title">Inspect a TLC area</h2><p id="selection-hint" hidden>Select an area from the local list.</p>
-          <dl id="zone-details" hidden><div><dt>Borough</dt><dd id="zone-borough"></dd></div><div><dt>TLC ID</dt><dd id="zone-id"></dd></div></dl>
-          <p id="outside-city" class="control-hint" hidden></p>
-          <div class="inspector-actions"><button type="button" id="focus-area" disabled>Focus area</button><button type="button" id="clear-selection" disabled>Clear area</button></div>
-          <p id="focus-status" class="control-hint" aria-live="polite"></p><p class="control-hint">Area selection is approximate. Confirm it in the list.</p><p class="data-pending">Mobility data is not connected.</p>
+          <div class="inspector-heading">
+            <h2 id="selection-title">TLC area</h2>
+            <button type="button" id="clear-selection" disabled aria-label="Close area details"><span aria-hidden="true">×</span></button>
+          </div>
+          <dl id="zone-details">
+            <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
+            <div><dt>TLC ID</dt><dd id="zone-id"></dd></div>
+          </dl>
+          <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
+          <div class="inspector-actions">
+            <button type="button" id="focus-area" disabled>Fly to area</button>
+            <p id="focus-status" class="control-hint" role="status"></p>
+          </div>
         </aside>
+        <section class="stage-tools" aria-label="Map controls">
+          <button type="button" id="city-overview" disabled>Show all NYC</button>
+          <div class="zoom-tools" role="group" aria-label="Zoom">
+            <button type="button" data-view="in" aria-label="Zoom in" disabled><span aria-hidden="true">+</span></button>
+            <button type="button" data-view="out" aria-label="Zoom out" disabled><span aria-hidden="true">−</span></button>
+          </div>
+          <details id="view-controls">
+            <summary>Camera controls</summary>
+            <div class="tool-content view-buttons">
+              <button type="button" data-view="left" disabled>Orbit left</button>
+              <button type="button" data-view="right" disabled>Orbit right</button>
+              <button type="button" data-view="up" disabled>Tilt up</button>
+              <button type="button" data-view="down" disabled>Tilt down</button>
+            </div>
+          </details>
+        </section>
       </div>
     </div>
-    <footer class="attribution-strip"><p id="footprint-notice">TLC-derived study footprint</p><div id="credits" class="credits"><p id="credits-placeholder">City imagery is not loaded.</p></div><details id="sources"><summary>Sources &amp; usage</summary><div class="tool-content"><p>Area selection uses <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>; this geography is unchanged by the display cutout.</p><p id="hull-source">Display cutout: TLC-derived study hulls include water and are not exact shorelines or an exported mesh.</p><p id="land-source" hidden>Display cutout: generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries are not exact shorelines or an imagery-derived mesh.</p><p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary; this is not live traffic. Photographic color and shadows come from the source imagery; no mobility-data color overlay is applied.</p><p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p><p>Overview shows all five boroughs; the opening view focuses on Midtown Manhattan. Mobility counts, charts and date controls are not connected.</p><a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a><a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a></div></details></footer>
+    <footer class="attribution-strip">
+      <div id="credits" class="credits"><p id="credits-placeholder">City imagery is not loaded.</p></div>
+      <details id="sources">
+        <summary>Sources &amp; usage</summary>
+        <div class="tool-content">
+          <p id="footprint-notice">Continuous imagery</p>
+          <p>The study footprint uses <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>. Map picks are approximate. Confirm the area in the search results.</p>
+          <p id="hull-source" hidden>The TLC-derived borough hulls include water and approximate the study area.</p>
+          <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
+          <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
+          <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
+          <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Mobility data is unavailable in this preview.</p>
+          <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
+          <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
+        </div>
+      </details>
+    </footer>
   </main>
   <noscript><p>This city stage needs JavaScript. <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page">Read the NYC TLC sources</a>.</p></noscript>
   <script type="module" src="/src/main.ts"></script>
