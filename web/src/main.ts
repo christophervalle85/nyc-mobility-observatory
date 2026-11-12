@@ -93,6 +93,7 @@ function warmEngine() {
 }
 let geographyReady = false, geographyFailed = false;
 let zones: ZoneCollection = { type: 'FeatureCollection', features: [] }, selected: number | null = null;
+let pendingSearchFocus = false;
 const messages: Record<Failure, string> = {
   auth: 'Access denied. Check the token asset access and allowed localhost URL, then retry once.',
   rate: 'Request limit reached. Stop here and check your Cesium ion usage before another session.',
@@ -158,6 +159,11 @@ function render(state: SessionState) {
     : known && !target ? 'Camera target unavailable.'
     : known && focusButton.disabled ? 'Available when 3D is ready.' : '';
   if (focusStatus.textContent !== focusText) focusStatus.textContent = focusText;
+  if (state.phase === 'stopped' || state.phase === 'partial' || state.phase === 'error') pendingSearchFocus = false;
+  if (pendingSearchFocus && !focusButton.disabled) {
+    pendingSearchFocus = false;
+    void focusSelectedArea();
+  }
 }
 function mockAdapter(): SceneAdapter {
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -270,6 +276,7 @@ function renderResults() {
   measured();
 }
 function selectZone(id: number | null, interaction = true) {
+  pendingSearchFocus = false;
   if (interaction) diagnostics.interaction();
   const measured = diagnostics.span('selection.handler');
   const zone = resolveZone(zones, id);
@@ -303,6 +310,9 @@ function chooseResult(row: HTMLElement | undefined) {
   search.focus({ preventScroll: true });
   showAreaResults(false);
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
+  const { phase, draining } = controller.state;
+  if (!focusButton.disabled) void focusSelectedArea();
+  else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
 }
 search.addEventListener('focus', () => showAreaResults(true));
 search.addEventListener('click', () => showAreaResults(true));
@@ -390,11 +400,14 @@ load.addEventListener('click', () => {
   void controller.load();
 });
 stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
-focusButton.addEventListener('click', async () => {
-  diagnostics.interaction();
+async function focusSelectedArea() {
   const focused = diagnostics.span('focus.duration');
   const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (moved) focused();
+}
+focusButton.addEventListener('click', () => {
+  diagnostics.interaction();
+  void focusSelectedArea();
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });

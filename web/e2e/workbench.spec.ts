@@ -2,7 +2,7 @@ import{test,expect}from'@playwright/test';
 // Verification mode blocks provider requests; live visual checks are separate.
 const fixture={type:'FeatureCollection',features:[{type:'Feature',id:161,properties:{location_id:161,zone:'Synthetic test area',borough:'Manhattan'},geometry:{type:'Polygon',coordinates:[[[-74,40.7],[-73.99,40.7],[-73.99,40.71],[-74,40.7]]]}}]};
 test.beforeEach(async({context})=>{await context.route('**/*',route=>{if(route.request().url().endsWith('/data/taxi-zones.geojson'))return route.fulfill({json:fixture});return new URL(route.request().url()).origin==='http://127.0.0.1:5175'?route.continue():route.abort('blockedbyclient')})});
-test('typed area results are directly selectable without moving the camera', async ({ page }) => {
+test('clicking a search result selects it and brings it into view', async ({ page }) => {
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
   const search = page.locator('#area-search');
@@ -15,10 +15,30 @@ test('typed area results are directly selectable without moving the camera', asy
   await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
   await expect(page.locator('#zone-borough')).toHaveText('Manhattan');
   await expect(page.locator('#zone-id')).toHaveText('161');
+  await expect(page.locator('#focus-status')).toHaveText('Flying to area…');
   await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
   await expect(search).toHaveValue('161');
   await expect(page.getByRole('listbox')).toBeHidden();
   await expect(page).toHaveURL(/zone=161/);
+});
+test('a search result chosen during startup comes into view once 3D is ready', async ({ context, page }) => {
+  let releaseLand!: () => void;
+  const landReady = new Promise<void>(resolve => { releaseLand = resolve; });
+  await context.route('**/data/city-land.json', async route => {
+    await landReady;
+    await route.continue();
+  });
+  try {
+    await page.goto('/?mode=mock&cutout=land');
+    await page.getByRole('combobox', { name: 'Search areas' }).fill('161');
+    await page.getByRole('option').click();
+    await expect(page.locator('#zone-id')).toHaveText('161');
+    await expect(page.locator('#focus-area')).toBeDisabled();
+  } finally {
+    releaseLand();
+  }
+  await expect(page.locator('#focus-status')).toHaveText('Flying to area…');
+  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
 });
 test('search pill browses on focus and Escape preserves the query and selection', async ({ page }) => {
   await page.goto('/?mode=mock&zone=161');
@@ -122,7 +142,7 @@ test('local filtering preserves selection and never causes a camera focus', asyn
   await expect(page.locator('#area-search')).toHaveValue('');
   await expect(page.getByRole('option')).toHaveAttribute('aria-selected', 'true');
 });
-test('keyboard search selects an area before the user explicitly focuses it', async ({ context, page }) => {
+test('keyboard search focuses the area only after Enter commits the selection', async ({ context, page }) => {
   await context.route('**/data/taxi-zones.geojson', route => route.continue());
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
@@ -144,8 +164,6 @@ test('keyboard search selects an area before the user explicitly focuses it', as
   await expect(picker).toBeHidden();
   await expect(page.locator('#selection-title')).toHaveText('Midtown Center');
   const focus = page.getByRole('button', { name: 'Focus', exact: true });
-  await expect(focus).toHaveAttribute('aria-busy', 'false');
-  await focus.press('Enter');
   await expect(focus).toHaveAttribute('aria-busy', 'true');
   await page.locator('#city-overview').click();
   await expect(focus).toHaveAttribute('aria-busy', 'false');
