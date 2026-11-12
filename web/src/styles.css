@@ -101,7 +101,17 @@ select { text-overflow: ellipsis; }
 #setup p { font-size: var(--text-xs); }
 
 .stage-tools { --map-control-width: max(48px, 3.5rem); grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
-.stage-tools::before { content: ''; position: absolute; z-index: -1; inset: 0; border-radius: var(--radius-pill); pointer-events: none; }
+.stage-tools::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border: 1px solid var(--color-map-capsule-edge);
+  border-radius: var(--radius-pill);
+  background: var(--color-map-capsule-solid);
+  box-shadow: var(--shadow-map-capsule);
+  pointer-events: none;
+}
 .map-icon, #view-controls > summary.map-icon {
   display: flex;
   flex-direction: column;
@@ -109,14 +119,14 @@ select { text-overflow: ellipsis; }
   justify-content: center;
   gap: var(--space-3xs);
   inline-size: var(--map-control-width);
-  min-block-size: 44px;
+  min-block-size: 54px;
   padding: 5px var(--space-2xs);
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--color-ink);
+  color: var(--color-paper-3);
 }
-.map-icon svg { flex: none; inline-size: 23px; block-size: 23px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.map-icon svg { flex: none; inline-size: 24px; block-size: 24px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .map-icon-label { font-size: var(--text-xs); font-weight: 600; line-height: 1.15; text-align: center; }
 summary {
   display: flex;
@@ -153,8 +163,8 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   box-shadow: var(--shadow-card);
   scrollbar-color: var(--color-muted) var(--color-paper-3);
 }
-#view-controls { border-block-start: 1px solid var(--color-map-glass-divider); }
-#view-controls[open] > summary.map-icon { background: var(--color-map-glass-action); }
+#view-controls { border-block-start: 1px solid var(--color-map-capsule-divider); }
+#view-controls[open] > summary.map-icon { background: var(--color-map-capsule-action); }
 #view-controls > summary::after { display: none; }
 .view-buttons {
   inset-inline-end: calc(100% + var(--space-xs));
@@ -163,24 +173,32 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border-radius: 16px;
 }
-.inspector, .stage-tools::before, .view-buttons {
+.inspector, .view-buttons {
   --glass-fill: var(--color-paper-3);
   background: var(--glass-fill);
   border: 1px solid var(--color-map-glass-edge);
   box-shadow: var(--shadow-map-glass);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .inspector, .stage-tools::before, .view-buttons {
+  .inspector, .view-buttons {
     --glass-fill: var(--color-map-glass-fill);
     background: linear-gradient(155deg, var(--color-map-glass-highlight), var(--glass-fill));
+  }
+  .stage-tools::before {
+    background: linear-gradient(155deg, var(--color-map-capsule-highlight), var(--color-map-capsule-fill));
+  }
+  .inspector, .stage-tools::before, .view-buttons {
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
   }
 }
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
-  .inspector, .stage-tools::before, .view-buttons {
+  .inspector, .view-buttons {
     --glass-fill: var(--color-paper-3);
     background: var(--glass-fill);
+  }
+  .stage-tools::before { background: var(--color-map-capsule-solid); }
+  .inspector, .stage-tools::before, .view-buttons {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -206,7 +224,8 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @media (hover: hover) {
   button:hover:not(:disabled), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
   #focus-area:hover:not(:disabled) { background: var(--color-map-glass-action-hover); }
-  #clear-selection:hover:not(:disabled), .map-icon:hover:not(:disabled), #view-controls > summary.map-icon:hover { background: var(--color-map-glass-action); }
+  #clear-selection:hover:not(:disabled) { background: var(--color-map-glass-action); }
+  .map-icon:hover:not(:disabled), #view-controls > summary.map-icon:hover { background: var(--color-map-capsule-action); }
   a:hover { color: var(--color-accent); }
 }
 @media (max-width: 46rem) {

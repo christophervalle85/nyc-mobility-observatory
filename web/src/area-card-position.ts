@@ -4,9 +4,10 @@ interface Bounds { left: number; top: number; right: number; bottom: number }
 
 export function areaCardPosition(point: Point, card: Size, viewport: Bounds, controls: Bounds[]) {
   const inset = 12;
+  const anchorGap = 24;
   const minLeft = viewport.left + inset;
   const maxLeft = viewport.right - card.width - inset;
-  const top = point.y - card.height - inset;
+  const top = point.y - card.height - anchorGap;
   if (minLeft > maxLeft || top < viewport.top + inset || point.y > viewport.bottom ||
       point.x < viewport.left || point.x > viewport.right) return null;
 
