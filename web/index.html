@@ -10,28 +10,130 @@
 <body>
   <a class="skip-link" href="#main">Skip to city controls</a>
   <main id="main" class="city-stage" tabindex="-1">
-    <div id="city-viewport" class="city-viewport" aria-label="NYC interactive city stage">
+    <div id="city-viewport" class="city-viewport">
       <div id="cesium-view" hidden></div>
-      <div id="viewport-state" class="viewport-state" hidden><div><h2 id="viewport-title">City stage</h2><p id="viewport-message"></p><section id="setup" hidden aria-labelledby="setup-title"><h3 id="setup-title">Add your public Cesium ion token</h3><p>Set VITE_CESIUM_ION_TOKEN in web/.env.local, then restart the dev server. Use a public read-only client token.</p></section></div></div>
       <div class="floating-rail">
-        <header class="stage-title"><h1>NYC Mobility Observatory</h1><p id="map-mode">City stage</p><p id="opening-cue" hidden>Starting point · Midtown Manhattan</p></header>
-        <div class="session-actions"><button type="button" id="load" hidden disabled>Resume 3D</button><button type="button" id="stop">Stop</button></div>
-        <div class="session-info"><p id="status" role="status" aria-live="polite">Preparing the city…</p><p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p></div>
-        <section class="stage-tools" aria-label="City controls">
-          <details id="area-controls" name="stage-menu"><summary>Find an area</summary><div class="tool-content"><label for="area-search">Search TLC areas</label><div class="search-row"><input type="search" id="area-search" name="area-search" placeholder="Name, borough or TLC ID" autocomplete="off" spellcheck="false" aria-describedby="search-count" disabled /><button type="button" id="clear-search" disabled aria-label="Clear search">Clear</button></div><label for="zone-picker">Select a TLC area</label><select id="zone-picker" name="zone" aria-describedby="search-count" disabled><option value="">Loading TLC areas…</option></select><p id="search-count" class="control-hint" aria-live="polite">Loading the local list…</p></div></details>
-          <div class="view-tools"><button type="button" id="city-overview" disabled>Overview</button><details id="view-controls" name="stage-menu"><summary>View</summary><div class="tool-content view-buttons"><button type="button" data-view="left" disabled>Orbit left</button><button type="button" data-view="right" disabled>Orbit right</button><button type="button" data-view="up" disabled>Tilt up</button><button type="button" data-view="down" disabled>Tilt down</button><button type="button" data-view="in" disabled>Zoom in</button><button type="button" data-view="out" disabled>Zoom out</button></div></details></div>
-
+        <h1 class="visually-hidden">NYC Mobility Observatory</h1>
+        <div class="session-info">
+          <div class="session-row">
+            <p id="status" role="status" tabindex="-1">Preparing the city…</p>
+            <button type="button" id="load" hidden disabled>Resume 3D</button>
+            <button type="button" id="stop">Stop 3D</button>
+          </div>
+          <p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p>
+        </div>
+        <section id="area-controls" class="area-controls" aria-labelledby="area-label">
+          <div class="search-row">
+            <label for="area-search">
+              <span id="area-label" class="visually-hidden">Search areas</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <defs>
+                  <filter id="area-search-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+                    <feImage href="/area-search-displacement.png" x="0" y="0" width="272" height="48" preserveAspectRatio="none" result="rim"/>
+                    <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                </defs>
+                <circle cx="10.75" cy="10.75" r="5.75"/><path d="m15 15 4 4"/>
+              </svg>
+            </label>
+            <input type="search" id="area-search" name="area-search" placeholder="Loading TLC areas…" autocomplete="off" spellcheck="false" aria-controls="area-results" disabled />
+            <button type="button" id="clear-search" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7.5 7.5 9 9m0-9-9 9"/></svg>
+            </button>
+          </div>
+          <div id="area-results">
+            <label for="zone-picker" class="visually-hidden">Area results</label>
+            <select id="zone-picker" name="zone" aria-describedby="search-count" hidden disabled><option value="">Loading TLC areas…</option></select>
+            <p id="search-count" class="control-hint visually-hidden" role="status"></p>
+          </div>
         </section>
+        <div id="viewport-state" class="viewport-state" hidden>
+          <div>
+            <h2 id="viewport-title">City stage</h2>
+            <p id="viewport-message"></p>
+            <section id="setup" hidden aria-labelledby="setup-title">
+              <h3 id="setup-title">Add your public Cesium ion token</h3>
+              <p>Set VITE_CESIUM_ION_TOKEN in web/.env.local, then restart the dev server. Use a public read-only client token.</p>
+            </section>
+          </div>
+        </div>
         <aside id="inspector" class="inspector" aria-labelledby="selection-title" hidden>
-          <h2 id="selection-title">Inspect a TLC area</h2><p id="selection-hint" hidden>Select an area from the local list.</p>
-          <dl id="zone-details" hidden><div><dt>Borough</dt><dd id="zone-borough"></dd></div><div><dt>TLC ID</dt><dd id="zone-id"></dd></div></dl>
-          <p id="outside-city" class="control-hint" hidden></p>
-          <div class="inspector-actions"><button type="button" id="focus-area" disabled>Focus area</button><button type="button" id="clear-selection" disabled>Clear area</button></div>
-          <p id="focus-status" class="control-hint" aria-live="polite"></p><p class="control-hint">Area selection is approximate. Confirm it in the list.</p><p class="data-pending">Mobility data is not connected.</p>
+          <div class="inspector-identity">
+            <div>
+              <h2 id="selection-title">TLC area</h2>
+              <dl id="zone-details">
+                <div><dt class="visually-hidden">Borough</dt><dd id="zone-borough"></dd></div>
+                <div><dt>TLC ID</dt><dd id="zone-id"></dd></div>
+              </dl>
+            </div>
+            <button type="button" id="clear-selection" disabled aria-label="Close area details">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <defs>
+                  <filter id="area-card-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+                    <feImage href="/area-card-displacement.png" x="0" y="0" width="224" height="104" preserveAspectRatio="none" result="rim"/>
+                    <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                </defs>
+                <path d="m4.5 4.5 7 7m0-7-7 7"/>
+              </svg>
+            </button>
+          </div>
+          <button type="button" id="focus-area" disabled>
+            <span>Focus</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
+          </button>
+          <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
+          <p id="focus-status" class="control-hint" role="status"></p>
         </aside>
+        <section class="stage-tools" aria-label="Map controls">
+          <!-- Heroicons v2.2.0, Tailwind Labs. See /heroicons-license.txt. -->
+          <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <defs>
+                <filter id="map-capsule-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+                  <!-- Red and green encode inward displacement along the 54×110 capsule rim. -->
+                  <feImage href="/map-capsule-displacement.png" x="0" y="0" width="54" height="110" preserveAspectRatio="none" result="rim"/>
+                  <feDisplacementMap in="SourceGraphic" in2="rim" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+                </filter>
+              </defs>
+              <path fill-rule="evenodd" d="M3 2.25a.75.75 0 0 0 0 1.5v16.5h-.75a.75.75 0 0 0 0 1.5H15v-18a.75.75 0 0 0 0-1.5H3ZM6.75 19.5v-2.25a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75ZM6 6.75A.75.75 0 0 1 6.75 6h.75a.75.75 0 0 1 0 1.5h-.75A.75.75 0 0 1 6 6.75ZM6.75 9a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM6 12.75a.75.75 0 0 1 .75-.75h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 6a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75Zm-.75 3.75A.75.75 0 0 1 10.5 9h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 12a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM16.5 6.75v15h5.25a.75.75 0 0 0 0-1.5H21v-12a.75.75 0 0 0 0-1.5h-4.5Zm1.5 4.5a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Zm.75 2.25a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75v-.008a.75.75 0 0 0-.75-.75h-.008ZM18 17.25a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <details id="view-controls">
+            <summary class="map-icon" aria-label="Camera controls" title="Camera controls">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M18.75 12.75h1.5a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5ZM12 6a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 12 6ZM12 18a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 12 18ZM3.75 6.75h1.5a.75.75 0 1 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5ZM5.25 18.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 0 1.5ZM3 12a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 3 12ZM9 3.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5ZM12.75 12a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0ZM9 15.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z"/>
+              </svg>
+            </summary>
+            <div class="tool-content view-buttons">
+              <button type="button" data-view="in" disabled>Zoom in</button>
+              <button type="button" data-view="out" disabled>Zoom out</button>
+              <button type="button" data-view="left" disabled>Orbit left</button>
+              <button type="button" data-view="right" disabled>Orbit right</button>
+              <button type="button" data-view="up" disabled>Tilt up</button>
+              <button type="button" data-view="down" disabled>Tilt down</button>
+            </div>
+          </details>
+        </section>
       </div>
     </div>
-    <footer class="attribution-strip"><p id="footprint-notice">TLC-derived study footprint</p><div id="credits" class="credits"><p id="credits-placeholder">City imagery is not loaded.</p></div><details id="sources"><summary>Sources &amp; usage</summary><div class="tool-content"><p>Area selection uses <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>; this geography is unchanged by the display cutout.</p><p id="hull-source">Display cutout: TLC-derived study hulls include water and are not exact shorelines or an exported mesh.</p><p id="land-source" hidden>Display cutout: generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries are not exact shorelines or an imagery-derived mesh.</p><p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary; this is not live traffic. Photographic color and shadows come from the source imagery; no mobility-data color overlay is applied.</p><p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p><p>Overview shows all five boroughs; the opening view focuses on Midtown Manhattan. Mobility counts, charts and date controls are not connected.</p><a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a><a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a></div></details></footer>
+    <footer class="attribution-strip">
+      <div id="credits" class="credits"><p id="credits-placeholder">City imagery is not loaded.</p></div>
+      <details id="sources">
+        <summary>Sources &amp; usage</summary>
+        <div class="tool-content">
+          <p id="footprint-notice">Continuous imagery</p>
+          <p>The study footprint uses <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page" target="_blank" rel="noreferrer">NYC TLC taxi zones</a>. Map picks are approximate. Confirm the area in the search results.</p>
+          <p id="hull-source" hidden>The TLC-derived borough hulls include water and approximate the study area.</p>
+          <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
+          <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
+          <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
+          <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Mobility data is unavailable in this preview.</p>
+          <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
+          <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
+        </div>
+      </details>
+    </footer>
   </main>
   <noscript><p>This city stage needs JavaScript. <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page">Read the NYC TLC sources</a>.</p></noscript>
   <script type="module" src="/src/main.ts"></script>

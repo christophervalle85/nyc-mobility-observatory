@@ -1,5 +1,5 @@
 import{test}from'node:test';import assert from'node:assert/strict';
-import{imageryProgress,startupPresentation}from'../src/imagery-progress.ts';
+import{imageryProgress,startupStatus}from'../src/imagery-progress.ts';
 function fixture(){const visible=new Set<()=>void>(),frames=new Set<()=>void>(),changes:string[]=[];
  const progress=imageryProgress(callback=>{visible.add(callback);return()=>{visible.delete(callback);};},callback=>{frames.add(callback);return()=>{frames.delete(callback);};},stage=>{changes.push(stage);});
  return{progress,changes,visible,frames,tile(){for(const callback of [...visible])callback();},render(){for(const callback of [...frames])callback();}};
@@ -17,14 +17,15 @@ test('movement before first image clears an obsolete settled signal without rest
 test('dispose removes listeners and ignores captured late frame/detail callbacks',()=>{
  const f=fixture();f.tile();const late=[...f.frames][0];f.progress.dispose();late();f.progress.settled();f.progress.wait();assert.deepEqual(f.changes,[]);assert.equal(f.visible.size,0);assert.equal(f.frames.size,0);
 });
-test('presentation is factual and terminal/session exclusions override image milestones',()=>{
- for(const phase of ['setup','error','partial','stopped'] as const)assert.deepEqual(startupPresentation(phase,'settled',false,true),{cue:false});
- assert.deepEqual(startupPresentation('ready','waiting-first-frame',false,true),{cue:true,status:'Opening city imagery…'});
- assert.deepEqual(startupPresentation('ready','refining',false,true),{cue:false,status:'City visible. Refining detail…'});
- assert.deepEqual(startupPresentation('ready','settled',false,true),{cue:false,status:'Drag to orbit · Scroll to zoom'});
- assert.deepEqual(startupPresentation('ready','settled',true,true),{cue:false});
- assert.deepEqual(startupPresentation('idle','waiting-first-frame',false,false),{cue:false});
+test('startup announces imagery milestones and stays quiet when the live city is ready', () => {
+  for (const phase of ['setup', 'error', 'partial', 'stopped', 'idle'] as const) {
+    assert.equal(startupStatus(phase, 'settled', false), undefined);
+  }
+  assert.equal(startupStatus('ready', 'waiting-first-frame', false), 'Opening city imagery…');
+  assert.equal(startupStatus('ready', 'refining', false), 'City visible. Refining detail…');
+  assert.equal(startupStatus('ready', 'settled', false), undefined);
+  assert.equal(startupStatus('ready', 'settled', true), undefined);
 });
-test('settled imagery does not advertise interaction while area resources are still loading',()=>{
- assert.deepEqual(startupPresentation('loading','settled',false,false),{cue:false,status:'City visible. Preparing area controls…'});
+test('settled imagery waits for area resources before ending the status', () => {
+  assert.equal(startupStatus('loading', 'settled', false), 'City visible. Preparing area controls…');
 });

@@ -19,10 +19,10 @@ export function imageryProgress(subscribeVisible:(callback:()=>void)=>()=>void,s
     dispose(){if(disposed)return;disposed=true;removeVisible();removeFrame();},
   };
 }
-export function startupPresentation(phase:Phase,stage:ImageryStage,mock:boolean,pending:boolean):{cue:boolean;status?:string}{
-  if(mock||!['idle','loading','ready'].includes(phase))return{cue:false};
-  if(phase==='idle')return{cue:pending};
-  return stage==='waiting-first-frame'?{cue:true,status:'Opening city imagery…'}
-    :stage==='refining'?{cue:false,status:'City visible. Refining detail…'}
-    :{cue:false,status:phase==='ready'?'Drag to orbit · Scroll to zoom':'City visible. Preparing area controls…'};
+export function startupStatus(phase: Phase, stage: ImageryStage, mock: boolean): string | undefined {
+  if (mock || (phase !== 'loading' && phase !== 'ready')) return undefined;
+  if (stage === 'waiting-first-frame') return 'Opening city imagery…';
+  if (stage === 'refining') return 'City visible. Refining detail…';
+  if (phase === 'loading') return 'City visible. Preparing area controls…';
+  return undefined;
 }

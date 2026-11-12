@@ -16,6 +16,8 @@ import { displayPolicy, tilePolicy } from './rendering-policy.ts';
 import { zoneHighlight } from './zone-highlight.ts';
 import { selectedBoundary } from './selected-boundary.ts';
 import { selectionPresentation } from './selection-presentation.ts';
+import { selectionAnchorPosition, selectionAnchorProjection, selectionAnchorPublisher } from './selection-anchor.ts';
+import type { SelectionAnchor } from './selection-anchor.ts';
 import { cityOverview, skylineOpening, footprintMask } from './study-footprint.ts';
 import { stageNavigation } from './stage-navigation.ts';
 import { zonePicker } from './zone-picker.ts';
@@ -26,11 +28,12 @@ import { dragOrbit } from './drag-orbit.ts';
 import type { Diagnostics } from './diagnostics.ts';
 import { landFootprintMask } from './land-footprint.ts';
 import type { LandFootprint, LandPolygon } from './land-footprint.ts';
+import type { CutoutMode } from './cutout-mode.ts';
 class Resource<T> implements OwnedResource {
   constructor(public value: T, private release: () => void) {}
   destroy() { this.release(); }
 }
-export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, landCandidate = false, onImagery?: (stage: ImageryStage) => void) {
+export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, cutout: CutoutMode = 'none', onImagery?: (stage: ImageryStage) => void, onSelectionAnchor?: (point: SelectionAnchor | null) => void) {
   const profile = diagnostics?.enabled ? diagnostics : undefined;
   return managedAdapter((): SceneRuntime => {
     const constructed = profile?.span('scene.construct');
@@ -90,7 +93,8 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     }), entity => { viewer.entities.remove(entity); });
     function colorSelection() {
       if (disposed) return;
-      const presentation = selectionPresentation(selected, mask?.state().includesNewark ?? false, imageryReady);
+      const includesNewark = cutout === 'none' || Boolean(mask?.state().includesNewark);
+      const presentation = selectionPresentation(selected, includesNewark, imageryReady);
       const changed = highlight?.select(presentation.fillId);
       if (entities) entities.show = imageryReady;
       const outlineChanged = outlined !== presentation.outlineId;
@@ -123,11 +127,48 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       },
       cancel() { focusMoving = false; if (!viewer.isDestroyed()) viewer.camera.cancelFlight(); },
     });
-    function reportPartial() { partialSeen = true; focus.cancel(); partial?.(); }
+    function reportPartial() { partialSeen = true; focus.cancel(); anchor?.publish(null, null); partial?.(); }
     function canInteract() { return !disposed && tilesAttached && zonesAttached && !partialSeen; }
     function moveView(horizontal: number, vertical = 0) { if (!canInteract()) return false; focus.cancel(); waitForDetail(); return navigation.orbit(horizontal, vertical); }
     const canvas = viewer.scene.canvas;
-    canvas.setAttribute('aria-label', 'Interactive NYC city stage. Use View controls for keyboard orbit, tilt and zoom.'); canvas.setAttribute('tabindex', '-1');
+    canvas.setAttribute('aria-label', 'Interactive NYC city stage. Use the map controls for keyboard orbit, tilt and zoom.'); canvas.setAttribute('tabindex', '-1');
+    const anchor = onSelectionAnchor && {
+      project: selectionAnchorProjection(viewer.scene),
+      publish: selectionAnchorPublisher(onSelectionAnchor),
+    };
+    let anchorId: number | null = null;
+    let anchorPosition: Cartesian3 | undefined;
+    let anchorOutline: Cartesian3[] = [];
+    function updateSelectionAnchor() {
+      if (!anchor) return;
+      if (!canInteract() || container.hidden || outlined === null) {
+        anchor.publish(null, null);
+        return;
+      }
+      if (anchorId !== outlined) {
+        anchorId = outlined;
+        const zone = resolveZone(geography, anchorId);
+        const point = zone && selectionAnchorPosition(zone.geometry);
+        anchorPosition = point && Cartesian3.fromDegrees(point.longitude, point.latitude, 0, viewer.scene.ellipsoid);
+        anchorOutline = [];
+        if (point) {
+          const ring = point.outerRing;
+          const samples = Math.min(ring.length, 96);
+          const degrees = Array.from({ length: samples }, (_, index) => ring[Math.floor(index * ring.length / samples)].slice(0, 2)).flat();
+          anchorOutline = Cartesian3.fromDegreesArray(degrees, viewer.scene.ellipsoid);
+        }
+      }
+      anchor.publish(outlined, anchorPosition ? anchor.project(anchorPosition, anchorOutline) : null);
+    }
+    if (anchor) {
+      cleanup.push(viewer.scene.postRender.addEventListener(updateSelectionAnchor));
+      const resize = new ResizeObserver(() => {
+        if (!canvas.clientWidth || !canvas.clientHeight) anchor.publish(null, null);
+        else if (canInteract() && outlined !== null) viewer.scene.requestRender();
+      });
+      resize.observe(canvas);
+      cleanup.push(() => resize.disconnect());
+    }
     const handler = new ScreenSpaceEventHandler(canvas);
     const indexed=profile?.span('zones.index');
     const picker = zonePicker(geography);
@@ -170,31 +211,48 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     cleanup.push(viewer.camera.moveStart.addEventListener(()=>{cameraMoving=true;waitForDetail();}));
     cleanup.push(viewer.camera.moveEnd.addEventListener(()=>{cameraMoving=false;viewer.scene.requestRender();}));
     constructed?.();
+    function applyCutout(tiles: Cesium3DTileset) {
+      if (cutout === 'none') return;
+      const clipped = profile?.span('footprint.prepare');
+      const supported = ClippingPolygonCollection.isSupported(viewer.scene);
+      const replace = (polygons: LandPolygon[]) => {
+        try {
+          if (cutout === 'land') {
+            const values = polygons.map(polygon => new ClippingPolygon({
+              positions: Cartesian3.fromDegreesArray(polygon.ring.flatMap(([lon, lat]) => [lon, lat])),
+              holes: polygon.holes?.map(ring => Cartesian3.fromDegreesArray(ring.flatMap(([lon, lat]) => [lon, lat]))),
+            }));
+            collection = new ClippingPolygonCollection({ polygons: values, inverse: true });
+            tiles.clippingPolygons = collection;
+          } else {
+            if (!collection) {
+              collection = new ClippingPolygonCollection({ inverse: true });
+              tiles.clippingPolygons = collection;
+            }
+            collection.removeAll();
+            for (const polygon of polygons) {
+              const positions = Cartesian3.fromDegreesArray(polygon.ring.flatMap(([lon, lat]) => [lon, lat]));
+              collection.add(new ClippingPolygon({ positions }));
+            }
+          }
+        } catch {
+          if (tiles.clippingPolygons) tiles.clippingPolygons.enabled = false;
+          collection = undefined;
+          throw new Error('City cutout unavailable');
+        }
+      };
+      const disable = () => { if (collection) collection.enabled = false; };
+      mask = cutout === 'land'
+        ? landFootprintMask(geography, land, supported, replace, disable)
+        : footprintMask(geography, supported, replace, disable);
+      clipped?.();
+    }
     return {
       async tiles() { const value=await Cesium3DTileset.fromIonAssetId(2275207,{showCreditsOnScreen:true,...tilePolicy(),cullRequestsWhileMoving:true,dynamicScreenSpaceError:true,enableCollision:true});if(!disposed)profile?.event('tiles.rootReady');return new Resource(value,()=>{if(!value.isDestroyed())value.destroy();}); },
       async zones() { const converted=profile?.span('zones.convert');try { const value=await GeoJsonDataSource.load(geography,{clampToGround:true,fill:boundary.withAlpha(.025),stroke:boundary});return new Resource(value,()=>value.entities.removeAll()); } finally { if(!disposed)converted?.(); } },
       attachTiles(resource) {
         tileset=(resource as Resource<Cesium3DTileset>).value;
-        const clipped=profile?.span('footprint.prepare');
-        const supported=ClippingPolygonCollection.isSupported(viewer.scene);
-        const replace=(polygons:LandPolygon[])=>{
-          try{
-            if(landCandidate){
-              const values=polygons.map(polygon=>new ClippingPolygon({
-                positions:Cartesian3.fromDegreesArray(polygon.ring.flatMap(([lon,lat])=>[lon,lat])),
-                holes:polygon.holes?.map(ring=>Cartesian3.fromDegreesArray(ring.flatMap(([lon,lat])=>[lon,lat]))),
-              }));
-              const next=new ClippingPolygonCollection({polygons:values,inverse:true});
-              tileset!.clippingPolygons=next;collection=next;
-            }else{
-              if(!collection){collection=new ClippingPolygonCollection({inverse:true});tileset!.clippingPolygons=collection;}
-              collection.removeAll();for(const polygon of polygons)collection.add(new ClippingPolygon({positions:Cartesian3.fromDegreesArray(polygon.ring.flatMap(([lon,lat])=>[lon,lat]))}));
-            }
-          }catch{if(tileset!.clippingPolygons)tileset!.clippingPolygons.enabled=false;collection=undefined;throw new Error('City cutout unavailable');}
-        };
-        const disable=()=>{if(collection)collection.enabled=false;};
-        mask=landCandidate?landFootprintMask(geography,land,supported,replace,disable):footprintMask(geography,supported,replace,disable);
-        clipped?.();
+        applyCutout(tileset);
         let firstFrame = true;
         imagery = imageryProgress(
           callback => tileset!.tileVisible.addEventListener(callback),
@@ -224,8 +282,8 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       orbit:moveView,
       zoom(factor){if(!canInteract())return false;focus.cancel();waitForDetail();return navigation.zoom(factor);},
       footprint(){return mask?.state();},
-      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();},
-      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();handler.destroy();focus.dispose();navigation.dispose();selectedLines.dispose();highlight=undefined;pointers.clear();activePointer=undefined;dragTracker.end();if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
+      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
+      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();navigation.dispose();selectedLines.dispose();highlight=undefined;pointers.clear();activePointer=undefined;dragTracker.end();if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });
 }
