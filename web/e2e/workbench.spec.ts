@@ -2,10 +2,36 @@ import{test,expect}from'@playwright/test';
 // Verification mode blocks provider requests; live visual checks are separate.
 const fixture={type:'FeatureCollection',features:[{type:'Feature',id:161,properties:{location_id:161,zone:'Synthetic test area',borough:'Manhattan'},geometry:{type:'Polygon',coordinates:[[[-74,40.7],[-73.99,40.7],[-73.99,40.71],[-74,40.7]]]}}]};
 test.beforeEach(async({context})=>{await context.route('**/*',route=>{if(route.request().url().endsWith('/data/taxi-zones.geojson'))return route.fulfill({json:fixture});return new URL(route.request().url()).origin==='http://127.0.0.1:5175'?route.continue():route.abort('blockedbyclient')})});
-test('area search is visible without opening a menu', async ({ page }) => {
-  await page.goto('/?mode=mock');
-  await expect(page.locator('#area-search')).toBeVisible();
-  await expect(page.locator('#area-search')).toBeEnabled();
+test('search pill browses on focus and Escape preserves the query and selection', async ({ page }) => {
+  await page.goto('/?mode=mock&zone=161');
+  const search = page.getByRole('searchbox', { name: 'Search areas' });
+  const picker = page.locator('#zone-picker');
+  await expect(search).toBeVisible();
+  await expect(search).toBeEnabled();
+  await expect.soft(picker).toBeHidden({ timeout: 1200 });
+  await search.focus();
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('option[value="161"]')).toHaveCount(1);
+  await search.fill('Manhattan');
+  await search.press('Escape');
+  await expect.soft(picker).toBeHidden({ timeout: 1200 });
+  await expect(search).toHaveValue('Manhattan');
+  await expect(search).toBeFocused();
+  await expect(picker).toHaveValue('161');
+  await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
+  await search.press('Enter');
+  await expect(picker).toBeVisible();
+  await search.press('Escape');
+  await expect(picker).toBeHidden();
+  await search.press('ArrowDown');
+  await expect(picker).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeHidden();
+  await expect(search).toBeFocused();
+  await search.click();
+  await expect(picker).toBeVisible();
+  await page.getByRole('button', { name: 'Stop 3D' }).focus();
+  await expect(picker).toBeHidden();
 });
 test('the map omits the visible title and stacks named symbol controls', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -43,16 +69,29 @@ test('the map omits the visible title and stacks named symbol controls', async (
   const panelBox = (await panel.boundingBox())!;
   expect(panelBox.x + panelBox.width, 'The camera menu should open to the left of its control').toBeLessThanOrEqual(cameraBox.x + 2);
 });
-test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
+test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
 test('mock stage starts automatically once, Stop stays stopped until deliberate Resume',async({page})=>{await page.goto('/?mode=mock');await expect(page.locator('#status')).toContainText('Mock stage ready');await expect(page.locator('#load')).toBeHidden();await page.locator('#stop').click();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeVisible();await page.locator('#load').click();await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#stop').click();await expect(page.locator('#load')).toBeDisabled()});
 test('Stop before delayed geography prevents automatic startup',async({context,page})=>{let release!:()=>void;const wait=new Promise<void>(resolve=>{release=resolve});await context.route('**/data/taxi-zones.geojson',async route=>{await wait;await route.fulfill({json:fixture})});await page.goto('/?mode=mock');await page.locator('#stop').click();release();await expect(page.locator('#zone-picker')).toBeEnabled();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeEnabled()});
-test('local filtering preserves selection and never causes a camera focus',async({page})=>{await page.goto('/?mode=mock&zone=161');await expect(page.locator('#zone-id')).toHaveText('161');await page.locator('#area-search').fill('no match');await expect(page.locator('#search-count')).toContainText('No matching');await expect(page.locator('#zone-id')).toHaveText('161');await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await page.locator('#clear-search').click();await expect(page.locator('#zone-picker')).toHaveValue('161')});
+test('local filtering preserves selection and never causes a camera focus', async ({ page }) => {
+  await page.goto('/?mode=mock&zone=161');
+  await expect(page.locator('#zone-id')).toHaveText('161');
+  await page.locator('#area-search').fill('no match');
+  await expect(page.locator('#search-count')).toContainText('No matching');
+  await expect(page.locator('#zone-id')).toHaveText('161');
+  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
+  const picker = page.locator('#zone-picker');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('optgroup[label="Selected area (outside search results)"] option')).toHaveText('Synthetic test area (161)');
+  await page.locator('#clear-search').click();
+  await expect(picker).toHaveValue('161');
+});
 test('keyboard search selects an area before the user explicitly focuses it', async ({ context, page }) => {
   await context.route('**/data/taxi-zones.geojson', route => route.continue());
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
   const search = page.getByRole('searchbox', { name: 'Search areas' });
   const picker = page.getByRole('combobox', { name: 'Area results' });
+  await search.focus();
   await expect(picker.locator('option')).toHaveCount(264);
   await search.pressSequentially('161');
   await expect(picker.locator('option')).toHaveCount(2);
@@ -80,7 +119,7 @@ test('zoom and camera controls are operable in the mock stage', async ({ page })
 test('automatic failure does not auto-retry and shares the two-attempt budget',async({page})=>{await page.goto('/?mode=mock&scenario=auth');await expect(page.locator('#status')).toContainText('Access denied');await expect(page.locator('#load')).toHaveText('Retry once');await page.locator('#load').click();await expect(page.locator('#session-limit')).toBeVisible();await expect(page.locator('#load')).toBeDisabled()});
 for(const width of[320,1280,1920])test(`credits/Stop/status remain accessible at${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#status')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)});
 for(const scenario of['rate','timeout','network','webgl','partial'])test(`mock${scenario} has an honest stage state`,async({page})=>{await page.goto(`/?mode=mock&scenario=${scenario}`);await expect(page.locator('#status')).not.toContainText('Preparing');await expect(page.locator('#status')).not.toContainText('Loading');await expect(page.locator('#focus-area')).toBeHidden();if(scenario==='rate'||scenario==='webgl')await expect(page.locator('#load')).toBeDisabled()});
-test('all 263 official areas remain selectable without a second map',async({context,page})=>{await context.route('**/data/taxi-zones.geojson',route=>route.continue());await page.goto('/?mode=mock');await expect(page.locator('#zone-picker option')).toHaveCount(264);await page.locator('#zone-picker').selectOption('161');await expect(page.locator('#selection-title')).toHaveText('Midtown Center');await expect(page.locator('svg:not(button svg, summary svg),#zone-map')).toHaveCount(0)});
+test('all 263 official areas remain selectable without a second map',async({context,page})=>{await context.route('**/data/taxi-zones.geojson',route=>route.continue());await page.goto('/?mode=mock');await expect(page.locator('#area-search')).toBeEnabled();await page.locator('#area-search').focus();await expect(page.locator('#zone-picker option')).toHaveCount(264);await page.locator('#zone-picker').selectOption('161');await expect(page.locator('#selection-title')).toHaveText('Midtown Center');await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0)});
 test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#credits')).toBeVisible()});
 
 test('desktop area details stay compact and usable', async ({ context, page }) => {
@@ -129,7 +168,7 @@ for (const width of [320, 640, 1440]) test(`map controls and selected area stay 
   await page.setViewportSize({ width, height });
   await page.goto('/?mode=mock&zone=161');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
-  for (const selector of ['#area-search', '#zone-picker', '#focus-area', '#city-overview', '#stop', '#credits']) {
+  for (const selector of ['#area-search', '#focus-area', '#city-overview', '#stop', '#credits']) {
     await expect(page.locator(selector)).toBeInViewport();
   }
   const searchPanel = (await page.locator('#area-controls').boundingBox())!;
@@ -139,6 +178,9 @@ for (const width of [320, 640, 1440]) test(`map controls and selected area stay 
   expect(gap, 'Mock selection details should stay close to search').toBeLessThanOrEqual(12);
   expect(inspector.x).toBeLessThan(searchPanel.x + searchPanel.width);
   expect(inspector.x + inspector.width).toBeGreaterThan(searchPanel.x);
+  await page.locator('#area-search').focus();
+  await expect(page.locator('#zone-picker')).toBeInViewport();
+  await page.keyboard.press('Escape');
   await page.locator('#focus-area').click({ trial: true });
   await page.locator('#view-controls>summary').click();
   await expect(page.locator('[data-view="left"]')).toBeInViewport();
@@ -155,6 +197,7 @@ for (const width of [320, 640]) test(`closing area details returns keyboard focu
   await page.getByRole('button', { name: 'Close area details' }).press('Enter');
   await expect(page.locator('#inspector')).toBeHidden();
   await expect(page.locator('#zone-picker')).toHaveValue('');
+  await expect(page.locator('#zone-picker')).toBeVisible();
   await expect(page.locator('#area-search')).toBeFocused();
   await expect(page.locator('#area-search')).toBeInViewport();
 });
@@ -216,6 +259,8 @@ for(const menu of ['view-controls','sources'])test(`${menu} keeps internal keybo
 test('selection changes retain the existing native area options when the search is unchanged',async({context,page})=>{
  await context.route('**/data/taxi-zones.geojson',route=>route.continue());
  await page.goto('/?mode=mock');
+ await expect(page.locator('#area-search')).toBeEnabled();
+ await page.locator('#area-search').focus();
  const picker=page.locator('#zone-picker');
  await expect(picker.locator('option')).toHaveCount(264);
  const originalOptions=await picker.evaluateHandle(select=>Array.from((select as HTMLSelectElement).options));
@@ -271,6 +316,7 @@ for(const failure of ['missing','invalid'])test(`${failure} optional land asset 
  page.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/data/city-land.json')assetRequests.push('land');if(url.hostname!=='127.0.0.1')external.push('external')});
  await page.goto('/?mode=mock&cutout=land');
  await expect(page.locator('#status')).toContainText('Mock stage ready');
+ await page.locator('#area-search').focus();
  await page.locator('#zone-picker').selectOption('161');
  await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
  await expect(page.locator('#zone-picker')).toBeEnabled();
@@ -315,6 +361,7 @@ test('stalled optional land asset leaves local controls usable and reaches isola
   await page.goto('/?mode=mock&cutout=land');
   // Optional display geometry must not hold the already-fetched local area list.
   await expect(page.locator('#area-search')).toBeEnabled({timeout:1000});
+  await page.locator('#area-search').focus();
   await page.locator('#zone-picker').selectOption('161');
   await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
   // The unresolved route stays held: startup must recover through the 3s timeout.

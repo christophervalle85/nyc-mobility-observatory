@@ -15,13 +15,14 @@ import { areaCardPosition } from './area-card-position.ts';
 import type { SelectionAnchor } from './selection-anchor.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element<HTMLSelectElement>('zone-picker'), search = element<HTMLInputElement>('area-search');
+const areaControls = element('area-controls'), searchCount = element('search-count');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const cityViewport = element('city-viewport');
-const cardObstacles = [element('area-controls'), document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
+const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
 const cardDisclosures = [element<HTMLDetailsElement>('view-controls'), element<HTMLDetailsElement>('sources')];
 let selectionAnchor: SelectionAnchor | null = null;
@@ -58,6 +59,14 @@ if (!mock) {
   for (const node of [cityViewport, inspector, attribution, ...cardObstacles]) resize.observe(node);
   window.addEventListener('scroll', positionAreaCard, { passive: true });
   for (const menu of cardDisclosures) menu.addEventListener('toggle', positionAreaCard);
+}
+
+if (CSS.supports('backdrop-filter', 'url("#area-search-lens")')) {
+  const row = search.parentElement!;
+  new ResizeObserver(([entry]) => {
+    const size = entry.borderBoxSize[0];
+    row.toggleAttribute('data-lens', size?.inlineSize === 272 && size.blockSize === 48);
+  }).observe(row, { box: 'border-box' });
 }
 
 const mode = cutoutMode(query.get('cutout'));
@@ -201,12 +210,12 @@ let resultQuery: string | undefined, pinnedResultId: number | null = null;
 let matchedResultIds = new Set<number>();
 function renderResults() {
   if (!geographyReady) return;
+  clearSearch.hidden = search.value.length === 0;
   const measured = diagnostics.span('selection.options');
   const current = resolveZone(zones, selected);
   const pinnedCurrent = current && !matchedResultIds.has(current.id) ? current.id : null;
   if (resultQuery === search.value && pinnedResultId === pinnedCurrent) {
     picker.value = current ? String(current.id) : '';
-    clearSearch.disabled = search.value.length === 0;
     measured(); return;
   }
   const results = filterZones(zones, search.value);
@@ -224,8 +233,7 @@ function renderResults() {
     group.append(new Option(`${zone.properties.zone} (${zone.id})`, String(zone.id)));
   }
   picker.value = current ? String(current.id) : ''; picker.disabled = results.length === 0 && !current;
-  element('search-count').textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.' : new Intl.PluralRules('en').select(results.length) === 'one' ? '1 matching TLC area.' : `${new Intl.NumberFormat('en').format(results.length)} matching TLC areas.`;
-  clearSearch.disabled = search.value.length === 0;
+  searchCount.textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.' : new Intl.PluralRules('en').select(results.length) === 'one' ? '1 matching TLC area.' : `${new Intl.NumberFormat('en').format(results.length)} matching TLC areas.`;
   measured();
 }
 function selectZone(id: number | null, interaction = true) {
@@ -244,7 +252,45 @@ function selectZone(id: number | null, interaction = true) {
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
   measured();
 }
-search.addEventListener('input', () => { diagnostics.interaction(); renderResults(); });
+function showAreaResults(open: boolean) {
+  if (picker.hidden === !open || (open && !geographyReady)) return;
+  areaControls.toggleAttribute('data-expanded', open);
+  picker.hidden = !open;
+  searchCount.classList.toggle('visually-hidden', !open);
+}
+search.addEventListener('focus', () => showAreaResults(true));
+search.addEventListener('click', () => showAreaResults(true));
+search.addEventListener('input', () => { diagnostics.interaction(); showAreaResults(true); renderResults(); });
+search.addEventListener('keydown', event => {
+  if (event.isComposing || (event.key !== 'ArrowDown' && (event.key !== 'Enter' || !picker.hidden))) return;
+  event.preventDefault();
+  showAreaResults(true);
+  if (event.key === 'ArrowDown' && !picker.disabled) picker.focus();
+});
+areaControls.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || event.isComposing) return;
+  event.preventDefault();
+  search.focus();
+  showAreaResults(false);
+});
+// Wait for the outside click to land before collapsing the in-flow panel.
+let outsidePointer: number | undefined;
+document.addEventListener('pointerdown', event => {
+  if (!picker.hidden && !areaControls.contains(event.target as Node)) outsidePointer = event.pointerId;
+}, true);
+for (const type of ['pointerup', 'pointercancel'] as const) {
+  document.addEventListener(type, event => {
+    if (event.pointerId === outsidePointer) outsidePointer = undefined;
+  }, true);
+}
+areaControls.addEventListener('focusout', event => {
+  if (outsidePointer === undefined && event.relatedTarget instanceof Node && !areaControls.contains(event.relatedTarget)) {
+    showAreaResults(false);
+  }
+});
+document.addEventListener('click', event => {
+  if (!areaControls.contains(event.target as Node)) showAreaResults(false);
+}, true);
 for (const menu of document.querySelectorAll<HTMLDetailsElement>('#view-controls, #sources')) {
   menu.addEventListener('focusout', event => {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
@@ -256,7 +302,12 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>('#view-controls
     menu.querySelector<HTMLElement>('summary')?.focus();
   });
 }
-clearSearch.addEventListener('click', () => { search.value = ''; renderResults(); search.focus(); });
+clearSearch.addEventListener('click', () => {
+  search.value = '';
+  search.focus();
+  showAreaResults(true);
+  renderResults();
+});
 picker.addEventListener('change', () => selectZone(resolveZone(zones, picker.value)?.id ?? null));
 clearSelection.addEventListener('click', () => { selectZone(null); search.focus(); });
 load.addEventListener('click', () => {
@@ -299,7 +350,7 @@ async function loadZones() {
     const validated = diagnostics.span('geography.validate');
     try { zones = parseZones(input); } finally { validated(); }
     if (!zones.features.length) throw new Error('No local zones');
-    geographyReady = true; search.disabled = false;
+    geographyReady = true; search.disabled = false; search.placeholder = 'Search areas';
     selectZone(resolveZone(zones, query.get('zone'))?.id ?? null, false);
     if (landAsset) {
       land = await landAsset;
@@ -310,7 +361,8 @@ async function loadZones() {
   } catch {
     geographyFailed = true; startup?.stop();
     picker.replaceChildren(new Option('Local TLC areas unavailable', '')); picker.disabled = true; search.disabled = true;
-    element('search-count').textContent = 'The local area list could not load. Restore the TLC geography file and reload.';
+    search.placeholder = 'Area search unavailable';
+    searchCount.textContent = 'The local area list could not load. Restore the TLC geography file and reload.';
     render(controller.state);
   }
 }

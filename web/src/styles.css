@@ -34,7 +34,7 @@ a { color: inherit; text-underline-offset: .2em; }
   padding: var(--space-md) var(--rail-inline-pad);
   pointer-events: none;
 }
-.session-info, .area-controls { border-radius: 12px; box-shadow: var(--shadow-card); }
+.session-info { border-radius: 12px; box-shadow: var(--shadow-card); }
 .session-info { pointer-events: auto; }
 .session-info { grid-area: session; justify-self: end; align-self: start; min-inline-size: 0; max-inline-size: min(100%, 24rem); padding: var(--space-2xs) var(--space-xs); background: var(--color-paper-3); font-size: var(--text-xs); }
 .session-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
@@ -58,15 +58,60 @@ button { font-weight: 550; cursor: pointer; overflow-wrap: anywhere; }
 button:disabled, input:disabled, select:disabled { opacity: .5; cursor: not-allowed; }
 button[aria-busy=true] { cursor: progress; }
 
-.area-controls { grid-area: search; display: grid; gap: var(--space-xs); min-inline-size: 0; padding: var(--space-sm); background: var(--color-paper-3); pointer-events: auto; }
-#area-label { font-weight: 650; }
-.search-row { display: flex; align-items: stretch; gap: var(--space-2xs); }
-input, select { inline-size: 100%; border-color: var(--color-muted); }
-input { flex: 1; min-inline-size: 0; font-size: var(--text-md); caret-color: var(--color-accent); }
-input::placeholder { color: var(--color-muted); }
-input::-webkit-search-cancel-button { appearance: none; }
-select { text-overflow: ellipsis; }
-#clear-search { flex: none; min-inline-size: 36px; font-size: var(--text-lg); line-height: 1; }
+.area-controls {
+  grid-area: search;
+  align-self: start;
+  justify-self: start;
+  inline-size: min(100%, 272px);
+  min-inline-size: 0;
+  pointer-events: auto;
+}
+.search-row {
+  display: flex;
+  align-items: center;
+  min-block-size: 48px;
+  border: 1px solid var(--color-map-capsule-edge);
+  border-radius: var(--radius-pill);
+  background: var(--color-map-capsule-solid);
+  box-shadow: var(--shadow-map-capsule);
+  color: var(--color-paper-3);
+}
+.search-row label, #clear-search { display: grid; place-items: center; flex: 0 0 44px; min-block-size: 44px; color: inherit; cursor: pointer; }
+.search-row svg { inline-size: 22px; block-size: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+#area-search {
+  flex: 1;
+  inline-size: 100%;
+  min-block-size: 46px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding-block: var(--space-2xs);
+  padding-inline: 0 var(--space-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-md);
+  caret-color: currentColor;
+}
+#area-search::placeholder { color: var(--color-city-ink); opacity: 1; }
+#area-search::-webkit-search-cancel-button { appearance: none; }
+.search-row:has(#area-search:focus-visible) {
+  outline: 2px solid var(--color-search-focus, var(--color-focus));
+  outline-offset: 2px;
+  box-shadow: var(--shadow-map-capsule), 0 0 0 5px var(--color-paper-3);
+}
+.search-row:has(#area-search:focus-visible) #area-search { outline: none; box-shadow: none; }
+#clear-search { border-color: transparent; border-radius: var(--radius-pill); padding: 0; background: transparent; }
+#clear-search svg { inline-size: 18px; block-size: 18px; }
+#area-controls[data-expanded] #area-results {
+  display: grid;
+  gap: var(--space-2xs);
+  margin-block-start: var(--space-xs);
+  padding: var(--space-xs);
+  border: 1px solid var(--color-map-glass-edge);
+  border-radius: 16px;
+  background: var(--color-paper-3);
+  box-shadow: var(--shadow-card);
+}
+#zone-picker { inline-size: 100%; border-color: var(--color-muted); text-overflow: ellipsis; }
 .control-hint { font-size: var(--text-xs); color: var(--color-ink-2); }
 #search-count { min-block-size: 1lh; }
 
@@ -186,6 +231,11 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
     -webkit-backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
     backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
   }
+  .search-row {
+    background: linear-gradient(155deg, var(--color-map-search-highlight), var(--color-map-search-fill));
+    -webkit-backdrop-filter: blur(8px) saturate(125%) brightness(72%);
+    backdrop-filter: blur(8px) saturate(125%) brightness(72%);
+  }
   .inspector, .view-buttons {
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     backdrop-filter: blur(18px) saturate(140%);
@@ -193,14 +243,15 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 }
 @supports (backdrop-filter: url("#map-capsule-lens")) {
   .stage-tools::before { backdrop-filter: url("#map-capsule-lens") blur(1.7px) saturate(125%) brightness(78%); }
+  .search-row[data-lens] { backdrop-filter: url("#area-search-lens") blur(5px) saturate(125%) brightness(72%); }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   .inspector, .view-buttons {
     --glass-fill: var(--color-paper-3);
     background: var(--glass-fill);
   }
-  .stage-tools::before { background: var(--color-map-capsule-solid); }
-  .inspector, .stage-tools::before, .view-buttons {
+  .stage-tools::before, .search-row[data-lens], .search-row { background: var(--color-map-capsule-solid); }
+  .inspector, .stage-tools::before, .view-buttons, .search-row[data-lens], .search-row {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -228,6 +279,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   #focus-area:hover:not(:disabled) { background: var(--color-map-glass-action-hover); }
   #clear-selection:hover:not(:disabled) { background: var(--color-map-glass-action); }
   .map-icon:hover:not(:disabled), #view-controls > summary.map-icon:hover { background: var(--color-map-capsule-action); }
+  #clear-search:hover { background: var(--color-map-capsule-action); }
   a:hover { color: var(--color-accent); }
 }
 @media (max-width: 46rem) {
@@ -245,10 +297,11 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @media (max-width: 46rem) and (max-height: 42rem) {
   .floating-rail { grid-template-rows: auto auto auto minmax(min(8rem, 14dvh), 1fr) auto; gap: var(--space-2xs); padding-block: var(--space-xs); }
   .viewport-state { padding: var(--space-xs); }
-  .area-controls { gap: var(--space-2xs); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
 @media (forced-colors: active) {
+  .search-row { --color-search-focus: Highlight; }
   :focus-visible, #cesium-view:has(canvas:focus-visible)::after { outline-color: Highlight; }
-  .session-info, .area-controls, .inspector, .tool-content, .stage-tools::before, .map-icon, #focus-area { border: 1px solid CanvasText; }
+  .session-info, .search-row, #area-controls[data-expanded] #area-results, .inspector, .tool-content, .stage-tools::before, .map-icon, #focus-area { border: 1px solid CanvasText; }
+  #area-search::placeholder { color: CanvasText; }
 }

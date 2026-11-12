@@ -23,14 +23,29 @@
           <p id="session-limit" hidden>Session limit reached. Reload only when you intend to start another session.</p>
         </div>
         <section id="area-controls" class="area-controls" aria-labelledby="area-label">
-          <label id="area-label" for="area-search">Search areas</label>
           <div class="search-row">
-            <input type="search" id="area-search" name="area-search" placeholder="Midtown, Queens or 161" autocomplete="off" spellcheck="false" aria-describedby="search-count" disabled />
-            <button type="button" id="clear-search" disabled aria-label="Clear search"><span aria-hidden="true">×</span></button>
+            <label for="area-search">
+              <span id="area-label" class="visually-hidden">Search areas</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <defs>
+                  <filter id="area-search-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+                    <feImage href="/area-search-displacement.png" x="0" y="0" width="272" height="48" preserveAspectRatio="none" result="rim"/>
+                    <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                </defs>
+                <circle cx="10.75" cy="10.75" r="5.75"/><path d="m15 15 4 4"/>
+              </svg>
+            </label>
+            <input type="search" id="area-search" name="area-search" placeholder="Loading TLC areas…" autocomplete="off" spellcheck="false" aria-controls="area-results" disabled />
+            <button type="button" id="clear-search" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7.5 7.5 9 9m0-9-9 9"/></svg>
+            </button>
           </div>
-          <label for="zone-picker" class="visually-hidden">Area results</label>
-          <select id="zone-picker" name="zone" aria-describedby="search-count" disabled><option value="">Loading TLC areas…</option></select>
-          <p id="search-count" class="control-hint" role="status"></p>
+          <div id="area-results">
+            <label for="zone-picker" class="visually-hidden">Area results</label>
+            <select id="zone-picker" name="zone" aria-describedby="search-count" hidden disabled><option value="">Loading TLC areas…</option></select>
+            <p id="search-count" class="control-hint visually-hidden" role="status"></p>
+          </div>
         </section>
         <div id="viewport-state" class="viewport-state" hidden>
           <div>
