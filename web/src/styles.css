@@ -100,8 +100,8 @@ select { text-overflow: ellipsis; }
 .viewport-state p, #setup { margin-block-start: var(--space-xs); }
 #setup p { font-size: var(--text-xs); }
 
-/* Two 58px targets and 3px of padding match the 64×122 lens texture. */
-.stage-tools { --map-control-width: 58px; grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
+/* Two 48×52px targets and 3px of padding match the 54×110 lens texture. */
+.stage-tools { --map-control-width: 48px; grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
 .stage-tools::before {
   content: '';
   position: absolute;
@@ -118,14 +118,14 @@ select { text-overflow: ellipsis; }
   align-items: center;
   justify-content: center;
   inline-size: var(--map-control-width);
-  block-size: var(--map-control-width);
+  block-size: 52px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-paper-3);
 }
-.map-icon svg { flex: none; inline-size: 29px; block-size: 29px; fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.map-icon svg { flex: none; inline-size: 25px; block-size: 25px; fill: currentColor; }
 summary {
   display: flex;
   align-items: center;

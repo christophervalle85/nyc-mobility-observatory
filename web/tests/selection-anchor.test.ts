@@ -48,7 +48,7 @@ test('anchor rejects undefined, nonfinite and off-screen projected points', () =
   }
 });
 
-test('outline top includes visible edges outside the normal card width', () => {
+test('outline top interpolates the upper edge near the card pointer', () => {
   const { project, canvas } = fixture(position => new Cartesian2(position.x, position.y));
   canvas.clientWidth = 800;
   canvas.clientHeight = 500;
@@ -56,7 +56,7 @@ test('outline top includes visible edges outside the normal card width', () => {
     new Cartesian3(100, 100, 0), new Cartesian3(700, 280, 0),
     new Cartesian3(700, 340, 0), new Cartesian3(100, 340, 0),
   ];
-  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: 100 });
+  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: 175 });
 });
 
 test('outline top includes a crossing edge from outside the visible viewport', () => {
@@ -67,10 +67,10 @@ test('outline top includes a crossing edge from outside the visible viewport', (
     new Cartesian3(100, -200, 0), new Cartesian3(700, 100, 0),
     new Cartesian3(700, 340, 0), new Cartesian3(100, 340, 0),
   ];
-  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: -200 });
+  assert.deepEqual(project(new Cartesian3(400, 300, 0), outline), { x: 400, y: 300, outlineTop: -74 });
 });
 
-test('outline top includes a remote apex under a widened, edge-clamped card', () => {
+test('a distant apex does not lift a card pointing to a lower part of the area', () => {
   const { project, canvas } = fixture(position => new Cartesian2(position.x, position.y));
   canvas.clientWidth = 320;
   canvas.clientHeight = 568;
@@ -78,7 +78,7 @@ test('outline top includes a remote apex under a widened, edge-clamped card', ()
     new Cartesian3(20, 380, 0), new Cartesian3(152, 350, 0), new Cartesian3(260, 280, 0),
     new Cartesian3(280, 470, 0), new Cartesian3(20, 470, 0),
   ];
-  assert.deepEqual(project(new Cartesian3(40, 410, 0), outline), { x: 40, y: 410, outlineTop: 280 });
+  assert.deepEqual(project(new Cartesian3(40, 410, 0), outline), { x: 40, y: 410, outlineTop: 364 });
 });
 
 test('anchor stays within each official TLC area, including concave and multipart areas', () => {

@@ -5,16 +5,16 @@ import { areaCardPosition } from '../src/area-card-position.ts';
 const viewport = { left: 0, top: 0, right: 800, bottom: 500 };
 const card = { width: 240, height: 100 };
 
-test('keeps a 36px minimum gap and aligns the pointer after horizontal clamping', () => {
+test('keeps a 28px center gap and aligns the pointer after horizontal clamping', () => {
   assert.deepEqual(areaCardPosition({ x: 45, y: 200 }, card, viewport, []),
-    { left: 12, top: 64, pointer: 33 });
+    { left: 12, top: 72, pointer: 33 });
   assert.deepEqual(areaCardPosition({ x: 45, y: 200, outlineTop: 185 }, card, viewport, []),
-    { left: 12, top: 64, pointer: 33 });
+    { left: 12, top: 72, pointer: 33 });
 });
 
-test('keeps the card twelve pixels above the projected outline when it rises above the center gap', () => {
+test('keeps the card six pixels above the nearby outline when it rises above the center gap', () => {
   assert.deepEqual(areaCardPosition({ x: 400, y: 300, outlineTop: 220 }, card, viewport, []),
-    { left: 280, top: 108, pointer: 120 });
+    { left: 280, top: 114, pointer: 120 });
 });
 
 test('falls back when the card would cover controls or leave the visible map', () => {

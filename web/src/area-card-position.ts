@@ -5,8 +5,8 @@ interface Bounds { left: number; top: number; right: number; bottom: number }
 
 export function areaCardPosition(point: SelectionAnchor, card: Size, viewport: Bounds, controls: Bounds[]) {
   const inset = 12;
-  const anchorGap = 36;
-  const outlineClearance = 12;
+  const anchorGap = 28;
+  const outlineClearance = 6;
   const minLeft = viewport.left + inset;
   const maxLeft = viewport.right - card.width - inset;
   const bottom = Math.min(point.y - anchorGap, (point.outlineTop ?? Infinity) - outlineClearance);

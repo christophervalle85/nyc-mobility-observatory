@@ -88,14 +88,16 @@ export function selectionAnchorProjection(scene: ProjectionScene) {
     const last = outline.at(-1);
     if (!last) return { x, y };
 
-    // Clear the whole projected component so a widened or edge-clamped card cannot cover its apex.
+    // Follow the edge near the pointer so a distant peak does not pull the card away.
+    const left = Math.max(0, x - 48);
+    const right = Math.min(width, x + 48);
     let outlineTop = Infinity;
     let previous = project(last, previousScreen);
     for (const vertex of outline) {
       const next = project(vertex, screen);
       if (next) {
-        if (next.x >= 0 && next.x <= width) outlineTop = Math.min(outlineTop, next.y);
-        if (previous) outlineTop = Math.min(outlineTop, topOfSegment(previous, next, width));
+        if (next.x >= left && next.x <= right) outlineTop = Math.min(outlineTop, next.y);
+        if (previous) outlineTop = Math.min(outlineTop, topOfSegment(previous, next, left, right));
       }
       previous = next && Cartesian2.clone(next, previousScreen);
     }
@@ -103,9 +105,9 @@ export function selectionAnchorProjection(scene: ProjectionScene) {
   };
 }
 
-function topOfSegment(start: Cartesian2, end: Cartesian2, width: number) {
-  const firstX = Math.max(0, Math.min(start.x, end.x));
-  const lastX = Math.min(width, Math.max(start.x, end.x));
+function topOfSegment(start: Cartesian2, end: Cartesian2, left: number, right: number) {
+  const firstX = Math.max(left, Math.min(start.x, end.x));
+  const lastX = Math.min(right, Math.max(start.x, end.x));
   if (firstX > lastX) return Infinity;
   if (start.x === end.x) return Math.min(start.y, end.y);
   const upperX = start.y < end.y ? start.x : end.x;
