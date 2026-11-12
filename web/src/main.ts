@@ -5,18 +5,59 @@ import type { ZoneCollection } from './zones.ts';
 import { areaFocus } from './area-focus.ts';
 import { startupGate } from './startup-gate.ts';
 import { engineLoader } from './engine-loader.ts';
-import { startupPresentation } from './imagery-progress.ts';
+import { startupStatus } from './imagery-progress.ts';
 import type { ImageryStage } from './imagery-progress.ts';
 import { createDiagnostics } from './diagnostics.ts';
 import { parseLandFootprint } from './land-footprint.ts';
 import type { LandFootprint } from './land-footprint.ts';
 import { cutoutMode } from './cutout-mode.ts';
+import { areaCardPosition } from './area-card-position.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element<HTMLSelectElement>('zone-picker'), search = element<HTMLInputElement>('area-search');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
+const inspector = element('inspector');
+const cityViewport = element('city-viewport');
+const cardObstacles = [element('area-controls'), document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
+const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
+const cardDisclosures = [element<HTMLDetailsElement>('view-controls'), element<HTMLDetailsElement>('sources')];
+let selectionAnchor: { x: number; y: number } | null = null;
+
+function positionAreaCard() {
+  if (!selectionAnchor || inspector.hidden) {
+    inspector.removeAttribute('data-anchored');
+    return;
+  }
+  const map = cityViewport.getBoundingClientRect();
+  const openPanels = cardDisclosures.filter(menu => menu.open).map(menu => menu.querySelector('.tool-content')!);
+  const position = areaCardPosition(
+    { x: map.left + selectionAnchor.x, y: map.top + selectionAnchor.y },
+    { width: inspector.offsetWidth, height: inspector.offsetHeight },
+    { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
+      bottom: Math.min(innerHeight, map.bottom, attribution.getBoundingClientRect().top) },
+    [...cardObstacles, ...openPanels].map(control => control.getBoundingClientRect()),
+  );
+  inspector.toggleAttribute('data-anchored', Boolean(position));
+  if (!position) return;
+  inspector.style.setProperty('--card-left', `${position.left - map.left}px`);
+  inspector.style.setProperty('--card-top', `${position.top - map.top}px`);
+  inspector.style.setProperty('--card-pointer', `${position.pointer}px`);
+}
+
+function setSelectionAnchor(point: typeof selectionAnchor) {
+  selectionAnchor = point;
+  positionAreaCard();
+}
+
+if (!mock) {
+  const resize = new ResizeObserver(positionAreaCard);
+  for (const node of [cityViewport, inspector, attribution, ...cardObstacles]) resize.observe(node);
+  window.addEventListener('scroll', positionAreaCard, { passive: true });
+  for (const menu of cardDisclosures) menu.addEventListener('toggle', positionAreaCard);
+}
+
 const mode = cutoutMode(query.get('cutout'));
 let land: LandFootprint | undefined;
 let landChecked = false;
@@ -45,23 +86,23 @@ const messages: Record<Failure, string> = {
 };
 function render(state: SessionState) {
   if (!mock && imageryAttempt !== state.attempts) { imageryAttempt = state.attempts; imageryStage = 'waiting-first-frame'; }
-  const presentation = startupPresentation(state.phase, imageryStage, mock, startup?.pending ?? false);
+  const imageryStatus = startupStatus(state.phase, imageryStage, mock);
   const active = ['loading', 'ready', 'partial'].includes(state.phase);
   const stateMessages = {
     setup: '3D needs a public Cesium ion token.',
     idle: mock ? 'Preparing the mock stage…' : startup?.pending ? (document.visibilityState === 'visible' ? 'Opening NYC when the local footprint is ready…' : 'NYC will open when this page becomes visible.') : 'The city is stopped.',
     loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D… You can stop at any time.',
-    ready: mock ? 'Mock stage ready. No imagery loaded.' : 'Drag to orbit · Scroll to zoom',
+    ready: mock ? 'Mock stage ready. No imagery loaded.' : '',
     partial: 'Some tiles failed to stream. Use Stop 3D to prevent new requests.',
     error: state.failure ? messages[state.failure] : messages.network,
     stopped: '3D unloaded. No city imagery is displayed.',
   };
-  element('opening-cue').hidden = !presentation.cue;
   const status = element('status');
   const cutoutPending = mode === 'land' && !landChecked;
   const waiting = state.draining && !active ? ' Waiting for previous requests to finish before retry.'
     : state.phase === 'stopped' && cutoutPending && geographyReady ? ' Waiting for the land cutout file.' : '';
-  const statusText = (presentation.status ?? stateMessages[state.phase]) + waiting;
+  const statusText = (imageryStatus ?? stateMessages[state.phase]) + waiting;
+  status.classList.toggle('visually-hidden', !statusText);
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
   load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
@@ -136,6 +177,8 @@ function liveAdapter(): SceneAdapter {
       delegate = createCesiumAdapter(element('cesium-view'), element('credits'), import.meta.env.VITE_CESIUM_ION_TOKEN, zones, selectZone, diagnostics, land, mode, stage => {
         if (disposed) return;
         imageryStage = stage; render(controller.state);
+      }, point => {
+        if (!disposed) setSelectionAnchor(point);
       });
       await delegate.load(change);
       if (!disposed) diagnostics.event('scene.resourcesAttached');
@@ -144,7 +187,7 @@ function liveAdapter(): SceneAdapter {
     overview() { return delegate?.overview?.() ?? false; }, orbit(horizontal, vertical) { return delegate?.orbit?.(horizontal, vertical) ?? false; }, zoom(factor) { return delegate?.zoom?.(factor) ?? false; }, footprint() { return delegate?.footprint?.(); },
     focus(id, reducedMotion) { return delegate?.focus(id, reducedMotion) ?? Promise.resolve(false); },
     cancelFocus() { delegate?.cancelFocus(); },
-    dispose() { disposed = true; delegate?.dispose(); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
+    dispose() { disposed = true; delegate?.dispose(); setSelectionAnchor(null); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
   };
 }
 const controller = new SessionController(configured, mock ? mockAdapter : liveAdapter, render, 30_000, id => Boolean(resolveZone(zones, id)));
@@ -186,8 +229,11 @@ function renderResults() {
 function selectZone(id: number | null, interaction = true) {
   if (interaction) diagnostics.interaction();
   const measured = diagnostics.span('selection.handler');
-  const zone = resolveZone(zones, id); selected = zone?.id ?? null;
-  element('inspector').hidden = !zone;
+  const zone = resolveZone(zones, id);
+  const next = zone?.id ?? null;
+  if (next !== selected) setSelectionAnchor(null);
+  selected = next;
+  inspector.hidden = !zone;
   element('selection-title').textContent = zone?.properties.zone ?? 'TLC area';
   element('zone-id').textContent = zone ? String(zone.properties.location_id) : '';
   element('zone-borough').textContent = zone?.properties.borough ?? '';

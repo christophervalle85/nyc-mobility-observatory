@@ -41,7 +41,7 @@ The cutouts use generalized source boundaries and leave TLC area IDs, picking ge
 
 Use **Search areas** to find any of the 263 TLC areas by name, borough or exact TLC ID. Typing and clearing the query preserve the current selection. Choose a result, pick a point in the live scene or open `?zone=ID` to show area details and highlight the zone without moving the camera. Close the details to clear the selection and return to search.
 
-Select **Fly to area** once 3D is ready. The flight uses local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current viewing direction. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
+Select **Focus** once 3D is ready. The flight uses local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current viewing direction. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
 
 **Show all NYC** restores the five-borough fit. The opening view uses source-derived Midtown bounds. Bounded drag, zoom and the orbit and tilt buttons under **Camera controls** use local source bounds. Resizing keeps the current camera. Newark Airport is searchable and can be selected and flown to in any mode. In either cutout mode, flying to Newark adds its 61-vertex hull to an active cutout (311 vertices total in borough mode). **Show all NYC** removes the added hull.
 

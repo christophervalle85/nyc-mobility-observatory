@@ -13,10 +13,7 @@
     <div id="city-viewport" class="city-viewport">
       <div id="cesium-view" hidden></div>
       <div class="floating-rail">
-        <header class="stage-title">
-          <h1>NYC Mobility Observatory</h1>
-          <p id="opening-cue" hidden>Starting point · Midtown Manhattan</p>
-        </header>
+        <h1 class="visually-hidden">NYC Mobility Observatory</h1>
         <div class="session-info">
           <div class="session-row">
             <p id="status" role="status" tabindex="-1">Preparing the city…</p>
@@ -56,19 +53,21 @@
           </dl>
           <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <div class="inspector-actions">
-            <button type="button" id="focus-area" disabled>Fly to area</button>
+            <button type="button" id="focus-area" disabled>Focus</button>
             <p id="focus-status" class="control-hint" role="status"></p>
           </div>
         </aside>
         <section class="stage-tools" aria-label="Map controls">
-          <button type="button" id="city-overview" disabled>Show all NYC</button>
-          <div class="zoom-tools" role="group" aria-label="Zoom">
-            <button type="button" data-view="in" aria-label="Zoom in" disabled><span aria-hidden="true">+</span></button>
-            <button type="button" data-view="out" aria-label="Zoom out" disabled><span aria-hidden="true">−</span></button>
-          </div>
+          <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+          </button>
           <details id="view-controls">
-            <summary>Camera controls</summary>
+            <summary class="map-icon" aria-label="Camera controls" title="Camera controls">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>
+            </summary>
             <div class="tool-content view-buttons">
+              <button type="button" data-view="in" disabled>Zoom in</button>
+              <button type="button" data-view="out" disabled>Zoom out</button>
               <button type="button" data-view="left" disabled>Orbit left</button>
               <button type="button" data-view="right" disabled>Orbit right</button>
               <button type="button" data-view="up" disabled>Tilt up</button>

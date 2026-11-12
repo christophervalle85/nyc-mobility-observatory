@@ -2,7 +2,7 @@
 
 The city-stage prototype opens on the Midtown skyline with continuous Google
 Photorealistic 3D Tiles through Cesium ion when configured. Search and select
-local TLC areas, use **Fly to area** to move the camera, or select **Show all NYC**
+local TLC areas, use **Focus** to move the camera, or select **Show all NYC**
 to frame the five boroughs. Date filters, mobility counts, charts and models are not implemented.
 The separate M1 ingestion pipeline remains unchanged.
 

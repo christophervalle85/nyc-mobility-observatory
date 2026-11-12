@@ -16,6 +16,8 @@ import { displayPolicy, tilePolicy } from './rendering-policy.ts';
 import { zoneHighlight } from './zone-highlight.ts';
 import { selectedBoundary } from './selected-boundary.ts';
 import { selectionPresentation } from './selection-presentation.ts';
+import { selectionAnchorPosition, selectionAnchorProjection, selectionAnchorPublisher } from './selection-anchor.ts';
+import type { SelectionAnchor } from './selection-anchor.ts';
 import { cityOverview, skylineOpening, footprintMask } from './study-footprint.ts';
 import { stageNavigation } from './stage-navigation.ts';
 import { zonePicker } from './zone-picker.ts';
@@ -31,7 +33,7 @@ class Resource<T> implements OwnedResource {
   constructor(public value: T, private release: () => void) {}
   destroy() { this.release(); }
 }
-export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, cutout: CutoutMode = 'none', onImagery?: (stage: ImageryStage) => void) {
+export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, cutout: CutoutMode = 'none', onImagery?: (stage: ImageryStage) => void, onSelectionAnchor?: (point: SelectionAnchor | null) => void) {
   const profile = diagnostics?.enabled ? diagnostics : undefined;
   return managedAdapter((): SceneRuntime => {
     const constructed = profile?.span('scene.construct');
@@ -125,11 +127,40 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       },
       cancel() { focusMoving = false; if (!viewer.isDestroyed()) viewer.camera.cancelFlight(); },
     });
-    function reportPartial() { partialSeen = true; focus.cancel(); partial?.(); }
+    function reportPartial() { partialSeen = true; focus.cancel(); anchor?.publish(null, null); partial?.(); }
     function canInteract() { return !disposed && tilesAttached && zonesAttached && !partialSeen; }
     function moveView(horizontal: number, vertical = 0) { if (!canInteract()) return false; focus.cancel(); waitForDetail(); return navigation.orbit(horizontal, vertical); }
     const canvas = viewer.scene.canvas;
     canvas.setAttribute('aria-label', 'Interactive NYC city stage. Use the map controls for keyboard orbit, tilt and zoom.'); canvas.setAttribute('tabindex', '-1');
+    const anchor = onSelectionAnchor && {
+      project: selectionAnchorProjection(viewer.scene),
+      publish: selectionAnchorPublisher(onSelectionAnchor),
+    };
+    let anchorId: number | null = null;
+    let anchorPosition: Cartesian3 | undefined;
+    function updateSelectionAnchor() {
+      if (!anchor) return;
+      if (!canInteract() || container.hidden || outlined === null) {
+        anchor.publish(null, null);
+        return;
+      }
+      if (anchorId !== outlined) {
+        anchorId = outlined;
+        const zone = resolveZone(geography, anchorId);
+        const point = zone && selectionAnchorPosition(zone.geometry);
+        anchorPosition = point && Cartesian3.fromDegrees(point.longitude, point.latitude, 0, viewer.scene.ellipsoid);
+      }
+      anchor.publish(outlined, anchorPosition ? anchor.project(anchorPosition) : null);
+    }
+    if (anchor) {
+      cleanup.push(viewer.scene.postRender.addEventListener(updateSelectionAnchor));
+      const resize = new ResizeObserver(() => {
+        if (!canvas.clientWidth || !canvas.clientHeight) anchor.publish(null, null);
+        else if (canInteract() && outlined !== null) viewer.scene.requestRender();
+      });
+      resize.observe(canvas);
+      cleanup.push(() => resize.disconnect());
+    }
     const handler = new ScreenSpaceEventHandler(canvas);
     const indexed=profile?.span('zones.index');
     const picker = zonePicker(geography);
@@ -243,8 +274,8 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       orbit:moveView,
       zoom(factor){if(!canInteract())return false;focus.cancel();waitForDetail();return navigation.zoom(factor);},
       footprint(){return mask?.state();},
-      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();},
-      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();handler.destroy();focus.dispose();navigation.dispose();selectedLines.dispose();highlight=undefined;pointers.clear();activePointer=undefined;dragTracker.end();if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
+      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
+      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();navigation.dispose();selectedLines.dispose();highlight=undefined;pointers.clear();activePointer=undefined;dragTracker.end();if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });
 }
