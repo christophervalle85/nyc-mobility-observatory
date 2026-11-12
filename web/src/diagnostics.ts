@@ -1,7 +1,8 @@
-const labels = ['geography.fetch','geography.json','geography.validate','land.fetch','land.json','land.validate','cesium.import','scene.construct','viewer.construct','zones.convert','zones.index','footprint.prepare','tiles.rootReady','tiles.attached','tiles.firstFrame','tiles.detailSettled','scene.resourcesAttached','selection.handler','selection.pick','selection.options','selection.nextFrame','detail.wait','focus.duration'] as const;
+const labels = ['page.toApp','geography.fetch','geography.json','geography.validate','land.fetch','land.json','land.validate','cesium.import','scene.construct','viewer.construct','zones.convert','zones.index','footprint.prepare','tiles.rootReady','tiles.attached','tiles.firstFrame','tiles.detailSettled','scene.resourcesAttached','selection.handler','selection.pick','selection.options','selection.nextFrame','detail.wait','focus.duration'] as const;
 export type DiagnosticLabel = typeof labels[number];
 export type DiagnosticEntry = {kind:'timing';label:DiagnosticLabel;milliseconds:number} | {kind:'window';window:'startup'|'interaction';frames:number;renderCpuMeanMs:number;renderCpuMaxMs:number;renderGapMeanMs:number;longTasks:number;longTaskMs:number};
 export interface DiagnosticDependencies {
+ pageToApp?:number;
  now():number;
  setTimer(callback:()=>void,delay:number):unknown;
  clearTimer(id:unknown):void;
@@ -20,6 +21,7 @@ export interface Diagnostics {
 const noop=()=>{};
 function browserDependencies():DiagnosticDependencies {
  return {
+  pageToApp:performance.now(),
   now:()=>performance.now(),
   setTimer:(callback,delay)=>setTimeout(callback,delay),
   clearTimer:id=>clearTimeout(id as ReturnType<typeof setTimeout>),
@@ -76,6 +78,8 @@ export function createDiagnostics(enabled:boolean,dependencies?:DiagnosticDepend
   for(const source of sources)attach(source,window);
   window.timer=environment.setTimer(()=>{if(current===window)closeWindow();},duration);
  }
+ const pageToApp=environment.pageToApp;
+ if(typeof pageToApp==='number')timing('page.toApp',pageToApp);
  beginWindow('startup',10000);
  return {
   enabled:true,
