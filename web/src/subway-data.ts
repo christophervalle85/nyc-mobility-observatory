@@ -44,14 +44,16 @@ export function parseSubwayData(value: unknown): SubwayData {
 }
 
 export function nearbyStations(stations: readonly SubwayStation[], center: { longitude: number; latitude: number }) {
-  const longitudeScale = Math.cos(center.latitude * Math.PI / 180);
-  return stations.map(station => ({
-    station,
-    distance: 111_320 * Math.hypot(
-      (station.longitude - center.longitude) * longitudeScale,
-      station.latitude - center.latitude,
-    ),
-  })).filter(item => item.distance <= 1_200)
+  const radians = Math.PI / 180;
+  const latitude = center.latitude * radians;
+  return stations.map(station => {
+    const stationLatitude = station.latitude * radians;
+    const halfLatitude = (stationLatitude - latitude) / 2;
+    const halfLongitude = (station.longitude - center.longitude) * radians / 2;
+    const chord = Math.sin(halfLatitude) ** 2
+      + Math.cos(latitude) * Math.cos(stationLatitude) * Math.sin(halfLongitude) ** 2;
+    return { station, distance: 12_742_000 * Math.asin(Math.sqrt(Math.min(1, chord))) };
+  }).filter(item => item.distance <= 1_200)
     .sort((a, b) => a.distance - b.distance || a.station.id - b.station.id)
     .slice(0, 6).map(item => item.station);
 }

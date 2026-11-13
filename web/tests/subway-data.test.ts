@@ -50,3 +50,10 @@ test('nearby stations are distance ordered, bounded, and empty when too far away
   assert.deepEqual(nearbyStations(stations, center).map(station => station.id), [8, 7, 6, 5, 4, 3]);
   assert.deepEqual(nearbyStations(stations, { ...center, latitude: 40.6 }), []);
 });
+
+
+test('a station just inside the great-circle radius remains eligible', () => {
+  const center = { latitude: 40.75, longitude: -73.99 };
+  const station = { ...parseSubwayData(archive()).stations[0], latitude: center.latitude + .01079 };
+  assert.deepEqual(nearbyStations([station], center), [station]);
+});
