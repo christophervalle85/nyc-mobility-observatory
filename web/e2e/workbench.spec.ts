@@ -79,6 +79,10 @@ test('search pill browses on focus and Escape preserves the query and selection'
   await expect(search).toHaveAttribute('aria-expanded', 'true');
   await expect(picker.getByRole('option')).toHaveCount(1);
   await search.fill('Manhattan');
+  const pill = await page.locator('.search-row').boundingBox();
+  const results = await page.locator('#area-results').boundingBox();
+  expect(pill).not.toBeNull();
+  expect(results).toMatchObject({ x: pill?.x, width: pill?.width });
   await search.press('Escape');
   await expect(picker).toBeHidden();
   await expect(search).toHaveAttribute('aria-expanded', 'false');

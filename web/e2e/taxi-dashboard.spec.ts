@@ -36,8 +36,7 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeFocused();
   const panel = page.locator('#taxi-dashboard');
-  const search = page.locator('.search-row');
-  expect((await panel.boundingBox())?.width).toBe((await search.boundingBox())?.width);
+  await expect(panel).toHaveCSS('width', '416px');
   const chart = page.locator('#taxi-dashboard canvas');
   await expect(chart).toBeVisible();
   expect(await chart.evaluate(element => {
