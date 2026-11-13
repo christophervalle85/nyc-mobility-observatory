@@ -10,7 +10,7 @@ export interface SceneAdapter {
   focus(id: number, reducedMotion: boolean): Promise<boolean>;
   cancelFocus(): void;
   canReturnToView?(): boolean; returnToView?(): boolean;
-  overview?(): boolean; footprint?(): FootprintState | undefined;
+  overview?(): boolean; hasOverviewReturn?(): boolean; footprint?(): FootprintState | undefined;
 }
 export class SceneFailure extends Error {
   readonly category: Failure;
@@ -123,6 +123,7 @@ export class SessionController {
       this.change(this.state);
     }
   }
+  hasOverviewReturn(): boolean { return this.adapter?.hasOverviewReturn?.() ?? false; }
   overview(): boolean {
     if (this.state.phase !== 'ready' || this.state.draining || !this.adapter) return false;
     this.cancelMovement(); const moved = this.adapter.overview?.() ?? false; this.change(this.state); return moved;

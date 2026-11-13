@@ -149,7 +149,13 @@ function render(state: SessionState) {
       : footprint?.kind === 'newark' ? `${cutout} with the Newark Airport study area` : `${cutout} selected`;
   }
   element('outside-city').hidden = selected !== 1;
-  for (const button of document.querySelectorAll<HTMLButtonElement>('#city-overview')) button.disabled = state.phase !== 'ready' || state.draining;
+  const overview = element<HTMLButtonElement>('city-overview');
+  overview.disabled = state.phase !== 'ready' || state.draining;
+  const overviewReturning = !overview.disabled && controller.hasOverviewReturn();
+  const overviewLabel = overviewReturning ? 'Return to previous map view' : 'Show all NYC';
+  overview.title = overviewLabel;
+  overview.setAttribute('aria-label', overviewLabel);
+  overview.toggleAttribute('data-return', overviewReturning);
   const known = resolveZone(zones, selected);
   const target = known && areaTarget(zones, selected);
   focusButton.disabled = !target || state.phase !== 'ready' || state.draining;
@@ -160,8 +166,7 @@ function render(state: SessionState) {
   if (focusLabel.textContent !== label) focusLabel.textContent = label;
   clearSelection.disabled = !known;
   const focusStatus = element('focus-status');
-  const focusText = state.focusing ? 'Flying to area…'
-    : known && !target ? 'Camera target unavailable.'
+  const focusText = known && !target ? 'Camera target unavailable.'
     : known && focusButton.disabled ? 'Available when 3D is ready.' : '';
   if (focusStatus.textContent !== focusText) focusStatus.textContent = focusText;
   if (state.phase === 'stopped' || state.phase === 'partial' || state.phase === 'error') pendingSearchFocus = false;
@@ -173,8 +178,10 @@ function render(state: SessionState) {
 function mockAdapter(): SceneAdapter {
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
   let expanded = false, previousView: { expanded: boolean } | undefined;
+  let overviewOrigin: { expanded: boolean } | undefined;
   const movement = areaFocus(zones, {
     move(_target, options) {
+      overviewOrigin = undefined;
       const before = { expanded };
       if (selected === 1 && mode !== 'none') expanded = true;
       const finish = () => { if (options.complete()) previousView = before; };
@@ -201,7 +208,19 @@ function mockAdapter(): SceneAdapter {
       previousView = undefined;
       return true;
     },
-    overview() { movement.cancel(); previousView = undefined; expanded = false; return true; },
+    hasOverviewReturn() { return overviewOrigin !== undefined; },
+    overview() {
+      movement.cancel();
+      if (overviewOrigin) {
+        expanded = overviewOrigin.expanded;
+        overviewOrigin = undefined;
+      } else {
+        overviewOrigin = { expanded };
+        previousView = undefined;
+        expanded = false;
+      }
+      return true;
+    },
     footprint() {
       if (mode === 'none') return undefined;
       if (mode === 'land' && !land) return {kind: 'unavailable', includesNewark: false};
@@ -226,6 +245,7 @@ function liveAdapter(): SceneAdapter {
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
+    hasOverviewReturn() { return delegate?.hasOverviewReturn?.() ?? false; },
     overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
     canReturnToView() { return delegate?.canReturnToView?.() ?? false; },
     returnToView() { return delegate?.returnToView?.() ?? false; },

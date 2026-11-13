@@ -123,9 +123,11 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       };
     }
     let previousView: ReturnType<typeof captureView> | undefined;
+    let overviewOrigin: ReturnType<typeof captureView> | undefined;
     const focus = areaFocus(geography, {
       move(target, options) {
         viewer.camera.cancelFlight();
+        overviewOrigin = undefined;
         const before = captureView();
         if (selected === 1) mask?.newark();
         focusMoving = true; waitForDetail();
@@ -382,30 +384,36 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         return true;
       },
       cancelFocus(){focus.cancel();},
+      hasOverviewReturn() { return overviewOrigin !== undefined; },
       overview() {
         if (!canInteract()) return false;
         const target = overviewTarget();
         if (!target) return false;
         cancelCameraFlight();
-        mask?.city();
-        previousView = undefined;
+        const origin = overviewOrigin;
+        const camera = viewer.camera;
+        const from = captureView();
+        if (origin?.includesNewark) mask?.newark(); else mask?.city();
         focusMoving = true;
         waitForDetail();
-        const camera = viewer.camera;
         const settle = () => {
           focusMoving = false;
           viewer.scene.requestRender();
         };
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const destination = origin?.destination ?? Cartesian3.fromDegrees(target.longitude, target.latitude, target.range);
         camera.flyTo({
-          destination: Cartesian3.fromDegrees(target.longitude, target.latitude, target.range),
-          orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+          destination,
+          orientation: origin?.orientation ?? { heading: 0, pitch: -Math.PI / 2, roll: 0 },
           duration: reduceMotion ? 0 : 1.25,
           easingFunction: EasingFunction.QUADRATIC_IN_OUT,
-          maximumHeight: Math.max(camera.positionCartographic.height, target.range),
+          maximumHeight: Math.max(camera.positionCartographic.height,
+            viewer.scene.ellipsoid.cartesianToCartographic(destination).height),
           complete: settle,
           cancel: settle,
         });
+        overviewOrigin = origin ? undefined : from;
+        if (!origin) previousView = undefined;
         viewer.scene.requestRender();
         return true;
       },

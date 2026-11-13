@@ -189,6 +189,7 @@ button[aria-busy=true] { cursor: progress; }
   color: var(--color-paper-3);
 }
 .map-icon svg { inline-size: 25px; block-size: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#city-overview:not([data-return]) svg:last-child, #city-overview[data-return] svg:first-child { display: none; }
 summary {
   display: flex;
   align-items: center;
@@ -250,16 +251,16 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 
 .map-attribution {
   position: fixed;
-  inset-block-end: 8px;
-  inset-inline-start: 8px;
+  inset-block-end: 6px;
+  inset-inline-start: 6px;
   z-index: var(--z-raised);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 6px;
+  gap: 0 4px;
   inline-size: max-content;
   max-inline-size: calc(100% - 92px);
-  padding: 2px 6px;
+  padding: 0 4px;
   border-radius: 5px;
   background: rgb(12 18 25 / 78%);
   color: var(--color-city-ink);
@@ -269,7 +270,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 }
 .credits { min-inline-size: 0; max-inline-size: 100%; }
 .credits .cesium-widget-credits { position: static; max-inline-size: 100%; white-space: normal; font-size: inherit; padding: 0; }
-#sources summary { min-block-size: 24px; padding: 2px 4px; }
+#sources summary { min-block-size: 24px; padding: 0 3px; }
 #sources > summary:hover, #sources[open] > summary { background: var(--color-ink-rule); }
 #sources .tool-content { inset-inline-start: 0; inset-inline-end: auto; inline-size: min(24rem, calc(100vw - 2 * var(--space-lg))); }
 #footprint-notice { font-weight: 650; }

@@ -15,7 +15,8 @@ test('clicking a search result selects it and brings it into view', async ({ pag
   await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
   await expect(page.locator('#zone-borough')).toHaveText('Manhattan');
   await expect(page.locator('#zone-id')).toHaveText('161');
-  await expect(page.locator('#focus-status')).toHaveText('Flying to area…');
+  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#focus-status')).toHaveText('');
   await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
   await expect(search).toHaveValue('161');
   await expect(page.getByRole('listbox')).toBeHidden();
@@ -60,7 +61,8 @@ test('a search result chosen during startup comes into view once 3D is ready', a
   } finally {
     releaseLand();
   }
-  await expect(page.locator('#focus-status')).toHaveText('Flying to area…');
+  await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#focus-status')).toHaveText('');
   await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
 });
 test('search pill browses on focus and Escape preserves the query and selection', async ({ page }) => {
@@ -126,6 +128,11 @@ test('the map keeps a named overview action and removes the camera menu', async 
   expect(box.x).toBeGreaterThan(640);
   expect(box.y).toBeGreaterThan(450);
   await overview.press('Enter');
+  const previous = page.getByRole('button', { name: 'Return to previous map view' });
+  await expect(previous).toHaveAttribute('title', 'Return to previous map view');
+  await expect(previous).toBeFocused();
+  await previous.press('Enter');
+  await expect(overview).toBeFocused();
 });
 test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
 test('mock stage starts automatically once, Stop stays stopped until deliberate Resume',async({page})=>{await page.goto('/?mode=mock');await expect(page.locator('#status')).toContainText('Mock stage ready');await expect(page.locator('#load')).toBeHidden();await page.locator('#stop').click();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeVisible();await page.locator('#load').click();await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#stop').click();await expect(page.locator('#load')).toBeDisabled()});
