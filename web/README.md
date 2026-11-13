@@ -49,7 +49,7 @@ Picking a point in the live scene or opening `?zone=ID` selects an area without 
 
 Use **Focus** to recenter on the selected area once 3D is ready. Both automatic and manual flights use local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current viewing direction. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
 
-**Show all NYC** restores the five-borough fit. The opening view uses source-derived Midtown bounds. Bounded drag, zoom and the orbit and tilt buttons under **Camera controls** use local source bounds. Resizing keeps the current camera. Newark Airport is searchable and can be selected and flown to in any mode. In either cutout mode, flying to Newark adds its 61-vertex hull to an active cutout (311 vertices total in borough mode). **Show all NYC** removes the added hull.
+**Show all NYC** restores the five-borough fit. The opening view uses source-derived Midtown bounds. Drag to move across the city and scroll or pinch to zoom. With the map focused, use the arrow keys to move and + or − to zoom. Resizing keeps the current camera. Newark Airport is searchable and can be selected and flown to in any mode. In either cutout mode, flying to Newark adds its 61-vertex hull to an active cutout (311 vertices total in borough mode). **Show all NYC** removes the added hull.
 
 Map picking intersects the camera ray with the ellipsoid and checks the point against local TLC polygons. This gives an approximate zone selection. The implementation has unit coverage, and live picking accuracy remains unverified.
 

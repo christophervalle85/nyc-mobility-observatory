@@ -24,7 +24,6 @@ import { zonePicker } from './zone-picker.ts';
 import { detailReadiness } from './detail-readiness.ts';
 import { imageryProgress } from './imagery-progress.ts';
 import type { ImageryStage } from './imagery-progress.ts';
-import { dragOrbit } from './drag-orbit.ts';
 import type { Diagnostics } from './diagnostics.ts';
 import { landFootprintMask } from './land-footprint.ts';
 import type { LandFootprint, LandPolygon } from './land-footprint.ts';
@@ -59,18 +58,17 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     viewer.scene.backgroundColor = Color.fromCssColorString(style.getPropertyValue('--color-scene-background').trim()) ?? new Color(.07,.09,.12,1);
     const cameraController = viewer.scene.screenSpaceCameraController;
     cameraController.minimumZoomDistance = 200; cameraController.maximumZoomDistance = 180_000;
-    cameraController.enableRotate = false; cameraController.enableTranslate = false;
-    cameraController.enableTilt = false; cameraController.enableLook = false; cameraController.enableZoom = true;
+    cameraController.enableLook = false;
+    cameraController.maximumTiltAngle = Math.PI * 70 / 180;
     const overviewTarget = () => cityOverview(geography, container.clientWidth / Math.max(1, container.clientHeight), 'fovy' in viewer.camera.frustum ? viewer.camera.frustum.fovy ?? Math.PI/3 : Math.PI/3);
     const initial = overviewTarget();
     if (!initial) { viewer.destroy(); Ion.defaultAccessToken = ''; throw new SceneFailure('network'); }
-    const navigation = stageNavigation(initial, {
+    const navigation = stageNavigation({
       lookAt(pose) { viewer.camera.lookAt(Cartesian3.fromDegrees(pose.pivot.longitude, pose.pivot.latitude), new HeadingPitchRange(pose.heading, pose.pitch, pose.range)); },
       reset() { if (!viewer.isDestroyed()) viewer.camera.lookAtTransform(Matrix4.IDENTITY); },
-      range(pivot) { return Cartesian3.distance(viewer.camera.positionWC, Cartesian3.fromDegrees(pivot.longitude, pivot.latitude)); },
     });
     const opening = skylineOpening(geography, container.clientWidth / Math.max(1, container.clientHeight), 'fovy' in viewer.camera.frustum ? viewer.camera.frustum.fovy ?? Math.PI/3 : Math.PI/3);
-    if (opening) navigation.opening(opening); else navigation.overview(); // One immediate fit; overview remains a deliberate action.
+    if (opening) navigation.opening(opening); else navigation.overview(initial); // One immediate fit; overview remains a deliberate action.
     let disposed = false, selected: number | null = null, imageryReady = false, cameraMoving = false, focusMoving = false;
     let tilesAttached = false, zonesAttached = false, partialSeen = false;
     let entities: GeoJsonDataSource | undefined, tileset: Cesium3DTileset | undefined;
@@ -118,7 +116,6 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
           complete() {
             if (!options.complete()) return;
             focusMoving = false;
-            navigation.area(target, {heading:viewer.camera.heading,pitch:viewer.camera.pitch});
             viewer.scene.requestRender();
           },
           cancel() { if (options.cancel()) focusMoving = false; },
@@ -129,9 +126,9 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     });
     function reportPartial() { partialSeen = true; focus.cancel(); anchor?.publish(null, null); partial?.(); }
     function canInteract() { return !disposed && tilesAttached && zonesAttached && !partialSeen; }
-    function moveView(horizontal: number, vertical = 0) { if (!canInteract()) return false; focus.cancel(); waitForDetail(); return navigation.orbit(horizontal, vertical); }
     const canvas = viewer.scene.canvas;
-    canvas.setAttribute('aria-label', 'Interactive NYC city stage. Use the map controls for keyboard orbit, tilt and zoom.'); canvas.setAttribute('tabindex', '-1');
+    canvas.setAttribute('aria-label', 'Interactive NYC map. Use arrow keys to move and plus or minus to zoom.');
+    canvas.tabIndex = 0;
     const anchor = onSelectionAnchor && {
       project: selectionAnchorProjection(viewer.scene),
       publish: selectionAnchorPublisher(onSelectionAnchor),
@@ -173,30 +170,40 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     const indexed=profile?.span('zones.index');
     const picker = zonePicker(geography);
     indexed?.();
-    let activePointer: number | undefined;
-    const pointers = new Set<number>();
-    const dragTracker = dragOrbit((horizontal,vertical) => { moveView(horizontal,vertical); });
-    const down = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
+    function startManualNavigation() {
       profile?.interaction();
-      pointers.add(event.pointerId);
-      if (pointers.size !== 1) { activePointer=undefined; dragTracker.cancel(); return; }
-      activePointer=event.pointerId; dragTracker.start(event.clientX,event.clientY);
-      try { canvas.setPointerCapture(event.pointerId); } catch { activePointer=undefined; dragTracker.end(); }
+      focus.cancel();
+    }
+    const onMapKey = (event: KeyboardEvent) => {
+      if (!tilesAttached || event.altKey || event.ctrlKey || event.metaKey) return;
+      const camera = viewer.camera;
+      const height = camera.positionCartographic.height;
+      const amount = Math.max(25, height * .12);
+      const angle = amount / viewer.scene.ellipsoid.maximumRadius;
+      const zoomIn = Math.max(0, Math.min(amount, height - cameraController.minimumZoomDistance));
+      const zoomOut = Math.max(0, Math.min(amount, cameraController.maximumZoomDistance - height));
+      switch (event.key) {
+        case 'ArrowLeft': startManualNavigation(); camera.rotateLeft(angle); break;
+        case 'ArrowRight': startManualNavigation(); camera.rotateRight(angle); break;
+        case 'ArrowUp': startManualNavigation(); camera.rotateUp(angle); break;
+        case 'ArrowDown': startManualNavigation(); camera.rotateDown(angle); break;
+        case '+':
+        case '=': startManualNavigation(); camera.zoomIn(zoomIn); break;
+        case '-': startManualNavigation(); camera.zoomOut(zoomOut); break;
+        default: return;
+      }
+      event.preventDefault();
+      viewer.scene.requestRender();
     };
-    const drag = (event: PointerEvent) => {
-      if(activePointer!==event.pointerId||pointers.size!==1||!canInteract())return;
-      dragTracker.move(event.clientX,event.clientY);
-    };
-    const up = (event: PointerEvent) => {
-      pointers.delete(event.pointerId);
-      if(activePointer===event.pointerId){activePointer=undefined;dragTracker.end();}
-      try{if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);}catch{/* Pointer may already be released. */}
-    };
-    if(profile){const wheel=()=>profile.interaction();canvas.addEventListener('wheel',wheel,{passive:true});cleanup.push(()=>canvas.removeEventListener('wheel',wheel));}
-    for(const [name,listener] of [['pointerdown',down],['pointermove',drag],['pointerup',up],['pointercancel',up],['lostpointercapture',up]] as const){canvas.addEventListener(name,listener);cleanup.push(()=>canvas.removeEventListener(name,listener));}
+    canvas.addEventListener('pointerdown', startManualNavigation, true);
+    canvas.addEventListener('wheel', startManualNavigation, { capture: true, passive: true });
+    canvas.addEventListener('keydown', onMapKey);
+    cleanup.push(() => {
+      canvas.removeEventListener('pointerdown', startManualNavigation, true);
+      canvas.removeEventListener('wheel', startManualNavigation, true);
+      canvas.removeEventListener('keydown', onMapKey);
+    });
     handler.setInputAction((event: {position: Cartesian2}) => {
-      if(dragTracker.consumeClick())return;
       const picked=profile?.span('selection.pick');
       let id:number|null;
       try {
@@ -279,11 +286,9 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       focus(id,reducedMotion){if(!canInteract()||id!==selected)return Promise.resolve(false);if(id===1)mask?.newark();return focus.focus(id,reducedMotion);},
       cancelFocus(){focus.cancel();},
       overview(){if(!canInteract())return false;focus.cancel();mask?.city();waitForDetail();colorSelection();const target=overviewTarget();return target?navigation.overview(target):false;},
-      orbit:moveView,
-      zoom(factor){if(!canInteract())return false;focus.cancel();waitForDetail();return navigation.zoom(factor);},
       footprint(){return mask?.state();},
       select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
-      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();navigation.dispose();selectedLines.dispose();highlight=undefined;pointers.clear();activePointer=undefined;dragTracker.end();if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
+      destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();selectedLines.dispose();highlight=undefined;if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });
 }

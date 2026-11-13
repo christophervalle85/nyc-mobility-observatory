@@ -87,41 +87,20 @@ test('search pill browses on focus and Escape preserves the query and selection'
   await expect(picker).toBeHidden();
   await expect(page.locator('#zone-id')).toHaveText('161');
 });
-test('the map omits the visible title and stacks named symbol controls', async ({ page }) => {
+test('the map keeps a named overview action and removes the camera menu', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
-  const titleDisplayed = await page.getByText('NYC Mobility Observatory', { exact: true }).evaluateAll(elements =>
-    elements.some(element => {
-      const bounds = element.getBoundingClientRect();
-      return bounds.width > 1 && bounds.height > 1 && getComputedStyle(element).visibility === 'visible';
-    }),
-  );
-  expect.soft(titleDisplayed, 'The app name should not occupy visible map space').toBe(false);
-
-  const overview = page.locator('#city-overview');
-  const camera = page.locator('#view-controls>summary');
-  await expect(overview).toHaveAccessibleName('Show all NYC');
-  await expect(camera).toHaveAccessibleName('Camera controls');
-  await expect(overview).toHaveText('');
-  await expect(camera).toHaveText('');
+  await expect(page.getByRole('heading', { name: 'NYC Mobility Observatory' })).toHaveClass('visually-hidden');
+  const overview = page.getByRole('button', { name: 'Show all NYC' });
   await expect(overview).toHaveAttribute('title', 'Show all NYC');
-  await expect(camera).toHaveAttribute('title', 'Camera controls');
-  const overviewBox = (await overview.boundingBox())!;
-  const cameraBox = (await camera.boundingBox())!;
-  for (const target of [overviewBox, cameraBox]) {
-    expect(target.width).toBeGreaterThanOrEqual(44);
-    expect(target.height).toBeGreaterThanOrEqual(44);
-  }
-  expect.soft(cameraBox.y, 'Camera controls should sit below Show all NYC').toBeGreaterThanOrEqual(overviewBox.y + overviewBox.height);
-  expect.soft(Math.abs(cameraBox.x + cameraBox.width - overviewBox.x - overviewBox.width)).toBeLessThanOrEqual(2);
-  expect(cameraBox.x).toBeGreaterThan(1280 / 2);
-  expect(cameraBox.y).toBeGreaterThan(900 / 2);
-  await camera.press('Enter');
-  const panel = page.locator('#view-controls .tool-content');
-  await expect(panel).toBeVisible();
-  const panelBox = (await panel.boundingBox())!;
-  expect(panelBox.x + panelBox.width, 'The camera menu should open to the left of its control').toBeLessThanOrEqual(cameraBox.x + 2);
+  await expect(page.locator('#view-controls')).toHaveCount(0);
+  const box = (await overview.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.x).toBeGreaterThan(640);
+  expect(box.y).toBeGreaterThan(450);
+  await overview.press('Enter');
 });
 test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
 test('mock stage starts automatically once, Stop stays stopped until deliberate Resume',async({page})=>{await page.goto('/?mode=mock');await expect(page.locator('#status')).toContainText('Mock stage ready');await expect(page.locator('#load')).toBeHidden();await page.locator('#stop').click();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeVisible();await page.locator('#load').click();await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#stop').click();await expect(page.locator('#load')).toBeDisabled()});
@@ -167,13 +146,6 @@ test('keyboard search focuses the area only after Enter commits the selection', 
   await expect(focus).toHaveAttribute('aria-busy', 'true');
   await page.locator('#city-overview').click();
   await expect(focus).toHaveAttribute('aria-busy', 'false');
-});
-test('zoom and camera controls are operable in the mock stage', async ({ page }) => {
-  await page.goto('/?mode=mock');
-  await expect(page.locator('#status')).toContainText('Mock stage ready');
-  await expect(page.getByRole('button', { name: 'Zoom in' })).toBeHidden();
-  await page.locator('#view-controls>summary').click();
-  for (const action of ['left', 'right', 'up', 'down', 'in', 'out']) await page.locator(`#view-controls [data-view="${action}"]`).click();
 });
 test('automatic failure does not auto-retry and shares the two-attempt budget',async({page})=>{await page.goto('/?mode=mock&scenario=auth');await expect(page.locator('#status')).toContainText('Access denied');await expect(page.locator('#load')).toHaveText('Retry once');await page.locator('#load').click();await expect(page.locator('#session-limit')).toBeVisible();await expect(page.locator('#load')).toBeDisabled()});
 for(const width of[320,1280,1920])test(`credits/Stop/status remain accessible at${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#status')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)});
@@ -275,8 +247,7 @@ for (const width of [320, 640, 1440]) test(`map controls and selected area stay 
   await expect(page.locator('#zone-picker')).toBeInViewport();
   await page.keyboard.press('Escape');
   await page.locator('#focus-area').click({ trial: true });
-  await page.locator('#view-controls>summary').click();
-  await expect(page.locator('[data-view="left"]')).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Show all NYC' })).toBeInViewport();
   await page.locator('#area-search').click({ trial: true });
   await page.locator('#stop').click({ trial: true });
   await expect(page.locator('#credits')).toBeInViewport();
@@ -295,26 +266,8 @@ for (const width of [320, 640]) test(`closing area details returns keyboard focu
   await expect(page.locator('#area-search')).toBeInViewport();
 });
 
-test('320px camera labels stay inside their controls with 200 percent text',async({page})=>{
- await page.setViewportSize({width:320,height:900});
- await page.goto('/?mode=mock');
- await page.evaluate(()=>{document.documentElement.style.fontSize='200%'});
- await expect(page.locator('#status')).toContainText('Mock stage ready');
- await page.locator('#view-controls>summary').click();
- for(const label of ['Orbit left','Orbit right','Tilt up','Tilt down','Zoom in','Zoom out']){
-  const geometry=await page.getByRole('button',{name:label}).evaluate(control=>{
-   const range=document.createRange();range.selectNodeContents(control);
-   const label=range.getBoundingClientRect(),bounds=control.getBoundingClientRect();
-   return {labelLeft:label.left,labelRight:label.right,left:bounds.left,right:bounds.right};
-  });
-  expect(geometry.labelLeft,`${label} text must fit its left edge`).toBeGreaterThanOrEqual(geometry.left-1);
-  expect(geometry.labelRight,`${label} text must fit its right edge`).toBeLessThanOrEqual(geometry.right+1);
- }
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-});
-
 for (const [height, textSize] of [[568, '100%'], [900, '200%']] as const) {
-  test(`credits stay in view with camera controls at 320×${height} and ${textSize} text`, async ({ page }) => {
+  test(`credits and Show all NYC stay in view at 320×${height} and ${textSize} text`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height });
     await page.goto('/?mode=mock&zone=161');
     await page.evaluate(size => { document.documentElement.style.fontSize = size; }, textSize);
@@ -322,18 +275,15 @@ for (const [height, textSize] of [[568, '100%'], [900, '200%']] as const) {
     const credits = page.locator('#credits');
     await expect(credits).toBeInViewport({ ratio: 1 });
     await page.locator('#city-overview').click({ trial: true });
-    await page.locator('#view-controls>summary').click();
-    await page.getByRole('button', { name: 'Zoom in' }).click({ trial: true });
-    await page.getByRole('button', { name: 'Orbit left' }).click({ trial: true });
     await expect(credits).toBeInViewport({ ratio: 1 });
   });
 }
 
-for(const menu of ['view-controls','sources'])test(`${menu} keeps internal keyboard navigation and dismisses on Escape or focus exit`,async({page})=>{
+test('Sources keeps internal keyboard navigation and dismisses on Escape or focus exit',async({page})=>{
  await page.setViewportSize({width:640,height:900});
  await page.goto('/?mode=mock');
  await expect(page.locator('#status')).toContainText('Mock stage ready');
- const details=page.locator(`#${menu}`),summary=page.locator(`#${menu}>summary`);
+ const details=page.locator('#sources'),summary=page.locator('#sources>summary');
  await summary.click();
  await page.keyboard.press('Tab');
  await expect(details.locator('.tool-content :focus')).toHaveCount(1);

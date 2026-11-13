@@ -9,7 +9,7 @@ export interface SceneAdapter {
   whenSettled(): Promise<void>;
   focus(id: number, reducedMotion: boolean): Promise<boolean>;
   cancelFocus(): void;
-  overview?(): boolean; orbit?(horizontal: number, vertical?: number): boolean; zoom?(factor: number): boolean; footprint?(): FootprintState | undefined;
+  overview?(): boolean; footprint?(): FootprintState | undefined;
 }
 export class SceneFailure extends Error {
   readonly category: Failure;
@@ -112,13 +112,6 @@ export class SessionController {
   overview(): boolean {
     if (this.state.phase !== 'ready' || this.state.draining || !this.adapter) return false;
     this.cancelMovement(); const moved = this.adapter.overview?.() ?? false; this.change(this.state); return moved;
-  }
-  view(action: 'left'|'right'|'up'|'down'|'in'|'out'): boolean {
-    if (this.state.phase !== 'ready' || this.state.draining || !this.adapter) return false;
-    this.cancelMovement();
-    const moved = action === 'in' || action === 'out' ? this.adapter.zoom?.(action === 'in' ? .8 : 1.25)
-      : this.adapter.orbit?.(action === 'left' ? -Math.PI/12 : action === 'right' ? Math.PI/12 : 0, action === 'up' ? -Math.PI/18 : action === 'down' ? Math.PI/18 : 0);
-    this.change(this.state); return moved ?? false;
   }
   footprint(): FootprintState | undefined { return this.adapter?.footprint?.(); }
   select(id: number | null): void {

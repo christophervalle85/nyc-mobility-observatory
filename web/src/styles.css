@@ -174,7 +174,6 @@ button[aria-busy=true] { cursor: progress; }
 .viewport-state p, #setup { margin-block-start: var(--space-xs); }
 #setup p { font-size: var(--text-xs); }
 
-/* Two 48×52px targets and 3px of padding match the 54×110 lens texture. */
 .stage-tools { --map-control-width: 48px; grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
 .stage-tools::before {
   content: '';
@@ -187,7 +186,7 @@ button[aria-busy=true] { cursor: progress; }
   box-shadow: var(--shadow-map-capsule);
   pointer-events: none;
 }
-.map-icon, #view-controls > summary.map-icon {
+.map-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -235,26 +234,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   box-shadow: var(--shadow-card);
   scrollbar-color: var(--color-muted) var(--color-paper-3);
 }
-#view-controls[open] > summary.map-icon { background: var(--color-map-capsule-action); }
-#view-controls > summary::after { display: none; }
-.view-buttons {
-  inset-inline-end: calc(100% + var(--space-xs));
-  inset-block-end: 0;
-  inline-size: min(16rem, calc(100vi - var(--map-control-width) - 2 * var(--rail-inline-pad) - 14px));
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: 16px;
-}
-.view-buttons {
-  --glass-fill: var(--color-paper-3);
-  background: var(--glass-fill);
-  border: 1px solid var(--color-map-glass-edge);
-  box-shadow: var(--shadow-map-glass);
-}
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .view-buttons {
-    --glass-fill: var(--color-map-glass-fill);
-    background: linear-gradient(155deg, var(--color-map-glass-highlight), var(--glass-fill));
-  }
   .stage-tools::before {
     background: linear-gradient(155deg, var(--color-map-capsule-highlight), var(--color-map-capsule-fill));
     -webkit-backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
@@ -265,10 +245,6 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
     -webkit-backdrop-filter: blur(8px) saturate(125%) brightness(72%);
     backdrop-filter: blur(8px) saturate(125%) brightness(72%);
   }
-  .view-buttons {
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-  }
 }
 @supports (backdrop-filter: url("#map-capsule-lens")) {
   .stage-tools::before { backdrop-filter: url("#map-capsule-lens") blur(1.7px) saturate(125%) brightness(78%); }
@@ -276,18 +252,11 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   .inspector[data-lens] { backdrop-filter: url("#area-card-lens") blur(5px) saturate(125%) brightness(72%); }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .view-buttons {
-    --glass-fill: var(--color-paper-3);
-    background: var(--glass-fill);
-  }
   .stage-tools::before, .search-row, .inspector, #area-results { background: var(--color-map-capsule-solid); }
-  .inspector[data-lens], .inspector, .stage-tools::before, .view-buttons, .search-row[data-lens], .search-row, #area-results {
+  .inspector[data-lens], .inspector, .stage-tools::before, .search-row[data-lens], .search-row, #area-results {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-}
-@media (max-width: 26rem) {
-  .view-buttons { grid-template-columns: minmax(0, 1fr); }
 }
 
 .attribution-strip { position: sticky; inset-block-end: 0; z-index: var(--z-raised); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); padding: var(--space-2xs) var(--space-lg); border-block-start: 1px solid var(--color-ink-rule); background: var(--color-scene-background); color: var(--color-city-ink); font-size: var(--text-xs); overflow-wrap: anywhere; }
@@ -307,7 +276,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @media (hover: hover) {
   button:hover:not(:disabled), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
   #focus-area:hover:not(:disabled), #clear-selection:hover:not(:disabled) { background: var(--color-map-capsule-action-hover); }
-  .map-icon:hover:not(:disabled), #view-controls > summary.map-icon:hover { background: var(--color-map-capsule-action); }
+  .map-icon:hover:not(:disabled) { background: var(--color-map-capsule-action); }
   #clear-search:hover { background: var(--color-map-capsule-action); }
   #zone-picker [role="option"]:hover { background: var(--color-map-capsule-action); }
   a:hover { color: var(--color-accent); }

@@ -25,7 +25,7 @@ const inspector = element('inspector');
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
-const cardDisclosures = [element<HTMLDetailsElement>('view-controls'), element<HTMLDetailsElement>('sources')];
+const cardDisclosures = [element<HTMLDetailsElement>('sources')];
 let selectionAnchor: SelectionAnchor | null = null;
 
 function positionAreaCard() {
@@ -148,7 +148,7 @@ function render(state: SessionState) {
       : footprint?.kind === 'newark' ? `${cutout} with the Newark Airport study area` : `${cutout} selected`;
   }
   element('outside-city').hidden = selected !== 1;
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view], #city-overview')) button.disabled = state.phase !== 'ready' || state.draining;
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#city-overview')) button.disabled = state.phase !== 'ready' || state.draining;
   const known = resolveZone(zones, selected);
   const target = known && areaTarget(zones, selected);
   focusButton.disabled = !target || state.phase !== 'ready' || state.draining;
@@ -181,7 +181,7 @@ function mockAdapter(): SceneAdapter {
       if (scenario === 'partial') change('partial');
     },
     select() {}, focus(id, reducedMotion) { if (id === 1 && mode !== 'none') expanded = true; return movement.focus(id, reducedMotion); }, cancelFocus() { movement.cancel(); },
-    overview() { movement.cancel(); expanded = false; return true; }, orbit() { movement.cancel(); return true; }, zoom() { movement.cancel(); return true; },
+    overview() { movement.cancel(); expanded = false; return true; },
     footprint() {
       if (mode === 'none') return undefined;
       if (mode === 'land' && !land) return {kind: 'unavailable', includesNewark: false};
@@ -206,7 +206,7 @@ function liveAdapter(): SceneAdapter {
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
-    overview() { return delegate?.overview?.() ?? false; }, orbit(horizontal, vertical) { return delegate?.orbit?.(horizontal, vertical) ?? false; }, zoom(factor) { return delegate?.zoom?.(factor) ?? false; }, footprint() { return delegate?.footprint?.(); },
+    overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
     focus(id, reducedMotion) { return delegate?.focus(id, reducedMotion) ?? Promise.resolve(false); },
     cancelFocus() { delegate?.cancelFocus(); },
     dispose() { disposed = true; delegate?.dispose(); setSelectionAnchor(null); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
@@ -375,7 +375,7 @@ document.addEventListener('click', event => {
   pointer = undefined;
   if (!areaControls.contains(event.target as Node)) showAreaResults(false);
 }, true);
-for (const menu of document.querySelectorAll<HTMLDetailsElement>('#view-controls, #sources')) {
+for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
   menu.addEventListener('focusout', event => {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
   });
@@ -410,7 +410,6 @@ focusButton.addEventListener('click', () => {
   void focusSelectedArea();
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });
 document.addEventListener('visibilitychange', () => { warmEngine(); startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
 window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); diagnostics.dispose(); }, { once: true });
 window.addEventListener('popstate', () => { if (geographyReady) selectZone(resolveZone(zones, new URLSearchParams(location.search).get('zone'))?.id ?? null); });
