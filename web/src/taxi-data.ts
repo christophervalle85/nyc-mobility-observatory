@@ -1,8 +1,5 @@
-export const TAXI_MONTH = '2026-09';
-export const TAXI_START = '2026-09-01';
-export const TAXI_END = '2026-09-30';
-const HOURS_PER_DAY = 24;
-const MONTH_HOURS = 30 * HOURS_PER_DAY;
+import { dateLabel, daysInMonth, hoursPerDay, monthDate } from './mobility-months.ts';
+
 const ZONE_COUNT = 263;
 
 export interface TaxiData {
@@ -25,18 +22,19 @@ function sha256(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }
 
-export function parseTaxiData(value: unknown): TaxiData {
-  if (!record(value) || value.version !== 1 || value.month !== TAXI_MONTH
+export function parseTaxiData(value: unknown, month: string): TaxiData {
+  const monthHours = daysInMonth(month) * hoursPerDay;
+  if (!monthHours || !record(value) || value.version !== 1 || value.month !== month
     || value.timezone !== 'America/New_York' || !sha256(value.runId) || !sha256(value.sourceSha256)
     || !record(value.zones) || Object.keys(value.zones).length !== ZONE_COUNT) {
-    throw new Error('Invalid September taxi data');
+    throw new Error('Invalid monthly taxi data');
   }
   const zones = new Map<number, readonly number[]>();
   let totalDropoffs = 0;
   for (let id = 1; id <= ZONE_COUNT; id++) {
     const counts = value.zones[id];
-    if (!Array.isArray(counts) || counts.length !== MONTH_HOURS) {
-      throw new Error('Missing September taxi hours');
+    if (!Array.isArray(counts) || counts.length !== monthHours) {
+      throw new Error('Missing monthly taxi hours');
     }
     for (const count of counts) {
       if (!Number.isSafeInteger(count) || count < 0) throw new Error('Invalid taxi dropoff count');
@@ -45,17 +43,20 @@ export function parseTaxiData(value: unknown): TaxiData {
     zones.set(id, counts);
   }
   if (!Number.isSafeInteger(totalDropoffs) || value.totalDropoffs !== totalDropoffs) {
-    throw new Error('Inconsistent September taxi total');
+    throw new Error('Inconsistent monthly taxi total');
   }
   return { runId: value.runId, sourceSha256: value.sourceSha256, totalDropoffs, zones };
 }
 
 export function taxiDateRange(start: string, end: string): TaxiRange | null {
-  const datePattern = /^2026-09-(0[1-9]|[12]\d|30)$/;
-  if (!datePattern.test(start) || !datePattern.test(end) || end < start) return null;
+  const month = start.slice(0, 7);
+  const days = daysInMonth(month);
+  const first = Number(start.slice(8)), last = Number(end.slice(8));
+  if (!days || start !== monthDate(month, first) || end !== monthDate(month, last)
+    || !Number.isInteger(first) || !Number.isInteger(last) || first < 1 || last > days || first > last) return null;
   return {
-    firstHour: (Number(start.slice(-2)) - 1) * HOURS_PER_DAY,
-    endHour: Number(end.slice(-2)) * HOURS_PER_DAY,
+    firstHour: (first - 1) * hoursPerDay,
+    endHour: last * hoursPerDay,
   };
 }
 
@@ -66,8 +67,12 @@ export function taxiSeries(data: TaxiData, id: number, range: TaxiRange) {
   return { total: counts.reduce((sum, count) => sum + count, 0), counts };
 }
 
-export function taxiHourLabel(hour: number): string {
-  const day = Math.floor(hour / HOURS_PER_DAY) + 1;
-  const clock = String(hour % HOURS_PER_DAY).padStart(2, '0');
-  return `Sep ${day}, ${clock}:00`;
+export function hourLabel(hour: number): string {
+  const clockHour = hour % hoursPerDay;
+  return `${clockHour % 12 || 12}:00 ${clockHour < 12 ? 'AM' : 'PM'}`;
+}
+
+export function taxiHourLabel(month: string, hour: number): string {
+  const day = Math.floor(hour / hoursPerDay) + 1;
+  return `${dateLabel(monthDate(month, day))}, ${hourLabel(hour)}`;
 }

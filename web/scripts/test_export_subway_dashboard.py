@@ -99,6 +99,29 @@ class SubwayExportTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 export(self.run)
 
+    def test_august_has_744_hours(self) -> None:
+        for hour, row in enumerate(self.rows):
+            row[0] = (datetime(2026, 8, 1) + timedelta(hours=hour)).strftime("%Y-%m-%d %H:%M:%S")
+        for hour in range(720, 744):
+            row = self.rows[3].copy()
+            row[0] = (datetime(2026, 8, 1) + timedelta(hours=hour)).strftime("%Y-%m-%d %H:%M:%S")
+            self.rows.append(row)
+        self.quality.update(
+            month="2026-08",
+            station_hour_denominator=744,
+            observed_station_hours=743,
+            eligible_station_hours=742,
+        )
+        self.write_archive()
+        path = self.run / "manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["identity"]["month"] = "2026-08"
+        path.write_text(json.dumps(manifest))
+        data = json.loads(export(self.run))
+        self.assertEqual(data["month"], "2026-08")
+        self.assertEqual(len(data["stations"][0]["counts"]), 744)
+        self.assertEqual(data["stations"][0]["counts"][:4], [2.5, None, None, 0])
+
     def test_hash_and_byte_mismatch(self) -> None:
         for name in ("subway/station_hour.csv", "subway/quality.json"):
             path = self.run / name

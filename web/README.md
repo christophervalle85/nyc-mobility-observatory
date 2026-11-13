@@ -1,6 +1,6 @@
 # NYC city-stage prototype
 
-The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The transportation dashboard compares September 2026 yellow taxi dropoffs for a selected TLC area with estimated entries at a selected subway station complex.
+The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The transportation dashboard shows yellow taxi dropoffs by area and estimated subway entries by station complex for August and September 2026.
 
 ## Run locally
 
@@ -30,23 +30,38 @@ Keep the on-screen Cesium and imagery provider credits visible during live 3D. D
 
 ## Try the transportation dashboard
 
-With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Mobility data** on the area card and choose a **Subway station complex** to compare. Open **Start date** or **End date** to pick a day on the September calendar. Each field disables dates that would reverse the range. Choose the same day in both fields for a one-day range. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view both modes on the same day. Each chart uses its own count scale. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
+With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Mobility data** on the area card. The newest month opens first. Flatiron shows 9,919 taxi dropoffs for September 1 through 7. Open **Start date**, choose the previous-month arrow, and select August 1 to see 11,005 for August 1 through 7. Browsing leaves the current results in place until you pick a date. When you select a date in a different month, the other endpoint moves to that month and adjusts if needed to keep the range valid. The selected area and camera view stay in place, and the subway station is retained if it remains available nearby. The dashboard also works in the live preview.
 
-The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway totals sum estimated entries over comparison-eligible observed hours. Missing and flagged hours appear as gaps. The picker lists up to six station complexes within 1.2 km of the selected area’s center, ordered by straight-line distance.
+Choose a **Subway station complex** to compare both modes. The picker lists up to six station complexes within 1.2 km of the selected area's center, ordered by straight-line distance. Use **Start date** and **End date** to pick an inclusive range within the selected month in New York local time. Each field disables dates that would reverse the range. Choose the same day in both fields for a one-day range. Use **Chart date** to view both modes for one day. Each chart uses its own count scale. Hover or tap either chart, or focus it and use the arrow keys, to see both counts for the same hour.
 
-To regenerate the browser assets, run these commands from the repository root with the completed archive in place. See the [M1 pilot report](../docs/reports/m1-pilot.md) for the run and offline replay instructions.
+Taxi counts cover in-month dropoffs from that month's frozen TLC yellow taxi pickup file. Trips from adjacent pickup months are excluded. Subway totals sum estimated entries over comparison-eligible observed hours. Missing and flagged hours appear as gaps. The current format uses 24 New York local-clock slots per day, so months with a daylight saving time transition are withheld. See the [historical and ongoing coverage plan](../docs/specs/multi-month-mobility.md#historical-and-ongoing-coverage).
+
+## Publish the monthly browser assets
+
+Use completed M1 archives. Run the following commands from the root of a separate staging checkout so the exports stay out of the directory already serving the dashboard. See the [August capture summary](../docs/specs/multi-month-mobility.md#august-feasibility) and the [September pilot report and offline replay instructions](../docs/reports/m1-pilot.md).
 
 ```sh
-python3 web/scripts/export_subway_dashboard.py \
-  --run-dir .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
-python3 web/scripts/export_yellow_taxi_dashboard.py \
-  --run-dir .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
+(
+  for run in \
+    .data/runs/de68b672cfe77db3694436432448e39a44c93c6bd700a0a4a59326d6d6526806 \
+    .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
+  do
+    python3 web/scripts/export_yellow_taxi_dashboard.py --run-dir "$run" || exit 1
+    python3 web/scripts/export_subway_dashboard.py --run-dir "$run" || exit 1
+  done
+  python3 web/scripts/export_mobility_months.py
+)
 ```
 
-If you keep the completed run elsewhere, pass its directory to `--run-dir`. Both exporters validate the archived hourly CSV and quality report against the run manifest. The aggregate JSON files go in `web/public/data/`. Run the exporter tests from the repository root with:
+Replace the run paths if you keep your archives elsewhere. The mode exporters validate each archived hourly CSV and quality report against the run manifest, then write `yellow-taxi-YYYY-MM.json` and `subway-YYYY-MM.json` to `web/public/data/`. The catalog exporter validates the mode files in that directory and replaces `mobility-months.json` only after validation succeeds. A month can list a single available mode. When both modes are available for a month, their assets must share a run ID.
+
+With the staging checkout's web dependencies installed, run `npm run build` from `web/` after validation. The local QA build omits the Cesium token. When publishing a revision, serve the catalog and monthly assets from the same static build. The asset URLs are reused when an existing month is revised, so updating the served directory in place can expose files from different revisions. Automated publication that preserves the last good release on failure is future work.
+
+Run the focused exporter tests from the repository root.
 
 ```sh
 python3 -m unittest discover -s web/scripts -p 'test_export_*_dashboard.py'
+python3 -m unittest discover -s web/scripts -p 'test_export_mobility_months.py'
 ```
 
 ## Compare imagery cutouts
@@ -93,7 +108,7 @@ npm run build
 npm run test:e2e
 ```
 
-The verification server supports explicit mock scenarios through `?mode=mock&scenario=auth` (`rate`, `timeout`, `network`, `webgl` and `partial` also work). Mock mode simulates controls and scene state using local geography, with no 2D map or city imagery; it never constructs a Cesium viewer or loads imagery. Playwright uses installed Google Chrome and blocks external requests. Its cases include synthetic geography for map controls and the published September counts for the taxi dashboard. Unit tests use Node's TypeScript stripping and mocked scene resources. Build output is intentionally token-free and is for local QA, not a configured deployment.
+The verification server supports explicit mock scenarios through `?mode=mock&scenario=auth` (`rate`, `timeout`, `network`, `webgl` and `partial` also work). Mock mode simulates controls and scene state using local geography, with no 2D map or city imagery; it never constructs a Cesium viewer or loads imagery. Playwright uses installed Google Chrome and blocks external requests. Its cases include synthetic geography for map controls and the published August and September counts for the transportation dashboard. Unit tests use Node's TypeScript stripping and mocked scene resources. Build output is intentionally token-free and is for local QA, not a configured deployment.
 
 `npm run preview` serves that safe build at <http://127.0.0.1:4173>. Cesium worker/widget assets are copied from the pinned npm package into ignored `public/cesium/` during dev/build. No remote CDN or font request is needed at startup.
 
