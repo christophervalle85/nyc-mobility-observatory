@@ -7,6 +7,7 @@ export interface SceneRuntime {
   watchPartial(change: () => void): () => void;
   select(id: number | null): void; destroy(): void;
   focus(id: number, reducedMotion: boolean): Promise<boolean>; cancelFocus(): void;
+  canReturnToView?(): boolean; returnToView?(): boolean;
   overview?(): boolean; footprint?(): FootprintState | undefined;
 }
 export function managedAdapter(open: () => SceneRuntime): SceneAdapter {
@@ -35,6 +36,8 @@ export function managedAdapter(open: () => SceneRuntime): SceneAdapter {
       return pending;
     },
     whenSettled() { return drained; },
+    canReturnToView() { return !disposed && ready && (scene?.canReturnToView?.() ?? false); },
+    returnToView() { return !disposed && ready && (scene?.returnToView?.() ?? false); },
     overview() { return !disposed && ready ? scene?.overview?.() ?? false : false; },
     footprint() { return scene?.footprint?.(); },
     focus(id, reducedMotion) { return !disposed && ready && scene ? scene.focus(id, reducedMotion) : Promise.resolve(false); },

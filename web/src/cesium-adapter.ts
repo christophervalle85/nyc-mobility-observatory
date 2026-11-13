@@ -106,8 +106,22 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       () => { imageryReady=true; finishDetailWait?.(); finishDetailWait=undefined; profile?.event('tiles.detailSettled'); imagery?.settled(); colorSelection(); viewer.scene.requestRender(); },
     );
     function waitForDetail() { finishDetailWait ??= profile?.span('detail.wait'); detail.wait(); imageryReady = false; imagery?.wait(); colorSelection(); }
+    function captureView() {
+      const camera = viewer.camera;
+      return {
+        destination: Cartesian3.clone(camera.positionWC),
+        orientation: {
+          direction: Cartesian3.clone(camera.directionWC),
+          up: Cartesian3.clone(camera.upWC),
+        },
+        includesNewark: Boolean(mask?.state().includesNewark),
+      };
+    }
+    let previousView: ReturnType<typeof captureView> | undefined;
     const focus = areaFocus(geography, {
       move(target, options) {
+        const before = captureView();
+        if (selected === 1) mask?.newark();
         focusMoving = true; waitForDetail();
         const view = focusView(target, {heading:viewer.camera.heading,pitch:viewer.camera.pitch}, options.duration);
         viewer.camera.flyToBoundingSphere(new BoundingSphere(Cartesian3.fromDegrees(target.longitude, target.latitude), target.radius), {
@@ -116,6 +130,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
           complete() {
             if (!options.complete()) return;
             focusMoving = false;
+            previousView ??= before;
             viewer.scene.requestRender();
           },
           cancel() { if (options.cancel()) focusMoving = false; },
@@ -195,15 +210,42 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       event.preventDefault();
       viewer.scene.requestRender();
     };
-    canvas.addEventListener('pointerdown', startManualNavigation, true);
+    // Cesium's click threshold only compares the start and end points.
+    // Track the whole gesture so a drag back to its origin cannot pick a zone.
+    const pointers = new Map<number, { x: number; y: number }>();
+    let suppressPick = false;
+    function onPointerDown(event: PointerEvent) {
+      startManualNavigation();
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      suppressPick = pointers.size > 0;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+    function onPointerMove(event: PointerEvent) {
+      const start = pointers.get(event.pointerId);
+      if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 3) suppressPick = true;
+    }
+    function onPointerEnd(event: PointerEvent) {
+      if (!pointers.has(event.pointerId)) return;
+      onPointerMove(event);
+      if (event.type === 'pointercancel') suppressPick = true;
+      pointers.delete(event.pointerId);
+    }
+    canvas.addEventListener('pointerdown', onPointerDown, true);
     canvas.addEventListener('wheel', startManualNavigation, { capture: true, passive: true });
     canvas.addEventListener('keydown', onMapKey);
+    window.addEventListener('pointermove', onPointerMove, true);
+    window.addEventListener('pointerup', onPointerEnd, true);
+    window.addEventListener('pointercancel', onPointerEnd, true);
     cleanup.push(() => {
-      canvas.removeEventListener('pointerdown', startManualNavigation, true);
+      canvas.removeEventListener('pointerdown', onPointerDown, true);
       canvas.removeEventListener('wheel', startManualNavigation, true);
       canvas.removeEventListener('keydown', onMapKey);
+      window.removeEventListener('pointermove', onPointerMove, true);
+      window.removeEventListener('pointerup', onPointerEnd, true);
+      window.removeEventListener('pointercancel', onPointerEnd, true);
     });
     handler.setInputAction((event: {position: Cartesian2}) => {
+      if (suppressPick) return;
       const picked=profile?.span('selection.pick');
       let id:number|null;
       try {
@@ -283,11 +325,22 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         void viewer.dataSources.add(entities);zonesAttached=true;colorSelection();viewer.scene.requestRender();
       },
       watchPartial(change){partial=change;return()=>{partial=undefined;};},
-      focus(id,reducedMotion){if(!canInteract()||id!==selected)return Promise.resolve(false);if(id===1)mask?.newark();return focus.focus(id,reducedMotion);},
+      focus(id,reducedMotion){if(!canInteract()||id!==selected)return Promise.resolve(false);return focus.focus(id,reducedMotion);},
+      canReturnToView() { return previousView !== undefined; },
+      returnToView() {
+        if (!canInteract() || !previousView) return false;
+        const { destination, orientation, includesNewark } = previousView;
+        viewer.camera.setView({ destination, orientation, endTransform: Matrix4.IDENTITY });
+        previousView = undefined;
+        if (includesNewark) mask?.newark(); else mask?.city();
+        waitForDetail();
+        viewer.scene.requestRender();
+        return true;
+      },
       cancelFocus(){focus.cancel();},
-      overview(){if(!canInteract())return false;focus.cancel();mask?.city();waitForDetail();colorSelection();const target=overviewTarget();return target?navigation.overview(target):false;},
+      overview(){if(!canInteract())return false;focus.cancel();mask?.city();waitForDetail();colorSelection();const target=overviewTarget();const moved=target?navigation.overview(target):false;if(moved)previousView=undefined;return moved;},
       footprint(){return mask?.state();},
-      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
+      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){previousView=undefined;profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
       destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();selectedLines.dispose();highlight=undefined;if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });

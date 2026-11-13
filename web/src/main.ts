@@ -18,6 +18,7 @@ const picker = element('zone-picker'), search = element<HTMLInputElement>('area-
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
 const searchAnnouncement = element('search-announcement');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
+const focusLabel = focusButton.querySelector('span')!;
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
@@ -153,6 +154,10 @@ function render(state: SessionState) {
   const target = known && areaTarget(zones, selected);
   focusButton.disabled = !target || state.phase !== 'ready' || state.draining;
   focusButton.setAttribute('aria-busy', String(state.focusing));
+  const returning = controller.canReturnToView();
+  focusButton.toggleAttribute('data-return', returning);
+  const label = returning ? 'Return to previous view' : 'Zoom to area';
+  if (focusLabel.textContent !== label) focusLabel.textContent = label;
   clearSelection.disabled = !known;
   const focusStatus = element('focus-status');
   const focusText = state.focusing ? 'Flying to area…'
@@ -167,9 +172,15 @@ function render(state: SessionState) {
 }
 function mockAdapter(): SceneAdapter {
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
-  let expanded = false;
+  let expanded = false, previousView: { expanded: boolean } | undefined;
   const movement = areaFocus(zones, {
-    move(_target, options) { if (options.duration === 0) options.complete(); else timer = setTimeout(options.complete, options.duration * 1000); },
+    move(_target, options) {
+      const before = { expanded };
+      if (selected === 1 && mode !== 'none') expanded = true;
+      const finish = () => { if (options.complete()) previousView = before; };
+      if (options.duration === 0) finish();
+      else timer = setTimeout(finish, options.duration * 1000);
+    },
     cancel() { clearTimeout(timer); },
   });
   return {
@@ -180,8 +191,17 @@ function mockAdapter(): SceneAdapter {
       if (['auth', 'rate', 'webgl', 'network', 'timeout'].includes(scenario ?? '')) throw new SceneFailure(scenario as Failure);
       if (scenario === 'partial') change('partial');
     },
-    select() {}, focus(id, reducedMotion) { if (id === 1 && mode !== 'none') expanded = true; return movement.focus(id, reducedMotion); }, cancelFocus() { movement.cancel(); },
-    overview() { movement.cancel(); expanded = false; return true; },
+    select() { previousView = undefined; },
+    focus(id, reducedMotion) { return movement.focus(id, reducedMotion); },
+    cancelFocus() { movement.cancel(); },
+    canReturnToView() { return previousView !== undefined; },
+    returnToView() {
+      if (!previousView) return false;
+      expanded = previousView.expanded;
+      previousView = undefined;
+      return true;
+    },
+    overview() { movement.cancel(); previousView = undefined; expanded = false; return true; },
     footprint() {
       if (mode === 'none') return undefined;
       if (mode === 'land' && !land) return {kind: 'unavailable', includesNewark: false};
@@ -207,6 +227,8 @@ function liveAdapter(): SceneAdapter {
     },
     select(id) { delegate?.select(id); },
     overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
+    canReturnToView() { return delegate?.canReturnToView?.() ?? false; },
+    returnToView() { return delegate?.returnToView?.() ?? false; },
     focus(id, reducedMotion) { return delegate?.focus(id, reducedMotion) ?? Promise.resolve(false); },
     cancelFocus() { delegate?.cancelFocus(); },
     dispose() { disposed = true; delegate?.dispose(); setSelectionAnchor(null); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
@@ -310,6 +332,7 @@ function chooseResult(row: HTMLElement | undefined) {
   search.focus({ preventScroll: true });
   showAreaResults(false);
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
+  if (controller.canReturnToView()) return;
   const { phase, draining } = controller.state;
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
@@ -407,7 +430,8 @@ async function focusSelectedArea() {
 }
 focusButton.addEventListener('click', () => {
   diagnostics.interaction();
-  void focusSelectedArea();
+  if (controller.canReturnToView()) controller.returnToView();
+  else void focusSelectedArea();
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
 document.addEventListener('visibilitychange', () => { warmEngine(); startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });

@@ -21,6 +21,29 @@ test('clicking a search result selects it and brings it into view', async ({ pag
   await expect(page.getByRole('listbox')).toBeHidden();
   await expect(page).toHaveURL(/zone=161/);
 });
+test('returning after reselecting an area keeps the selection and resets the action', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?mode=mock');
+  await expect(page.locator('#status')).toContainText('Mock stage ready');
+  const search = page.getByRole('combobox', { name: 'Search areas' });
+  await search.fill('161');
+  await page.getByRole('option').click();
+  const restore = page.getByRole('button', { name: 'Return to previous view' });
+  const zoom = page.getByRole('button', { name: 'Zoom to area' });
+  await expect(restore).toBeVisible({ timeout: 2500 });
+  await search.click();
+  await page.getByRole('option').click();
+  await expect(restore).toHaveAttribute('aria-busy', 'false');
+  await restore.click();
+  await expect(zoom).toBeVisible();
+  await expect(page).toHaveURL(/zone=161/);
+  await expect(search).toHaveValue('161');
+  await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
+  await zoom.click();
+  await expect(restore).toBeVisible();
+  await page.getByRole('button', { name: 'Show all NYC' }).click();
+  await expect(zoom).toBeVisible();
+});
 test('a search result chosen during startup comes into view once 3D is ready', async ({ context, page }) => {
   let releaseLand!: () => void;
   const landReady = new Promise<void>(resolve => { releaseLand = resolve; });
@@ -144,7 +167,7 @@ test('keyboard search focuses the area only after Enter commits the selection', 
   await search.press('Enter');
   await expect(picker).toBeHidden();
   await expect(page.locator('#selection-title')).toHaveText('Midtown Center');
-  const focus = page.getByRole('button', { name: 'Focus', exact: true });
+  const focus = page.getByRole('button', { name: 'Zoom to area', exact: true });
   await expect(focus).toHaveAttribute('aria-busy', 'true');
   await page.locator('#city-overview').click();
   await expect(focus).toHaveAttribute('aria-busy', 'false');
@@ -186,7 +209,7 @@ test('desktop area details stay compact and usable', async ({ context, page }) =
   const card = page.locator('#inspector');
   const title = card.getByRole('heading', { name: 'Midtown Center' });
   const metadata = card.locator('#zone-details');
-  const focus = card.getByRole('button', { name: 'Focus', exact: true });
+  const focus = card.getByRole('button', { name: 'Zoom to area', exact: true });
   await expect(title).toBeInViewport();
   await expect(card.locator('#zone-borough')).toHaveText('Manhattan');
   await expect(card.locator('#zone-id')).toHaveText('161');
@@ -200,7 +223,7 @@ test('desktop area details stay compact and usable', async ({ context, page }) =
   const metadataBox = (await metadata.boundingBox())!;
   const focusBox = (await focus.boundingBox())!;
   expect(metadataBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
-  expect(focusBox.y, 'Focus should occupy a separate row below the area identity').toBeGreaterThanOrEqual(metadataBox.y + metadataBox.height);
+  expect(focusBox.y, 'The zoom action should occupy a separate row below the area identity').toBeGreaterThanOrEqual(metadataBox.y + metadataBox.height);
   const idLabel = metadata.getByText('TLC ID', { exact: true });
   await expect(idLabel).toBeInViewport();
   expect((await idLabel.boundingBox())!.width).toBeGreaterThan(1);
@@ -226,7 +249,7 @@ test('a long area title fits the card at 320px with 200 percent text', async ({ 
     );
     expect(fits, 'The long title and area details should fit without clipping').toBe(true);
   }
-  await card.getByRole('button', { name: 'Focus', exact: true }).click({ trial: true });
+  await card.getByRole('button', { name: 'Zoom to area', exact: true }).click({ trial: true });
   await card.getByRole('button', { name: 'Close area details' }).click({ trial: true });
 });
 

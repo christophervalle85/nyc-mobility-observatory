@@ -9,6 +9,7 @@ export interface SceneAdapter {
   whenSettled(): Promise<void>;
   focus(id: number, reducedMotion: boolean): Promise<boolean>;
   cancelFocus(): void;
+  canReturnToView?(): boolean; returnToView?(): boolean;
   overview?(): boolean; footprint?(): FootprintState | undefined;
 }
 export class SceneFailure extends Error {
@@ -107,6 +108,19 @@ export class SessionController {
       if (epoch === this.focusEpoch && generation === this.generation) {
         this.state = { ...this.state, focusing: false }; this.change(this.state);
       }
+    }
+  }
+  canReturnToView(): boolean {
+    return this.state.phase === 'ready' && !this.state.draining && (this.adapter?.canReturnToView?.() ?? false);
+  }
+  returnToView(): boolean {
+    if (this.state.focusing || !this.canReturnToView()) return false;
+    try {
+      return this.adapter?.returnToView?.() ?? false;
+    } catch {
+      return false;
+    } finally {
+      this.change(this.state);
     }
   }
   overview(): boolean {
