@@ -18,14 +18,15 @@ const picker = element('zone-picker'), search = element<HTMLInputElement>('area-
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
 const searchAnnouncement = element('search-announcement');
 const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
+const focusLabel = focusButton.querySelector('span')!;
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
-const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
-const cardDisclosures = [element<HTMLDetailsElement>('view-controls'), element<HTMLDetailsElement>('sources')];
+const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
+const cardDisclosures = [element<HTMLDetailsElement>('sources')];
 let selectionAnchor: SelectionAnchor | null = null;
 
 function positionAreaCard() {
@@ -40,8 +41,8 @@ function positionAreaCard() {
       outlineTop: selectionAnchor.outlineTop === undefined ? undefined : map.top + selectionAnchor.outlineTop },
     { width: inspector.offsetWidth, height: inspector.offsetHeight },
     { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
-      bottom: Math.min(innerHeight, map.bottom, attribution.getBoundingClientRect().top) },
-    [...cardObstacles, ...openPanels].map(control => control.getBoundingClientRect()),
+      bottom: Math.min(innerHeight, map.bottom) },
+    [...cardObstacles, attribution, ...openPanels].map(control => control.getBoundingClientRect()),
   );
   inspector.toggleAttribute('data-anchored', Boolean(position));
   if (!position) return;
@@ -119,15 +120,16 @@ function render(state: SessionState) {
   const waiting = state.draining && !active ? ' Waiting for previous requests to finish before retry.'
     : state.phase === 'stopped' && cutoutPending && geographyReady ? ' Waiting for the land cutout file.' : '';
   const statusText = (imageryStatus ?? stateMessages[state.phase]) + waiting;
-  status.classList.toggle('visually-hidden', !statusText);
+  status.classList.toggle('visually-hidden', state.phase !== 'partial' && state.phase !== 'error');
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
   load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
   load.hidden = active || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || cutoutPending || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
   load.setAttribute('aria-busy', String(state.phase === 'loading')); stop.disabled = !active && !startup?.pending;
-  if (focusedAction === load && load.hidden) (stop.disabled ? status : stop).focus();
-  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? status : load).focus();
+  const fallbackFocus = geographyReady ? search : element('main');
+  if (focusedAction === load && load.hidden) (stop.disabled ? fallbackFocus : stop).focus();
+  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? fallbackFocus : load).focus();
   element('session-limit').hidden = state.attempts < 2 || active;
   const liveActive = active && !mock;
   element('cesium-view').hidden = !liveActive;
@@ -148,15 +150,24 @@ function render(state: SessionState) {
       : footprint?.kind === 'newark' ? `${cutout} with the Newark Airport study area` : `${cutout} selected`;
   }
   element('outside-city').hidden = selected !== 1;
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view], #city-overview')) button.disabled = state.phase !== 'ready' || state.draining;
+  const overview = element<HTMLButtonElement>('city-overview');
+  overview.disabled = state.phase !== 'ready' || state.draining;
+  const overviewReturning = !overview.disabled && controller.hasOverviewReturn();
+  const overviewLabel = overviewReturning ? 'Return to previous map view' : 'Show all NYC';
+  overview.title = overviewLabel;
+  overview.setAttribute('aria-label', overviewLabel);
+  overview.toggleAttribute('data-return', overviewReturning);
   const known = resolveZone(zones, selected);
   const target = known && areaTarget(zones, selected);
   focusButton.disabled = !target || state.phase !== 'ready' || state.draining;
   focusButton.setAttribute('aria-busy', String(state.focusing));
+  const returning = controller.canReturnToView();
+  focusButton.toggleAttribute('data-return', returning);
+  const label = returning ? 'Return to previous view' : 'Zoom to area';
+  if (focusLabel.textContent !== label) focusLabel.textContent = label;
   clearSelection.disabled = !known;
   const focusStatus = element('focus-status');
-  const focusText = state.focusing ? 'Flying to area…'
-    : known && !target ? 'Camera target unavailable.'
+  const focusText = known && !target ? 'Camera target unavailable.'
     : known && focusButton.disabled ? 'Available when 3D is ready.' : '';
   if (focusStatus.textContent !== focusText) focusStatus.textContent = focusText;
   if (state.phase === 'stopped' || state.phase === 'partial' || state.phase === 'error') pendingSearchFocus = false;
@@ -167,9 +178,17 @@ function render(state: SessionState) {
 }
 function mockAdapter(): SceneAdapter {
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
-  let expanded = false;
+  let expanded = false, previousView: { expanded: boolean } | undefined;
+  let overviewOrigin: { expanded: boolean } | undefined;
   const movement = areaFocus(zones, {
-    move(_target, options) { if (options.duration === 0) options.complete(); else timer = setTimeout(options.complete, options.duration * 1000); },
+    move(_target, options) {
+      overviewOrigin = undefined;
+      const before = { expanded };
+      if (selected === 1 && mode !== 'none') expanded = true;
+      const finish = () => { if (options.complete()) previousView = before; };
+      if (options.duration === 0) finish();
+      else timer = setTimeout(finish, options.duration * 1000);
+    },
     cancel() { clearTimeout(timer); },
   });
   return {
@@ -180,8 +199,29 @@ function mockAdapter(): SceneAdapter {
       if (['auth', 'rate', 'webgl', 'network', 'timeout'].includes(scenario ?? '')) throw new SceneFailure(scenario as Failure);
       if (scenario === 'partial') change('partial');
     },
-    select() {}, focus(id, reducedMotion) { if (id === 1 && mode !== 'none') expanded = true; return movement.focus(id, reducedMotion); }, cancelFocus() { movement.cancel(); },
-    overview() { movement.cancel(); expanded = false; return true; }, orbit() { movement.cancel(); return true; }, zoom() { movement.cancel(); return true; },
+    select() { previousView = undefined; },
+    focus(id, reducedMotion) { return movement.focus(id, reducedMotion); },
+    cancelFocus() { movement.cancel(); },
+    canReturnToView() { return previousView !== undefined; },
+    returnToView() {
+      if (!previousView) return false;
+      expanded = previousView.expanded;
+      previousView = undefined;
+      return true;
+    },
+    hasOverviewReturn() { return overviewOrigin !== undefined; },
+    overview() {
+      movement.cancel();
+      if (overviewOrigin) {
+        expanded = overviewOrigin.expanded;
+        overviewOrigin = undefined;
+      } else {
+        overviewOrigin = { expanded };
+        previousView = undefined;
+        expanded = false;
+      }
+      return true;
+    },
     footprint() {
       if (mode === 'none') return undefined;
       if (mode === 'land' && !land) return {kind: 'unavailable', includesNewark: false};
@@ -206,7 +246,10 @@ function liveAdapter(): SceneAdapter {
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
-    overview() { return delegate?.overview?.() ?? false; }, orbit(horizontal, vertical) { return delegate?.orbit?.(horizontal, vertical) ?? false; }, zoom(factor) { return delegate?.zoom?.(factor) ?? false; }, footprint() { return delegate?.footprint?.(); },
+    hasOverviewReturn() { return delegate?.hasOverviewReturn?.() ?? false; },
+    overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
+    canReturnToView() { return delegate?.canReturnToView?.() ?? false; },
+    returnToView() { return delegate?.returnToView?.() ?? false; },
     focus(id, reducedMotion) { return delegate?.focus(id, reducedMotion) ?? Promise.resolve(false); },
     cancelFocus() { delegate?.cancelFocus(); },
     dispose() { disposed = true; delegate?.dispose(); setSelectionAnchor(null); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
@@ -310,6 +353,7 @@ function chooseResult(row: HTMLElement | undefined) {
   search.focus({ preventScroll: true });
   showAreaResults(false);
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
+  if (controller.canReturnToView()) return;
   const { phase, draining } = controller.state;
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
@@ -375,7 +419,7 @@ document.addEventListener('click', event => {
   pointer = undefined;
   if (!areaControls.contains(event.target as Node)) showAreaResults(false);
 }, true);
-for (const menu of document.querySelectorAll<HTMLDetailsElement>('#view-controls, #sources')) {
+for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
   menu.addEventListener('focusout', event => {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
   });
@@ -407,10 +451,10 @@ async function focusSelectedArea() {
 }
 focusButton.addEventListener('click', () => {
   diagnostics.interaction();
-  void focusSelectedArea();
+  if (controller.canReturnToView()) controller.returnToView();
+  else void focusSelectedArea();
 });
 element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-view]')) button.addEventListener('click', () => { diagnostics.interaction(); controller.view(button.dataset.view as 'left'|'right'|'up'|'down'|'in'|'out'); });
 document.addEventListener('visibilitychange', () => { warmEngine(); startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
 window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); diagnostics.dispose(); }, { once: true });
 window.addEventListener('popstate', () => { if (geographyReady) selectZone(resolveZone(zones, new URLSearchParams(location.search).get('zone'))?.id ?? null); });

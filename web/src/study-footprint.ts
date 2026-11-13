@@ -31,7 +31,7 @@ export interface OverviewTarget { longitude:number;latitude:number;radius:number
 export function cityOverview(geography:ZoneCollection,aspect:number,verticalFov:number):OverviewTarget|undefined {
   const city=geography.features.filter(zone=>boroughs.includes(zone.properties.borough));
   if(new Set(city.map(zone=>zone.properties.borough)).size!==5)return undefined;
-  return fitOverview(city,aspect,verticalFov);
+  return fitOverview(city,aspect,verticalFov,true);
 }
 /** Opening composition uses local TLC extents around the Midtown skyline. */
 export function skylineOpening(geography:ZoneCollection,aspect:number,verticalFov:number):OverviewTarget|undefined {
@@ -41,15 +41,20 @@ export function skylineOpening(geography:ZoneCollection,aspect:number,verticalFo
   const target=fitOverview(skyline,aspect,verticalFov);
   return target && target.range<=40000 ? target : undefined;
 }
-function fitOverview(city:ZoneCollection['features'],aspect:number,verticalFov:number):OverviewTarget|undefined {
+function fitOverview(city:ZoneCollection['features'],aspect:number,verticalFov:number,topDown=false):OverviewTarget|undefined {
   let west=Infinity,south=Infinity,east=-Infinity,north=-Infinity;
   for(const zone of city){const extent=zoneExtent(zone);if(!extent)return undefined;west=Math.min(west,extent.west);south=Math.min(south,extent.south);east=Math.max(east,extent.east);north=Math.max(north,extent.north);}
   const longitude=(west+east)/2,latitude=(south+north)/2;
-  const radius=Math.hypot((east-west)*111320*Math.cos(latitude*Math.PI/180),(north-south)*111320)/2;
+  const halfWidth=(east-west)*111320*Math.cos(latitude*Math.PI/180)/2;
+  const halfHeight=(north-south)*111320/2;
+  const radius=Math.hypot(halfWidth,halfHeight);
   const safeAspect=Number.isFinite(aspect)&&aspect>0?Math.min(5,Math.max(.2,aspect)):1;
   const fov=Number.isFinite(verticalFov)&&verticalFov>0?Math.min(Math.PI*2/3,Math.max(Math.PI/18,verticalFov)):Math.PI/3;
   const halfAngle=Math.min(fov/2,Math.atan(Math.tan(fov/2)*safeAspect));
-  return {longitude,latitude,radius,range:Math.min(180000,Math.max(200,radius/Math.sin(halfAngle)*1.18))};
+  const range = topDown
+    ? Math.max(halfHeight, halfWidth / safeAspect) / Math.tan(fov / 2) * 1.07
+    : radius / Math.sin(halfAngle) * 1.18;
+  return {longitude,latitude,radius,range:Math.min(180000,Math.max(200,range))};
 }
 export interface FootprintState {kind:FootprintStatus;includesNewark:boolean}
 export function footprintMask(geography:ZoneCollection,supported:boolean,replace:(polygons:FootprintPolygon[])=>void,disable:()=>void=()=>{}){
