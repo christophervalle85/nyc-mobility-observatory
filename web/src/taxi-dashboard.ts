@@ -186,6 +186,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   closer.addEventListener('click', () => close(true));
   panel.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return;
+    if (panel.querySelector('select:is(:open)')) return;
     event.preventDefault();
     close(true);
   });

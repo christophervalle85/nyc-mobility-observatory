@@ -234,6 +234,52 @@ button[aria-busy=true] { cursor: progress; }
   .taxi-dashboard select { min-block-size: 44px; }
 }
 .taxi-dashboard option { background: #282723; color: #fff; }
+@supports (appearance: base-select) and selector(::picker(select)) {
+  @media (forced-colors: none) and (pointer: fine) {
+    .taxi-dashboard select,
+    .taxi-dashboard select::picker(select) { appearance: base-select; }
+    .taxi-dashboard select { background-image: none; padding-inline-end: 10px; gap: var(--space-xs); }
+    .taxi-dashboard select::picker-icon {
+      content: '';
+      align-self: center;
+      inline-size: 6px;
+      block-size: 6px;
+      margin-inline: auto 2px;
+      border-inline-end: 1.5px solid currentColor;
+      border-block-end: 1.5px solid currentColor;
+      transform: translateY(-2px) rotate(45deg);
+    }
+    .taxi-dashboard select:dir(rtl)::picker-icon { transform: translateY(-2px) rotate(-45deg); }
+    .taxi-dashboard select:open { border-color: var(--color-city-ink); }
+    .taxi-dashboard select::picker(select) {
+      position-area: block-end span-inline-end;
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+      margin-block: 5px;
+      min-inline-size: max(anchor-size(width), 7rem);
+      max-block-size: min(16rem, 42dvh);
+      overscroll-behavior: contain;
+      padding: 4px;
+      border: 1px solid var(--color-map-capsule-edge);
+      border-radius: 14px;
+      background: linear-gradient(165deg, #35332d, #262520);
+      color: var(--color-paper-3);
+      box-shadow: var(--shadow-map-capsule);
+      scrollbar-color: var(--color-city-ink) transparent;
+    }
+    #taxi-chart-day::picker(select) { position-area: block-end span-inline-start; }
+    .taxi-dashboard option {
+      min-block-size: 32px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+    }
+    .taxi-dashboard option:checked { background: var(--color-map-capsule-action); font-weight: 650; }
+    .taxi-dashboard option:is(:hover, :focus-visible) { background: var(--color-map-capsule-action-hover); }
+    .taxi-dashboard option:focus-visible { outline: 2px solid var(--color-city-ink); outline-offset: -2px; box-shadow: none; }
+    .taxi-dashboard option::checkmark { order: 1; margin-inline-start: auto; color: var(--color-accent-2); }
+  }
+}
 .taxi-dates select[aria-invalid="true"] { border-color: #ffb3a7; }
 #taxi-status:empty { position: absolute; }
 #taxi-results { display: grid; gap: var(--space-sm); min-inline-size: 0; }

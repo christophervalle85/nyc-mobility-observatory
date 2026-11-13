@@ -98,6 +98,26 @@ test('the hourly table follows the chart date and selected area', async ({ page 
   await expect(page.getByRole('combobox', { name: 'Search areas' })).toBeFocused();
 });
 
+test('the date menu opens below the chart field and Escape closes only the menu', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?mode=mock&zone=90');
+  await openTaxiDashboard(page);
+  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  const day = page.getByLabel('Chart date');
+  test.skip(!await day.evaluate(() => CSS.supports('appearance: base-select') && CSS.supports('selector(::picker(select))')),
+    'This browser uses the native menu');
+  await day.click();
+  const row = day.locator('option:checked');
+  await expect(row).toBeVisible();
+  const fieldBounds = (await day.boundingBox())!;
+  const rowBounds = (await row.boundingBox())!;
+  expect(rowBounds.y).toBeGreaterThan(fieldBounds.y + fieldBounds.height);
+  expect(Math.abs(rowBounds.x + rowBounds.width - fieldBounds.x - fieldBounds.width)).toBeLessThan(7);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#taxi-chart-day:open')).toHaveCount(0);
+  await expect(page.locator('#taxi-dashboard')).toBeVisible();
+});
+
 test('invalid date ranges hide the total until both dates are valid', async ({ page }) => {
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
