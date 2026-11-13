@@ -13,6 +13,7 @@ import type { LandFootprint } from './land-footprint.ts';
 import { cutoutMode } from './cutout-mode.ts';
 import { areaCardPosition } from './area-card-position.ts';
 import type { SelectionAnchor } from './selection-anchor.ts';
+import { taxiDashboard } from './taxi-dashboard.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element('zone-picker'), search = element<HTMLInputElement>('area-search');
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
@@ -23,6 +24,8 @@ const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection =
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
+const taxiPanel = element('taxi-dashboard');
+const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search);
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
@@ -42,7 +45,7 @@ function positionAreaCard() {
     { width: inspector.offsetWidth, height: inspector.offsetHeight },
     { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
       bottom: Math.min(innerHeight, map.bottom) },
-    [...cardObstacles, attribution, ...openPanels].map(control => control.getBoundingClientRect()),
+    [...cardObstacles, attribution, taxiPanel, ...openPanels].map(control => control.getBoundingClientRect()),
   );
   inspector.toggleAttribute('data-anchored', Boolean(position));
   if (!position) return;
@@ -58,7 +61,7 @@ function setSelectionAnchor(point: typeof selectionAnchor) {
 
 if (!mock) {
   const resize = new ResizeObserver(positionAreaCard);
-  for (const node of [cityViewport, inspector, attribution, ...cardObstacles]) resize.observe(node);
+  for (const node of [cityViewport, inspector, attribution, taxiPanel, ...cardObstacles]) resize.observe(node);
   window.addEventListener('scroll', positionAreaCard, { passive: true });
   for (const menu of cardDisclosures) menu.addEventListener('toggle', positionAreaCard);
 }
@@ -333,6 +336,7 @@ function selectZone(id: number | null, interaction = true) {
   controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
+  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone } : null);
   measured();
 }
 function showAreaResults(open: boolean) {

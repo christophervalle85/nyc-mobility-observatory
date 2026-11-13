@@ -78,14 +78,57 @@
               </svg>
             </button>
           </div>
-          <button type="button" id="focus-area" disabled>
-            <span>Zoom to area</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.25 3.5 3 6.75 6.25 10M3 6.75h6.5a3 3 0 0 1 0 6h-2"/></svg>
-          </button>
+          <div class="inspector-actions">
+            <button type="button" id="focus-area" disabled>
+              <span>Zoom to area</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.25 3.5 3 6.75 6.25 10M3 6.75h6.5a3 3 0 0 1 0 6h-2"/></svg>
+            </button>
+            <button type="button" id="taxi-open" aria-controls="taxi-dashboard" aria-expanded="false">Taxi dropoffs</button>
+          </div>
           <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <p id="focus-status" class="control-hint" role="status"></p>
         </aside>
+        <section id="taxi-dashboard" class="taxi-dashboard" aria-labelledby="taxi-heading" hidden>
+          <header class="taxi-header">
+            <div>
+              <h2 id="taxi-heading" tabindex="-1">Yellow taxi dropoffs</h2>
+              <p id="taxi-area"></p>
+            </div>
+            <button type="button" id="taxi-close" aria-label="Close taxi dashboard"><span aria-hidden="true">×</span></button>
+          </header>
+          <div class="taxi-dates">
+            <label for="taxi-start">Start date<input id="taxi-start" type="date" aria-describedby="taxi-status" /></label>
+            <label for="taxi-end">End date<input id="taxi-end" type="date" aria-describedby="taxi-status" /></label>
+          </div>
+          <p id="taxi-status" role="status" tabindex="-1"></p>
+          <button type="button" id="taxi-retry" hidden>Retry taxi data</button>
+          <div id="taxi-results" hidden>
+            <div class="taxi-total">
+              <p>Total dropoffs</p>
+              <output id="taxi-total" for="taxi-start taxi-end"></output>
+            </div>
+            <figure class="taxi-chart">
+              <figcaption id="taxi-chart-caption">Dropoffs per hour (ET)</figcaption>
+              <div class="taxi-plot" aria-hidden="true">
+                <div class="taxi-scale"><span id="taxi-y-top"></span><span id="taxi-y-middle"></span><span>0</span></div>
+                <canvas id="taxi-chart"></canvas>
+              </div>
+              <div class="taxi-axis" aria-hidden="true"><span id="taxi-x-start"></span><span id="taxi-x-end"></span></div>
+              <p id="taxi-chart-summary"></p>
+            </figure>
+            <details id="taxi-hours">
+              <summary>Hourly counts</summary>
+              <div class="taxi-table" role="region" aria-label="Hourly count table" tabindex="0">
+                <table aria-label="Hourly yellow taxi dropoffs">
+                  <thead><tr><th scope="col">Hour (ET)</th><th scope="col">Dropoffs</th></tr></thead>
+                  <tbody id="taxi-hour-rows"></tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+          <p class="taxi-coverage">Dates are inclusive in New York time. Counts come from the September 2026 yellow taxi file. Trips from adjacent pickup-month files are excluded.</p>
+        </section>
         <section class="stage-tools" aria-label="Map controls">
           <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -108,7 +151,7 @@
             <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
             <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
             <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
-            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Mobility data is unavailable in this preview.</p>
+            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Select an area to see its September 2026 yellow taxi dropoffs.</p>
             <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
             <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
           </div>

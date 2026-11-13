@@ -2,9 +2,10 @@
 
 The city-stage prototype opens on the Midtown skyline with continuous Google
 Photorealistic 3D Tiles through Cesium ion when configured. Search and select
-local TLC areas, use **Focus** to move the camera, or select **Show all NYC**
-to frame the five boroughs. Date filters, mobility counts, charts and models are not implemented.
-The separate M1 ingestion pipeline remains unchanged.
+local TLC areas, use **Zoom to area** to move the camera, or select **Show all NYC**
+to frame the five boroughs. The **Taxi dropoffs** dashboard shows September 2026
+totals and hourly counts for a selected area and date range. Subway estimates are
+available through the separate M1 ingestion pipeline.
 
 ## Open the local map
 
@@ -23,8 +24,12 @@ one automatic startup attempt after local geography validates and the page is vi
 This makes external requests that can consume quota. **Stop 3D** cancels pending
 startup and prevents automatic resumption. Use **Resume 3D** to start another attempt.
 Follow the [web setup and safety notes](web/README.md).
-For a token-free mock preview, use `npm run dev:verify` and open
-[the mock controls](http://127.0.0.1:5174/?mode=mock).
+
+To try the dashboard without a token, run `npm run dev:verify` from `web/` and
+open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90).
+Select **Taxi dropoffs** and choose inclusive dates in September 2026.
+The default range, September 1 through 7, shows 9,919 dropoffs. See the
+[dashboard coverage and export instructions](web/README.md#try-the-taxi-dashboard).
 
 See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
 checks and live-validation limits. The previous borough and land masks are available
