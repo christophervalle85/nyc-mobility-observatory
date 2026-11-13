@@ -98,6 +98,8 @@ test('the map keeps a named overview action and removes the camera menu', async 
   const box = (await overview.boundingBox())!;
   expect(box.width).toBeGreaterThanOrEqual(44);
   expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(box.width).toBe(box.height);
+  await expect(overview).toHaveCSS('border-top-left-radius', '999px');
   expect(box.x).toBeGreaterThan(640);
   expect(box.y).toBeGreaterThan(450);
   await overview.press('Enter');

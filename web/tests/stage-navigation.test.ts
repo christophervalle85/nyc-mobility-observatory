@@ -10,4 +10,6 @@ test('skyline opening uses its own close pivot and overview still resets to the 
  assert.equal(nav.opening(skyline),true);assert.equal(poses[0].pivot,skyline);assert.equal(poses[0].range,12000);
  assert.ok(poses[0].pitch<-Math.PI/6&&poses[0].pitch>-Math.PI/3);
  nav.overview(city);assert.equal(poses[1].pivot,city);assert.equal(poses[1].range,city.range);
+ assert.equal(poses[1].heading, 0);
+ assert.equal(poses[1].pitch, -Math.PI / 2);
 });

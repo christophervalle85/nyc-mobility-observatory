@@ -174,31 +174,20 @@ button[aria-busy=true] { cursor: progress; }
 .viewport-state p, #setup { margin-block-start: var(--space-xs); }
 #setup p { font-size: var(--text-xs); }
 
-.stage-tools { --map-control-width: 48px; grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; display: grid; justify-items: end; padding: 3px; pointer-events: auto; }
-.stage-tools::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 0;
+.stage-tools { grid-area: camera; position: relative; z-index: var(--z-raised); justify-self: end; align-self: end; pointer-events: auto; }
+.map-icon {
+  display: grid;
+  place-items: center;
+  inline-size: 50px;
+  block-size: 50px;
+  padding: 0;
   border: 1px solid var(--color-map-capsule-edge);
   border-radius: var(--radius-pill);
   background: var(--color-map-capsule-solid);
   box-shadow: var(--shadow-map-capsule);
-  pointer-events: none;
-}
-.map-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--map-control-width);
-  block-size: 52px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  background: transparent;
   color: var(--color-paper-3);
 }
-.map-icon svg { flex: none; inline-size: 25px; block-size: 25px; fill: currentColor; }
+.map-icon svg { inline-size: 25px; block-size: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 summary {
   display: flex;
   align-items: center;
@@ -235,7 +224,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   scrollbar-color: var(--color-muted) var(--color-paper-3);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .stage-tools::before {
+  .map-icon {
     background: linear-gradient(155deg, var(--color-map-capsule-highlight), var(--color-map-capsule-fill));
     -webkit-backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
     backdrop-filter: blur(2.5px) saturate(125%) brightness(78%);
@@ -246,14 +235,13 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
     backdrop-filter: blur(8px) saturate(125%) brightness(72%);
   }
 }
-@supports (backdrop-filter: url("#map-capsule-lens")) {
-  .stage-tools::before { backdrop-filter: url("#map-capsule-lens") blur(1.7px) saturate(125%) brightness(78%); }
+@supports (backdrop-filter: url("#area-search-lens")) {
   .search-row[data-lens] { backdrop-filter: url("#area-search-lens") blur(5px) saturate(125%) brightness(72%); }
   .inspector[data-lens] { backdrop-filter: url("#area-card-lens") blur(5px) saturate(125%) brightness(72%); }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .stage-tools::before, .search-row, .inspector, #area-results { background: var(--color-map-capsule-solid); }
-  .inspector[data-lens], .inspector, .stage-tools::before, .search-row[data-lens], .search-row, #area-results {
+  .map-icon, .search-row, .inspector, #area-results { background: var(--color-map-capsule-solid); }
+  .inspector[data-lens], .inspector, .map-icon, .search-row[data-lens], .search-row, #area-results {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -274,9 +262,9 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 .visually-hidden, .skip-link:not(:focus) { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .skip-link { position: absolute; inset-inline-start: var(--space-xs); inset-block-start: var(--space-xs); z-index: var(--z-sticky-nav); padding: var(--space-xs); background: var(--color-paper-3); }
 @media (hover: hover) {
-  button:hover:not(:disabled), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
+  button:hover:not(:disabled, .map-icon), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
   #focus-area:hover:not(:disabled), #clear-selection:hover:not(:disabled) { background: var(--color-map-capsule-action-hover); }
-  .map-icon:hover:not(:disabled) { background: var(--color-map-capsule-action); }
+  .map-icon:hover:not(:disabled) { box-shadow: var(--shadow-map-capsule), inset 0 0 0 24px var(--color-map-capsule-action); }
   #clear-search:hover { background: var(--color-map-capsule-action); }
   #zone-picker [role="option"]:hover { background: var(--color-map-capsule-action); }
   a:hover { color: var(--color-accent); }
@@ -304,7 +292,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @media (forced-colors: active) {
   .search-row { --color-search-focus: Highlight; }
   :focus-visible, #cesium-view:has(canvas:focus-visible)::after { outline-color: Highlight; }
-  .session-info, .search-row, #area-results, .inspector, .tool-content, .stage-tools::before, .map-icon, #focus-area { border: 1px solid CanvasText; }
+  .session-info, .search-row, #area-results, .inspector, .tool-content, .map-icon, #focus-area { border: 1px solid CanvasText; }
   .inspector { --glass-fill: CanvasText; }
   #area-search::placeholder { color: CanvasText; }
   #zone-picker [aria-selected="true"] { border-inline-start-color: CanvasText; }

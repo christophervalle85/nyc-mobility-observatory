@@ -20,7 +20,7 @@ export function stageNavigation(camera: StageCameraPort) {
       return apply({ pivot, heading: -Math.PI / 6, pitch: -Math.PI * 40 / 180, range: pivot.range });
     },
     overview(pivot: OverviewTarget) {
-      return apply({ pivot, heading: Math.PI / 12, pitch: -Math.PI * 35 / 180, range: pivot.range });
+      return apply({ pivot, heading: 0, pitch: -Math.PI / 2, range: pivot.range });
     },
   };
 }

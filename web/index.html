@@ -86,17 +86,9 @@
           <p id="focus-status" class="control-hint" role="status"></p>
         </aside>
         <section class="stage-tools" aria-label="Map controls">
-          <!-- Heroicons v2.2.0, Tailwind Labs. See /heroicons-license.txt. -->
           <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <defs>
-                <filter id="map-capsule-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
-                  <!-- Red and green encode inward displacement along the 54×110 capsule rim. -->
-                  <feImage href="/map-capsule-displacement.png" x="0" y="0" width="54" height="110" preserveAspectRatio="none" result="rim"/>
-                  <feDisplacementMap in="SourceGraphic" in2="rim" scale="16" xChannelSelector="R" yChannelSelector="G"/>
-                </filter>
-              </defs>
-              <path fill-rule="evenodd" d="M3 2.25a.75.75 0 0 0 0 1.5v16.5h-.75a.75.75 0 0 0 0 1.5H15v-18a.75.75 0 0 0 0-1.5H3ZM6.75 19.5v-2.25a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75ZM6 6.75A.75.75 0 0 1 6.75 6h.75a.75.75 0 0 1 0 1.5h-.75A.75.75 0 0 1 6 6.75ZM6.75 9a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM6 12.75a.75.75 0 0 1 .75-.75h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 6a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75Zm-.75 3.75A.75.75 0 0 1 10.5 9h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 12a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM16.5 6.75v15h5.25a.75.75 0 0 0 0-1.5H21v-12a.75.75 0 0 0 0-1.5h-4.5Zm1.5 4.5a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Zm.75 2.25a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75v-.008a.75.75 0 0 0-.75-.75h-.008ZM18 17.25a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Z" clip-rule="evenodd"/>
+              <path d="M9 4.5H6A1.5 1.5 0 0 0 4.5 6v3m10.5-4.5h3A1.5 1.5 0 0 1 19.5 6v3M4.5 15v3A1.5 1.5 0 0 0 6 19.5h3m10.5-4.5v3a1.5 1.5 0 0 1-1.5 1.5h-3"/>
             </svg>
           </button>
         </section>
