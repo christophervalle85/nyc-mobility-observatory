@@ -2,7 +2,7 @@ import {
   Viewer, Ion, Cesium3DTileset, GeoJsonDataSource, Cartesian3, Math as CesiumMath,
   Color, ColorMaterialProperty, ScreenSpaceEventHandler, ScreenSpaceEventType,
   Entity, SceneMode, Cartesian2, BoundingSphere, HeadingPitchRange, Matrix4,
-  ClippingPolygon, ClippingPolygonCollection,
+  ClippingPolygon, ClippingPolygonCollection, EasingFunction,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { managedAdapter } from './managed-adapter.ts';
@@ -120,6 +120,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     let previousView: ReturnType<typeof captureView> | undefined;
     const focus = areaFocus(geography, {
       move(target, options) {
+        viewer.camera.cancelFlight();
         const before = captureView();
         if (selected === 1) mask?.newark();
         focusMoving = true; waitForDetail();
@@ -139,7 +140,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       },
       cancel() { focusMoving = false; if (!viewer.isDestroyed()) viewer.camera.cancelFlight(); },
     });
-    function reportPartial() { partialSeen = true; focus.cancel(); anchor?.publish(null, null); partial?.(); }
+    function reportPartial() { partialSeen = true; cancelCameraFlight(); anchor?.publish(null, null); partial?.(); }
     function canInteract() { return !disposed && tilesAttached && zonesAttached && !partialSeen; }
     const canvas = viewer.scene.canvas;
     canvas.setAttribute('aria-label', 'Interactive NYC map. Use arrow keys to move and plus or minus to zoom.');
@@ -185,9 +186,13 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     const indexed=profile?.span('zones.index');
     const picker = zonePicker(geography);
     indexed?.();
+    function cancelCameraFlight() {
+      focus.cancel();
+      viewer.camera.cancelFlight();
+    }
     function startManualNavigation() {
       profile?.interaction();
-      focus.cancel();
+      cancelCameraFlight();
     }
     const onMapKey = (event: KeyboardEvent) => {
       if (!tilesAttached || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -338,7 +343,33 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         return true;
       },
       cancelFocus(){focus.cancel();},
-      overview(){if(!canInteract())return false;focus.cancel();mask?.city();waitForDetail();colorSelection();const target=overviewTarget();const moved=target?navigation.overview(target):false;if(moved)previousView=undefined;return moved;},
+      overview() {
+        if (!canInteract()) return false;
+        const target = overviewTarget();
+        if (!target) return false;
+        cancelCameraFlight();
+        mask?.city();
+        previousView = undefined;
+        focusMoving = true;
+        waitForDetail();
+        const camera = viewer.camera;
+        const settle = () => {
+          focusMoving = false;
+          viewer.scene.requestRender();
+        };
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        camera.flyTo({
+          destination: Cartesian3.fromDegrees(target.longitude, target.latitude, target.range),
+          orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+          duration: reduceMotion ? 0 : 1.25,
+          easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+          maximumHeight: Math.max(camera.positionCartographic.height, target.range),
+          complete: settle,
+          cancel: settle,
+        });
+        viewer.scene.requestRender();
+        return true;
+      },
       footprint(){return mask?.state();},
       select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){previousView=undefined;profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
       destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();selectedLines.dispose();highlight=undefined;if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},

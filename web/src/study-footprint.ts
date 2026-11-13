@@ -52,7 +52,7 @@ function fitOverview(city:ZoneCollection['features'],aspect:number,verticalFov:n
   const fov=Number.isFinite(verticalFov)&&verticalFov>0?Math.min(Math.PI*2/3,Math.max(Math.PI/18,verticalFov)):Math.PI/3;
   const halfAngle=Math.min(fov/2,Math.atan(Math.tan(fov/2)*safeAspect));
   const range = topDown
-    ? Math.max(halfHeight, halfWidth / safeAspect) / Math.tan(fov / 2) * 1.16
+    ? Math.max(halfHeight, halfWidth / safeAspect) / Math.tan(fov / 2) * 1.07
     : radius / Math.sin(halfAngle) * 1.18;
   return {longitude,latitude,radius,range:Math.min(180000,Math.max(200,range))};
 }
