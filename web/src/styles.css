@@ -250,20 +250,21 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 
 .map-attribution {
   position: fixed;
-  inset-block-end: var(--space-md);
-  inset-inline-start: var(--space-lg);
+  inset-block-end: 8px;
+  inset-inline-start: 8px;
   z-index: var(--z-raised);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px var(--space-xs);
+  gap: 0 6px;
   inline-size: max-content;
-  max-inline-size: min(58rem, calc(100% - 92px));
-  padding: 3px var(--space-xs);
-  border-radius: 8px;
-  background: rgb(12 18 25 / 84%);
+  max-inline-size: calc(100% - 92px);
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgb(12 18 25 / 78%);
   color: var(--color-city-ink);
-  font-size: .75rem;
+  font-size: .6875rem;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .credits { min-inline-size: 0; max-inline-size: 100%; }
