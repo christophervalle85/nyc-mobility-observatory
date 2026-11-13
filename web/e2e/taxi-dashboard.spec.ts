@@ -211,7 +211,7 @@ test('September subway and taxi share the range and day while keeping independen
   await openTaxiDashboard(page);
   const station = page.getByLabel('Subway station complex');
   await expect(station.locator('option')).toHaveCount(7);
-  await expect(station.locator('option').nth(1)).toHaveText('18 St (1) · Manhattan');
+  await expect(station.locator('option').nth(1)).toHaveText('18 St (1) · Manhattan 158 m');
   await station.selectOption('321');
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await expect(page.locator('#subway-total')).toHaveText('33,037');
@@ -289,7 +289,7 @@ test('Lincoln Square East suggests nearby stations and distant areas keep taxi a
   await openTaxiDashboard(page);
   const station = page.getByLabel('Subway station complex');
   await expect(station).toBeEnabled();
-  await expect(station.locator('option').nth(1)).toHaveText('66 St-Lincoln Center (1) · Manhattan');
+  await expect(station.locator('option').nth(1)).toHaveText('66 St-Lincoln Center (1) · Manhattan 62 m');
   await expect(station.locator('option[value="1"]')).toHaveCount(0);
   await selectArea(page, '110', /Great Kills Park/);
   await expect(station).toBeDisabled();

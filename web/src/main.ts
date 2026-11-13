@@ -25,7 +25,7 @@ const query = new URLSearchParams(location.search), mock = query.get('mode') ===
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const taxiPanel = element('taxi-dashboard');
-const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search);
+const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search, station => controller.selectStation(station));
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
@@ -248,6 +248,7 @@ function liveAdapter(): SceneAdapter {
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
+    selectStation(station) { delegate?.selectStation?.(station); },
     hasOverviewReturn() { return delegate?.hasOverviewReturn?.() ?? false; },
     overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
     canReturnToView() { return delegate?.canReturnToView?.() ?? false; },

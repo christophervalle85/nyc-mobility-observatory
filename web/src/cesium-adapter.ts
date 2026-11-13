@@ -2,7 +2,7 @@ import {
   Viewer, Ion, Cesium3DTileset, GeoJsonDataSource, Cartesian3, Math as CesiumMath,
   Color, ColorMaterialProperty, ScreenSpaceEventHandler, ScreenSpaceEventType,
   Entity, SceneMode, Cartesian2, BoundingSphere, HeadingPitchRange, Matrix4,
-  ClippingPolygon, ClippingPolygonCollection, EasingFunction, CameraEventType, KeyboardEventModifier,
+  ClippingPolygon, ClippingPolygonCollection, EasingFunction, CameraEventType, KeyboardEventModifier, LabelStyle, VerticalOrigin,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { managedAdapter } from './managed-adapter.ts';
@@ -53,6 +53,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       });
     } catch { Ion.defaultAccessToken = ''; throw new SceneFailure('webgl'); }
     finally { viewerConstructed?.(); }
+    let stationMarker: Entity | undefined;
     viewer.resolutionScale = display.resolutionScale;
     const style = getComputedStyle(document.documentElement);
     viewer.scene.backgroundColor = Color.fromCssColorString(style.getPropertyValue('--color-scene-background').trim()) ?? new Color(.07,.09,.12,1);
@@ -427,6 +428,19 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       },
       footprint(){return mask?.state();},
       select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){previousView=undefined;profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));if(returningToArea)cancelCameraFlight();else focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
+      selectStation(station) {
+        if (stationMarker) viewer.entities.remove(stationMarker);
+        stationMarker = station ? viewer.entities.add({
+          position: Cartesian3.fromDegrees(station.longitude, station.latitude),
+          point: { pixelSize: 13, color: Color.fromCssColorString('#7ddaf2'), outlineColor: Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Infinity },
+          label: {
+            text: station.name, font: '600 13px sans-serif', fillColor: Color.WHITE,
+            outlineColor: Color.BLACK, outlineWidth: 4, style: LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: VerticalOrigin.BOTTOM, pixelOffset: new Cartesian2(0, -12), disableDepthTestDistance: Infinity,
+          },
+        }) : undefined;
+        viewer.scene.requestRender();
+      },
       destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();selectedLines.dispose();highlight=undefined;if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });

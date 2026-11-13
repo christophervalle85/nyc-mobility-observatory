@@ -273,7 +273,9 @@ button[aria-busy=true] { cursor: progress; }
       scrollbar-color: var(--color-city-ink) transparent;
     }
     #subway-station::picker(select) { inline-size: anchor-size(width); min-inline-size: 0; }
-    #subway-station option { overflow-wrap: anywhere; }
+    #subway-station option { overflow-wrap: anywhere; gap: var(--space-xs); }
+    #subway-station option .station-option-distance { margin-inline-start: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    #subway-station option::checkmark { margin-inline-start: 0; }
     #taxi-chart-day::picker(select) { position-area: block-end span-inline-start; }
     .taxi-dashboard option {
       min-block-size: 32px;

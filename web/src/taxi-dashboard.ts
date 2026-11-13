@@ -71,7 +71,7 @@ function drawChart(chart: HTMLCanvasElement, counts: readonly (number | null)[],
   });
 }
 
-export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fallback: HTMLElement) {
+export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fallback: HTMLElement, highlightStation: (station: SubwayStation | null) => void) {
   const find = <T extends HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
   const heading = find('#taxi-heading'), area = find('#taxi-area'), status = find('#taxi-status');
   const closer = find<HTMLButtonElement>('#taxi-close'), retry = find<HTMLButtonElement>('#taxi-retry');
@@ -109,9 +109,17 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     stations.clear();
     const nearby = data && selection?.center ? nearbyStations(data.stations, selection.center) : [];
     station.replaceChildren(new Option(data && !nearby.length ? 'No nearby stations' : 'Choose a nearby station', ''));
-    for (const item of nearby) {
+    for (const { station: item, distance } of nearby) {
       stations.set(item.id, item);
-      station.add(new Option(`${item.name} · ${item.borough}`, String(item.id)));
+      const option = new Option('', String(item.id));
+      const label = document.createElement('span');
+      label.className = 'station-option-name';
+      label.textContent = `${item.name} · ${item.borough}`;
+      const detail = document.createElement('span');
+      detail.className = 'station-option-distance';
+      detail.textContent = distance < 1_000 ? `${Math.round(distance)} m` : `${(distance / 1_000).toFixed(2)} km`;
+      option.append(label, ' ', detail);
+      station.add(option);
     }
     station.value = stations.has(Number(previous)) ? previous : '';
   }
@@ -174,6 +182,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
     const series = taxi.data && range ? taxiSeries(taxi.data, selection.id, range) : null;
     const selectedStation = station.disabled ? undefined : stations.get(Number(station.value));
+    highlightStation(selectedStation ?? null);
     status.textContent = !range ? 'Choose a start and end date in September 2026, with the start on or before the end.'
       : taxi.pending ? 'Loading taxi dropoffs…'
       : taxi.failed ? 'Taxi data could not load. Retry to try again.'
@@ -270,6 +279,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   function close(restoreFocus: boolean) {
     if (panel.hidden) return;
     panel.hidden = true;
+    highlightStation(null);
     opener.setAttribute('aria-expanded', 'false');
     hours.open = false;
     if (restoreFocus) (selection ? opener : fallback).focus();

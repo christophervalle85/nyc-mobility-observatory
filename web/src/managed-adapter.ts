@@ -1,11 +1,12 @@
 import type { FootprintState } from './study-footprint.ts';
-import type { SceneAdapter } from './session.ts';
+import type { SceneAdapter, StationMarker } from './session.ts';
 export interface OwnedResource { destroy(): void }
 export interface SceneRuntime {
   tiles(): Promise<OwnedResource>; zones(): Promise<OwnedResource>;
   attachTiles(resource: OwnedResource): void; attachZones(resource: OwnedResource): void;
   watchPartial(change: () => void): () => void;
   select(id: number | null): void; destroy(): void;
+  selectStation?(station: StationMarker | null): void;
   focus(id: number, reducedMotion: boolean): Promise<boolean>; cancelFocus(): void;
   canReturnToView?(): boolean; returnToView?(): boolean;
   overview?(): boolean; hasOverviewReturn?(): boolean; footprint?(): FootprintState | undefined;
@@ -44,6 +45,7 @@ export function managedAdapter(open: () => SceneRuntime): SceneAdapter {
     focus(id, reducedMotion) { return !disposed && ready && scene ? scene.focus(id, reducedMotion) : Promise.resolve(false); },
     cancelFocus() { scene?.cancelFocus(); },
     select(id) { if (!disposed) scene?.select(id); },
+    selectStation(station) { if (!disposed) scene?.selectStation?.(station); },
     dispose() { if (disposed) return; disposed = true; ready = false; remove?.(); scene?.cancelFocus(); scene?.destroy(); scene = undefined; },
   };
 }

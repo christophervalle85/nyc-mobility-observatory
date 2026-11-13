@@ -55,5 +55,5 @@ export function nearbyStations(stations: readonly SubwayStation[], center: { lon
     return { station, distance: 12_742_000 * Math.asin(Math.sqrt(Math.min(1, chord))) };
   }).filter(item => item.distance <= 1_200)
     .sort((a, b) => a.distance - b.distance || a.station.id - b.station.id)
-    .slice(0, 6).map(item => item.station);
+    .slice(0, 6);
 }
