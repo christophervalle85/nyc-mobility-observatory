@@ -95,7 +95,7 @@ button[aria-busy=true] { cursor: progress; }
   caret-color: currentColor;
 }
 #area-search::placeholder { color: var(--color-city-ink); opacity: 1; }
-.search-row:has(#area-search:focus-visible) {
+.search-row:has(#area-search:focus-visible:not([data-pointer-focus])) {
   outline: 2px solid var(--color-search-focus, var(--color-focus));
   outline-offset: 2px;
   box-shadow: var(--shadow-map-capsule), 0 0 0 5px var(--color-paper-3);

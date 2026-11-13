@@ -65,6 +65,22 @@ test('a search result chosen during startup comes into view once 3D is ready', a
   await expect(page.locator('#focus-status')).toHaveText('');
   await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
 });
+test('search pill shows its focus ring only when reached by keyboard', async ({ page }) => {
+  await page.goto('/?mode=mock');
+  const search = page.getByRole('combobox', { name: 'Search areas' });
+  const pill = page.locator('.search-row');
+  await search.click();
+  await search.pressSequentially('161');
+  await expect(search).toBeFocused();
+  await expect(pill).toHaveCSS('outline-style', 'none');
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(pill).toHaveCSS('outline-style', 'none');
+  await search.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(search).toBeFocused();
+  await expect(pill).toHaveCSS('outline-style', 'solid');
+});
+
 test('search results and area details alternate beneath the search pill', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?mode=mock&zone=161');

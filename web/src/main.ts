@@ -364,6 +364,9 @@ function chooseResult(row: HTMLElement | undefined) {
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
 }
+// Text inputs match :focus-visible after pointer focus as well as keyboard focus.
+search.parentElement!.addEventListener('pointerdown', () => search.setAttribute('data-pointer-focus', ''));
+search.addEventListener('blur', () => search.removeAttribute('data-pointer-focus'));
 search.addEventListener('click', () => showAreaResults(true));
 search.addEventListener('input', () => {
   diagnostics.interaction();
@@ -456,7 +459,8 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
     menu.querySelector<HTMLElement>('summary')?.focus();
   });
 }
-clearSearch.addEventListener('click', () => {
+clearSearch.addEventListener('click', event => {
+  search.toggleAttribute('data-pointer-focus', event.detail > 0);
   search.value = '';
   search.focus();
   clearSearch.hidden = true;
