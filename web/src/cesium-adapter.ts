@@ -122,6 +122,29 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         includesNewark: Boolean(mask?.state().includesNewark),
       };
     }
+    let returningToArea = false;
+    function flyToView(destination: Cartesian3, orientation: Parameters<Viewer['camera']['flyTo']>[0]['orientation']) {
+      focusMoving = true;
+      waitForDetail();
+      const camera = viewer.camera;
+      const settle = () => {
+        returningToArea = false;
+        focusMoving = false;
+        viewer.scene.requestRender();
+      };
+      camera.flyTo({
+        destination,
+        orientation,
+        endTransform: Matrix4.IDENTITY,
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1.25,
+        easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+        maximumHeight: Math.max(camera.positionCartographic.height,
+          viewer.scene.ellipsoid.cartesianToCartographic(destination).height),
+        complete: settle,
+        cancel: settle,
+      });
+      viewer.scene.requestRender();
+    }
     let previousView: ReturnType<typeof captureView> | undefined;
     let overviewOrigin: ReturnType<typeof captureView> | undefined;
     const focus = areaFocus(geography, {
@@ -376,11 +399,11 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       returnToView() {
         if (!canInteract() || !previousView) return false;
         const { destination, orientation, includesNewark } = previousView;
-        viewer.camera.setView({ destination, orientation, endTransform: Matrix4.IDENTITY });
-        previousView = undefined;
+        cancelCameraFlight();
         if (includesNewark) mask?.newark(); else mask?.city();
-        waitForDetail();
-        viewer.scene.requestRender();
+        returningToArea = true;
+        flyToView(destination, orientation);
+        previousView = undefined;
         return true;
       },
       cancelFocus(){focus.cancel();},
@@ -391,34 +414,19 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
         if (!target) return false;
         cancelCameraFlight();
         const origin = overviewOrigin;
-        const camera = viewer.camera;
         const from = captureView();
         if (origin?.includesNewark) mask?.newark(); else mask?.city();
-        focusMoving = true;
-        waitForDetail();
-        const settle = () => {
-          focusMoving = false;
-          viewer.scene.requestRender();
-        };
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const destination = origin?.destination ?? Cartesian3.fromDegrees(target.longitude, target.latitude, target.range);
-        camera.flyTo({
-          destination,
-          orientation: origin?.orientation ?? { heading: 0, pitch: -Math.PI / 2, roll: 0 },
-          duration: reduceMotion ? 0 : 1.25,
-          easingFunction: EasingFunction.QUADRATIC_IN_OUT,
-          maximumHeight: Math.max(camera.positionCartographic.height,
-            viewer.scene.ellipsoid.cartesianToCartographic(destination).height),
-          complete: settle,
-          cancel: settle,
-        });
+        flyToView(
+          origin?.destination ?? Cartesian3.fromDegrees(target.longitude, target.latitude, target.range),
+          origin?.orientation ?? { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+        );
         overviewOrigin = origin ? undefined : from;
         if (!origin) previousView = undefined;
         viewer.scene.requestRender();
         return true;
       },
       footprint(){return mask?.state();},
-      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){previousView=undefined;profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
+      select(id){const next=resolveZone(geography,id)?.id??null;if(next!==selected){previousView=undefined;profile?.nextFrame(check=>viewer.scene.postRender.addEventListener(check));if(returningToArea)cancelCameraFlight();else focus.cancel();}selected=next;colorSelection();updateSelectionAnchor();},
       destroy(){disposed=true;finishDetailWait=undefined;detail.dispose();for(const remove of cleanup)remove();anchor?.publish(null,null);handler.destroy();focus.dispose();selectedLines.dispose();highlight=undefined;if(!viewer.isDestroyed())viewer.destroy();Ion.defaultAccessToken='';entities=undefined;tileset=undefined;collection=undefined;},
     };
   });

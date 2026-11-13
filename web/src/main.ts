@@ -120,15 +120,16 @@ function render(state: SessionState) {
   const waiting = state.draining && !active ? ' Waiting for previous requests to finish before retry.'
     : state.phase === 'stopped' && cutoutPending && geographyReady ? ' Waiting for the land cutout file.' : '';
   const statusText = (imageryStatus ?? stateMessages[state.phase]) + waiting;
-  status.classList.toggle('visually-hidden', !statusText);
+  status.classList.toggle('visually-hidden', state.phase !== 'partial' && state.phase !== 'error');
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
   load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
   load.hidden = active || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || cutoutPending || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
   load.setAttribute('aria-busy', String(state.phase === 'loading')); stop.disabled = !active && !startup?.pending;
-  if (focusedAction === load && load.hidden) (stop.disabled ? status : stop).focus();
-  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? status : load).focus();
+  const fallbackFocus = geographyReady ? search : element('main');
+  if (focusedAction === load && load.hidden) (stop.disabled ? fallbackFocus : stop).focus();
+  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? fallbackFocus : load).focus();
   element('session-limit').hidden = state.attempts < 2 || active;
   const liveActive = active && !mock;
   element('cesium-view').hidden = !liveActive;

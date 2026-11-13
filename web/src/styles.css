@@ -34,14 +34,15 @@ a { color: inherit; text-underline-offset: .2em; }
   padding: var(--space-md) var(--rail-inline-pad);
   pointer-events: none;
 }
-.session-info { border-radius: 12px; box-shadow: var(--shadow-card); }
-.session-info { pointer-events: auto; }
-.session-info { grid-area: session; justify-self: end; align-self: start; min-inline-size: 0; max-inline-size: min(100%, 24rem); padding: var(--space-2xs) var(--space-xs); background: var(--color-paper-3); font-size: var(--text-xs); }
-.session-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
-#status { flex: 1 1 15ch; min-inline-size: 0; padding-inline-start: var(--space-2xs); }
-#session-limit { margin: var(--space-2xs); }
+.session-info { grid-area: session; justify-self: end; align-self: start; min-inline-size: 0; max-inline-size: min(100%, 24rem); pointer-events: auto; font-size: var(--text-xs); }
+.session-row { display: flex; flex-wrap: wrap; justify-content: end; align-items: center; gap: var(--space-2xs); }
+#status:not(.visually-hidden), #session-limit {
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: 8px;
+  background: var(--color-paper-3);
+}
+#session-limit { margin: var(--space-2xs) 0 0; }
 #stop { background: var(--color-paper); }
-#load { font-weight: 650; }
 
 button, input, select, summary { font: inherit; }
 button, input, select {
@@ -309,7 +310,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   .search-row { --color-search-focus: Highlight; }
   :focus-visible, #cesium-view:has(canvas:focus-visible)::after { outline-color: Highlight; }
   .map-attribution { background: Canvas; color: CanvasText; }
-  .session-info, .search-row, #area-results, .inspector, .tool-content, .map-icon, #focus-area { border: 1px solid CanvasText; }
+  .search-row, #area-results, .inspector, .tool-content, .map-icon, #focus-area { border: 1px solid CanvasText; }
   .inspector { --glass-fill: CanvasText; }
   #area-search::placeholder { color: CanvasText; }
   #zone-picker [aria-selected="true"] { border-inline-start-color: CanvasText; }
