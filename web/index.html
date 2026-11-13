@@ -96,23 +96,28 @@
             </div>
             <button type="button" id="taxi-close" aria-label="Close transportation dashboard"><span aria-hidden="true">×</span></button>
           </header>
-          <div class="taxi-date-range">
-            <span id="taxi-range-label">Date range</span>
-            <button type="button" id="taxi-range" aria-haspopup="dialog" aria-labelledby="taxi-range-label taxi-range-value">
-              <span id="taxi-range-value"></span>
-              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="2"/><path d="M6 3v4m8-4v4M3 9h14"/></svg>
-            </button>
-          </div>
-          <dialog id="taxi-calendar" aria-labelledby="taxi-calendar-title">
-            <h3 id="taxi-calendar-title">September 2026</h3>
-            <p id="taxi-calendar-hint" role="status"></p>
-            <div class="calendar-weekdays" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
-            <div class="calendar-days" role="group" aria-label="September dates"></div>
-            <div class="calendar-actions">
-              <button type="button" id="taxi-range-cancel">Cancel</button>
-              <button type="button" id="taxi-range-apply">Apply dates</button>
+          <div class="taxi-date-fields">
+            <div class="taxi-date-field">
+              <span id="taxi-start-label">Start date</span>
+              <button type="button" id="taxi-start" aria-haspopup="dialog" aria-controls="taxi-calendar" aria-expanded="false" aria-labelledby="taxi-start-label taxi-start-value">
+                <span id="taxi-start-value"></span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="2"/><path d="M6 3v4m8-4v4M3 9h14"/></svg>
+              </button>
             </div>
-          </dialog>
+            <div class="taxi-date-field">
+              <span id="taxi-end-label">End date</span>
+              <button type="button" id="taxi-end" aria-haspopup="dialog" aria-controls="taxi-calendar" aria-expanded="false" aria-labelledby="taxi-end-label taxi-end-value">
+                <span id="taxi-end-value"></span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="2"/><path d="M6 3v4m8-4v4M3 9h14"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="taxi-calendar" popover="manual" role="dialog" aria-labelledby="taxi-calendar-title" aria-describedby="taxi-calendar-hint">
+            <h3 id="taxi-calendar-title">September 2026</h3>
+            <p id="taxi-calendar-hint"></p>
+            <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+            <div class="calendar-days" role="group" aria-label="September dates"></div>
+          </div>
           <label class="subway-station" for="subway-station">Subway station complex
             <select id="subway-station" aria-describedby="subway-status subway-station-note" disabled>
               <option value="">Choose a nearby station</option>
@@ -127,11 +132,11 @@
             <div class="transportation-totals" aria-label="Totals for selected dates">
               <div id="taxi-metric" class="transportation-metric" hidden>
                 <p id="taxi-metric-label">Yellow taxi dropoffs</p>
-                <output id="taxi-total" aria-labelledby="taxi-metric-label" for="taxi-range"></output>
+                <output id="taxi-total" aria-labelledby="taxi-metric-label" for="taxi-start taxi-end"></output>
               </div>
               <div id="subway-metric" class="transportation-metric" hidden>
                 <p id="subway-metric-label">Estimated subway entries</p>
-                <output id="subway-total" aria-labelledby="subway-metric-label" for="subway-station taxi-range"></output>
+                <output id="subway-total" aria-labelledby="subway-metric-label" for="subway-station taxi-start taxi-end"></output>
                 <p id="subway-coverage"></p>
               </div>
             </div>

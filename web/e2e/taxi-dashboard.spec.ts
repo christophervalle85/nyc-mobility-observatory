@@ -30,7 +30,8 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeHidden();
   expect(dataRequests).toEqual([]);
   await openTaxiDashboard(page);
-  await expect(page.getByRole('button', { name: 'Date range Sep 1–7, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start date Sep 1, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End date Sep 7, 2026' })).toBeVisible();
   // Golden values come from the archived M1 taxi/zone_hour.csv for run 0566a3a0.
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeFocused();
@@ -54,11 +55,11 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
 test('the hourly table follows the chart date and selected area', async ({ page }) => {
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
-  await page.getByRole('button', { name: /Date range/ }).click();
   const calendar = page.getByRole('dialog', { name: 'September 2026' });
-  await calendar.getByRole('button', { name: 'September 7', exact: true }).click();
+  await page.getByRole('button', { name: /End date/ }).click();
   await calendar.getByRole('button', { name: 'September 8', exact: true }).click();
-  await calendar.getByRole('button', { name: 'Apply dates' }).click();
+  await page.getByRole('button', { name: /Start date/ }).click();
+  await calendar.getByRole('button', { name: 'September 7', exact: true }).click();
   await expect(page.locator('#taxi-total')).toHaveText('2,848');
 
   await page.getByText('Hourly counts', { exact: true }).press('Enter');
@@ -81,7 +82,8 @@ test('the hourly table follows the chart date and selected area', async ({ page 
 
   await selectArea(page, '79', /East Village/);
   await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Date range Sep 7–8, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start date Sep 7, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End date Sep 8, 2026' })).toBeVisible();
   await expect(page.locator('#taxi-total')).toHaveText('4,175');
   await expect(rows.first().getByRole('cell').last()).toHaveText('164');
   await expect(rows.last().getByRole('cell').last()).toHaveText('90');
@@ -117,32 +119,38 @@ test('the date menu opens below the chart field and Escape closes only the menu'
   await expect(page.locator('#taxi-dashboard')).toBeVisible();
 });
 
-test('calendar previews ranges, Escape cancels, and keyboard can apply a one-day range', async ({ page }) => {
+test('separate calendars constrain endpoints, support keyboard, and update a one-day range', async ({ page }) => {
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
-  const trigger = page.getByRole('button', { name: /Date range/ });
+  const start = page.getByRole('button', { name: /Start date/ });
+  const end = page.getByRole('button', { name: /End date/ });
   const calendar = page.getByRole('dialog', { name: 'September 2026' });
   const total = page.locator('#taxi-total');
-  await trigger.press('Enter');
+  await start.press('Enter');
   await expect(calendar.getByRole('button', { name: 'September 1', exact: true })).toBeFocused();
+  await expect(calendar.getByRole('button', { name: 'September 8', exact: true })).toBeDisabled();
   await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Space');
-  await expect(calendar.getByRole('button', { name: 'Apply dates' })).toBeDisabled();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await expect(calendar.getByRole('button', { pressed: true })).toHaveCount(8);
   await page.keyboard.press('Escape');
   await expect(calendar).toBeHidden();
-  await expect(trigger).toBeFocused();
+  await expect(start).toBeFocused();
   await expect(total).toHaveText('9,919');
-  await trigger.press('Enter');
-  const lastDay = calendar.getByRole('button', { name: 'September 30', exact: true });
-  await lastDay.click();
-  await lastDay.press('Space');
-  await calendar.getByRole('button', { name: 'Apply dates' }).press('Enter');
-  await expect(trigger).toHaveText('Sep 30, 2026');
+  await end.click();
+  const endBounds = (await end.boundingBox())!;
+  const calendarBounds = (await calendar.boundingBox())!;
+  expect(calendarBounds.y).toBeGreaterThanOrEqual(endBounds.y + endBounds.height);
+  await calendar.getByRole('button', { name: 'September 30', exact: true }).click();
+  await start.click();
+  await calendar.getByRole('button', { name: 'September 30', exact: true }).press('Space');
+  await expect(start).toHaveText('Sep 30, 2026');
   await expect(total).toHaveText('1,696');
   await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-30');
+  await end.click();
+  await expect(calendar.getByRole('button', { name: 'September 29', exact: true })).toBeDisabled();
+  await end.click();
+  await expect(calendar).toBeHidden();
+  await end.click();
+  await page.keyboard.press('Tab');
+  await expect(calendar).toBeHidden();
 });
 
 test('pending taxi data updates the current area after loading', async ({ context, page }) => {
@@ -192,7 +200,8 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]]) {
     await openTaxiDashboard(page);
     await expect(page.locator('#taxi-total')).toHaveText('9,919');
     await expect(page.locator('#credits')).toBeInViewport();
-    await expect(page.getByRole('button', { name: /Date range/ })).toBeInViewport();
+    await expect(page.getByRole('button', { name: /Start date/ })).toBeInViewport();
+    await expect(page.getByRole('button', { name: /End date/ })).toBeInViewport();
     const overview = page.getByRole('button', { name: 'Show all NYC' });
     await expect(overview).toBeInViewport({ ratio: 1 });
     await page.getByRole('button', { name: 'Close transportation dashboard' }).click({ trial: true });

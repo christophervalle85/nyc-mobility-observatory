@@ -298,7 +298,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   closer.addEventListener('click', () => close(true));
   panel.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return;
-    if (panel.querySelector('select:is(:open), dialog[open]')) return;
+    if (panel.querySelector('select:is(:open), #taxi-calendar:is(:popover-open)')) return;
     event.preventDefault();
     close(true);
   });
