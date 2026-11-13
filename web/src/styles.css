@@ -234,12 +234,17 @@ button[aria-busy=true] { cursor: progress; }
 @media (pointer: coarse) {
   .taxi-dashboard select { min-block-size: 44px; }
 }
+.taxi-dates select { padding-inline: 28px; text-align: center; text-align-last: center; }
 .taxi-dashboard option { background: #282723; color: #fff; }
 @supports (appearance: base-select) and selector(::picker(select)) {
   @media (forced-colors: none) and (pointer: fine) {
     .taxi-dashboard select,
     .taxi-dashboard select::picker(select) { appearance: base-select; }
     .taxi-dashboard select { background-image: none; padding-inline-end: 10px; gap: var(--space-xs); }
+    .taxi-dates select { position: relative; justify-content: center; align-items: center; padding-inline: 28px; }
+    .taxi-dates select::picker-icon { position: absolute; inset-inline-end: 11px; inset-block-start: 50%; margin: 0; }
+    .taxi-dates select:dir(ltr)::picker-icon { transform: translateY(-65%) rotate(45deg); }
+    .taxi-dates select:dir(rtl)::picker-icon { transform: translateY(-65%) rotate(-45deg); }
     .taxi-dashboard select::picker-icon {
       content: '';
       align-self: center;
@@ -267,6 +272,8 @@ button[aria-busy=true] { cursor: progress; }
       box-shadow: var(--shadow-map-capsule);
       scrollbar-color: var(--color-city-ink) transparent;
     }
+    #subway-station::picker(select) { inline-size: anchor-size(width); min-inline-size: 0; }
+    #subway-station option { overflow-wrap: anywhere; }
     #taxi-chart-day::picker(select) { position-area: block-end span-inline-start; }
     .taxi-dashboard option {
       min-block-size: 32px;

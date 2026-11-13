@@ -30,9 +30,9 @@ Keep the on-screen Cesium and imagery provider credits visible during live 3D. D
 
 ## Try the transportation dashboard
 
-With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Transportation data** on the area card and choose a **Subway station complex** to compare. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view both modes on the same day. Each chart uses its own count scale. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
+With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Mobility data** on the area card and choose a **Subway station complex** to compare. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view both modes on the same day. Each chart uses its own count scale. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
 
-The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway totals sum estimated entries over comparison-eligible observed hours. Missing and flagged hours appear as gaps. The station choice is independent of the TLC area.
+The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway totals sum estimated entries over comparison-eligible observed hours. Missing and flagged hours appear as gaps. The picker lists up to six station complexes within 1.2 km of the selected area’s center, ordered by straight-line distance.
 
 To regenerate the browser assets, run these commands from the repository root with the completed archive in place. See the [M1 pilot report](../docs/reports/m1-pilot.md) for the run and offline replay instructions.
 

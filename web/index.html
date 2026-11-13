@@ -83,7 +83,7 @@
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.25 3.5 3 6.75 6.25 10M3 6.75h6.5a3 3 0 0 1 0 6h-2"/></svg>
             </button>
-            <button type="button" id="taxi-open" aria-controls="taxi-dashboard" aria-expanded="false">Transportation data</button>
+            <button type="button" id="taxi-open" aria-controls="taxi-dashboard" aria-expanded="false">Mobility data</button>
           </div>
           <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <p id="focus-status" class="control-hint" role="status"></p>
@@ -103,10 +103,10 @@
           </div>
           <label class="subway-station" for="subway-station">Subway station complex
             <select id="subway-station" aria-describedby="subway-status subway-station-note" disabled>
-              <option value="">Choose a station</option>
+              <option value="">Choose a nearby station</option>
             </select>
           </label>
-          <p id="subway-station-note">Choose any station, including one outside the selected taxi area.</p>
+          <p id="subway-station-note">Up to six stations within 1.2 km of the area center.</p>
           <p id="taxi-status" role="status" tabindex="-1"></p>
           <button type="button" id="taxi-retry" hidden>Retry taxi data</button>
           <p id="subway-status" role="status" tabindex="-1"></p>
@@ -179,7 +179,7 @@
             <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
             <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
             <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
-            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Open Transportation data from a selected area to compare September 2026 yellow taxi dropoffs and subway entries.</p>
+            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Open Mobility data from a selected area to compare September 2026 yellow taxi dropoffs and subway entries.</p>
             <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
             <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
           </div>

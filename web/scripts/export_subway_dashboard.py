@@ -76,7 +76,12 @@ def export(run: Path) -> bytes:
             raise ValueError("Missing station identity")
         if station_id in identities and identities[station_id] != station_identity:
             raise ValueError("Station identity changed")
-        identities[station_id] = station_identity
+        if station_id not in identities:
+            latitude, longitude = float(lat), float(lon)
+            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                raise ValueError("Invalid station coordinates")
+            stations[station_id].update(latitude=latitude, longitude=longitude)
+            identities[station_id] = station_identity
         stamp = datetime.strptime(label, "%Y-%m-%d %H:%M:%S")
         hour = int((stamp - datetime(2026, 9, 1)).total_seconds() // 3600)
         if label != stamp.strftime("%Y-%m-%d %H:00:00") or not 0 <= hour < HOURS:

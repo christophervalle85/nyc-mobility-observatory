@@ -1,6 +1,6 @@
 import { parseTaxiData, taxiDateRange, taxiHourLabel, taxiSeries, TAXI_END, TAXI_MONTH, TAXI_START } from './taxi-data.ts';
 import type { TaxiData } from './taxi-data.ts';
-import { parseSubwayData } from './subway-data.ts';
+import { nearbyStations, parseSubwayData } from './subway-data.ts';
 import type { SubwayData, SubwayStation } from './subway-data.ts';
 
 const requestTimeout = 10_000;
@@ -15,6 +15,7 @@ function dateLabel(value: string) {
 interface TaxiArea {
   id: number;
   name: string;
+  center?: { longitude: number; latitude: number };
 }
 
 interface Dataset<T> {
@@ -103,6 +104,17 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const taxi: Dataset<TaxiData> = { pending: false, failed: false };
   const subway: Dataset<SubwayData> = { pending: false, failed: false };
   const stations = new Map<number, SubwayStation>();
+  function updateStations(data: SubwayData | undefined) {
+    const previous = station.value;
+    stations.clear();
+    const nearby = data && selection?.center ? nearbyStations(data.stations, selection.center) : [];
+    station.replaceChildren(new Option(data && !nearby.length ? 'No nearby stations' : 'Choose a nearby station', ''));
+    for (const item of nearby) {
+      stations.set(item.id, item);
+      station.add(new Option(`${item.name} · ${item.borough}`, String(item.id)));
+    }
+    station.value = stations.has(Number(previous)) ? previous : '';
+  }
   let chartDateRange = '';
   let shown: {
     firstHour: number;
@@ -150,7 +162,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     area.textContent = `${selection.name} · TLC ID ${selection.id}`;
     retry.hidden = !taxi.failed;
     const mismatchedRun = taxi.data && subway.data && taxi.data.runId !== subway.data.runId;
-    station.disabled = !subway.data || taxi.pending || Boolean(mismatchedRun);
+    station.disabled = !stations.size || taxi.pending || Boolean(mismatchedRun);
     subwayRetry.hidden = !subway.failed;
     subwayStatus.textContent = subway.pending ? 'Loading subway stations…'
       : mismatchedRun ? 'Subway data is unavailable for this September run.'
@@ -250,13 +262,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   function loadSubway() {
     return load(subway, async () => {
       const result = await fetchDataset('subway', parseSubwayData);
-      const ordered = [...result.stations].sort((a, b) =>
-        a.name.localeCompare(b.name, 'en') || a.borough.localeCompare(b.borough, 'en') || a.id - b.id);
-      const options = ordered.map(item => {
-        stations.set(item.id, item);
-        return new Option(`${item.name} · ${item.borough}`, String(item.id));
-      });
-      station.append(...options);
+      updateStations(result);
       return result;
     }, subwayRetry, subwayStatus);
   }
@@ -303,7 +309,10 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     select(next: TaxiArea | null) {
       if (selection?.id === next?.id) return;
       selection = next;
-      if (next) render();
+      if (next) {
+        updateStations(subway.data);
+        render();
+      }
       else close(panel.contains(document.activeElement));
     },
   };

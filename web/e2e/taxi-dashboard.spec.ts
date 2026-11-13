@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 const datasetPath = '/data/yellow-taxi-2026-09.json';
 
 async function openTaxiDashboard(page: Page) {
-  await page.getByRole('button', { name: 'Transportation data', exact: true }).click();
+  await page.getByRole('button', { name: 'Mobility data', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeVisible();
 }
 
@@ -177,7 +177,7 @@ for (const unavailable of ['missing', 'invalid']) {
     await page.getByRole('button', { name: 'Show all NYC' }).click();
     await page.getByRole('button', { name: 'Close transportation dashboard' }).click();
     await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Transportation data', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Mobility data', exact: true })).toBeFocused();
   });
 }
 
@@ -210,9 +210,11 @@ test('September subway and taxi share the range and day while keeping independen
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
   const station = page.getByLabel('Subway station complex');
-  await station.selectOption('1');
+  await expect(station.locator('option')).toHaveCount(7);
+  await expect(station.locator('option').nth(1)).toHaveText('18 St (1) · Manhattan');
+  await station.selectOption('321');
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
-  await expect(page.locator('#subway-total')).toHaveText('60,410');
+  await expect(page.locator('#subway-total')).toHaveText('33,037');
   await expect(page.locator('#subway-coverage')).toContainText(/168 (of|\/) 168/);
   await expect(page.locator('#subway-chart')).toBeVisible();
   const taxiPlot = (await page.locator('#taxi-chart').boundingBox())!;
@@ -222,14 +224,15 @@ test('September subway and taxi share the range and day while keeping independen
   const taxiColor = await page.locator('#taxi-chart').evaluate(element => getComputedStyle(element).color);
   await expect(page.locator('#subway-chart')).not.toHaveCSS('color', taxiColor);
   await page.getByLabel('Chart date').selectOption('2026-09-02');
-  await expect(page.locator('#subway-total')).toHaveText('60,410');
+  await expect(page.locator('#subway-total')).toHaveText('33,037');
   await page.getByText('Hourly counts', { exact: true }).press('Enter');
   const rows = page.locator('#taxi-hour-rows tr');
   await expect(rows).toHaveCount(24);
   await expect(rows.first()).toContainText('Sep 2, 00:00');
   await expect(rows.first().getByRole('cell')).toHaveCount(2);
   await selectArea(page, '79', /East Village/);
-  await expect(station).toHaveValue('1');
+  await expect(station).toHaveValue('');
+  await expect(station.locator('option[value="321"]')).toHaveCount(0);
   await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-02');
   await expect(page.locator('#taxi-total')).toHaveText('17,090');
 });
@@ -261,7 +264,7 @@ test('a subway export waits for taxi provenance and rejects a different run', as
     json: {
       version: 1, month: '2026-09', timezone: 'America/New_York',
       runId: 'a'.repeat(64), sourceSha256: 'b'.repeat(64),
-      stations: [{ id: 1, name: 'Station', borough: 'Queens', counts: Array(720).fill(1) }],
+      stations: [{ id: 1, name: 'Station', borough: 'Manhattan', latitude: 40.741, longitude: -73.993, counts: Array(720).fill(1) }],
     },
   }));
   try {
@@ -279,4 +282,17 @@ test('a subway export waits for taxi provenance and rejects a different run', as
     release();
     await context.unrouteAll({ behavior: 'ignoreErrors' });
   }
+});
+
+test('Lincoln Square East suggests nearby stations and distant areas keep taxi available', async ({ page }) => {
+  await page.goto('/?mode=mock&zone=142');
+  await openTaxiDashboard(page);
+  const station = page.getByLabel('Subway station complex');
+  await expect(station).toBeEnabled();
+  await expect(station.locator('option').nth(1)).toHaveText('66 St-Lincoln Center (1) · Manhattan');
+  await expect(station.locator('option[value="1"]')).toHaveCount(0);
+  await selectArea(page, '110', /Great Kills Park/);
+  await expect(station).toBeDisabled();
+  await expect(station.locator('option')).toHaveText('No nearby stations');
+  await expect(page.locator('#taxi-total')).toHaveText('0');
 });

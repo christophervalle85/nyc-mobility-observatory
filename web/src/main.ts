@@ -336,7 +336,8 @@ function selectZone(id: number | null, interaction = true) {
   controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
-  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone } : null);
+  const center = zone && areaTarget(zones, zone.id);
+  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone, center } : null);
   measured();
 }
 function showAreaResults(open: boolean) {

@@ -4,6 +4,8 @@ export interface SubwayStation {
   id: number;
   name: string;
   borough: string;
+  latitude: number;
+  longitude: number;
   counts: (number | null)[];
 }
 
@@ -24,6 +26,8 @@ function isStation(value: unknown): value is SubwayStation {
   return isRecord(value) && typeof value.id === 'number' && Number.isSafeInteger(value.id) && value.id > 0
     && typeof value.name === 'string' && value.name.trim().length > 0
     && typeof value.borough === 'string' && value.borough.trim().length > 0
+    && typeof value.latitude === 'number' && Math.abs(value.latitude) <= 90
+    && typeof value.longitude === 'number' && Math.abs(value.longitude) <= 180
     && Array.isArray(value.counts) && value.counts.length === 720
     && Array.from(value.counts).every(count => count === null ||
       (typeof count === 'number' && Number.isFinite(count) && count >= 0 && count <= Number.MAX_SAFE_INTEGER));
@@ -37,4 +41,17 @@ export function parseSubwayData(value: unknown): SubwayData {
     throw new Error('Invalid September subway data');
   }
   return { runId: value.runId, stations: value.stations };
+}
+
+export function nearbyStations(stations: readonly SubwayStation[], center: { longitude: number; latitude: number }) {
+  const longitudeScale = Math.cos(center.latitude * Math.PI / 180);
+  return stations.map(station => ({
+    station,
+    distance: 111_320 * Math.hypot(
+      (station.longitude - center.longitude) * longitudeScale,
+      station.latitude - center.latitude,
+    ),
+  })).filter(item => item.distance <= 1_200)
+    .sort((a, b) => a.distance - b.distance || a.station.id - b.station.id)
+    .slice(0, 6).map(item => item.station);
 }

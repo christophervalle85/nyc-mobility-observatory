@@ -25,7 +25,7 @@ Follow the [web setup and safety notes](web/README.md).
 
 To try the dashboard without a token, run `npm run dev:verify` from `web/` and
 open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90).
-Select **Transportation data**, choose a subway station complex, and set an inclusive September date range.
+Select **Mobility data**, choose a subway station complex, and set an inclusive September date range.
 The default range, September 1 through 7, shows 9,919 dropoffs. See the
 [dashboard coverage and export instructions](web/README.md#try-the-transportation-dashboard).
 
