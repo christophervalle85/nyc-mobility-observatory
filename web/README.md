@@ -12,7 +12,7 @@ npm ci --ignore-scripts
 npm run dev:live
 ```
 
-Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, select **Stop 3D**, restart `npm run dev:live`, then refresh the page.
+Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, close the preview tab, restart `npm run dev:live`, then reopen the page.
 
 For 3D, edit the ignored `web/.env.local` file locally:
 
@@ -22,7 +22,7 @@ VITE_CESIUM_ION_TOKEN=
 
 Place your public Cesium ion client token after `=` and restart the server. Do not paste it into chat, commit it or include it in screenshots/logs. Vite exposes this value to the browser; it is not a secret store. Use only a read-only `assets:read` token restricted to the necessary asset, Google Photorealistic 3D Tiles (ion asset 2275207), and the local URL where supported. Never use an administrative, secret or write-enabled token. Check asset enablement and your current ion plan and usage in your account. This app cannot verify those account settings.
 
-The stage makes one automatic startup attempt per page session. Use **Stop 3D** during startup or viewing to cancel pending startup, prevent automatic resumption and destroy the viewer and listeners. Requests already in flight may finish. **Resume 3D** and **Retry once** share the two-attempt session budget and wait for pending resource creation to settle, including after stopping or a timeout. Errors never retry automatically. If you hit a request limit, stop and check your usage. Reloading starts a new session, so avoid repeated reloads or loads.
+The stage makes one automatic startup attempt per page session. Leaving or closing the page cancels pending startup and unloads the viewer and listeners. Requests already in flight may finish. **Retry once** shares the two-attempt session budget and waits for pending resource creation to settle after a timeout. Errors never retry automatically. If you hit a request limit, stop and check your usage. Reloading starts a new session, so avoid repeated reloads or loads.
 
 The app skips Cesium's default imagery, terrain and geocoding services. Request-render mode reduces idle rendering. Camera movement can still request more tiles and count toward ion usage and billing. Rendering starts at CSS-pixel resolution and applies device pixel ratio once, clamped between 1 and 1.5, with no fixed frame-rate cap. The tile settings use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. The cache settings can increase bandwidth and memory use and apply to tile cache only.
 

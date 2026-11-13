@@ -194,9 +194,14 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]]) {
     await expect(overview).toBeInViewport({ ratio: 1 });
     await page.getByRole('button', { name: 'Close taxi dashboard' }).click({ trial: true });
     await overview.click({ trial: true });
-    await page.getByRole('button', { name: 'Stop 3D' }).click();
-    await expect(page.locator('#status')).toContainText('unloaded');
-    await expect(page.locator('#taxi-total')).toHaveText('9,919');
+    await expect(page.getByRole('button', { name: 'Stop 3D' })).toHaveCount(0);
+    if (width === 1280) {
+      const search = (await page.locator('.search-row').boundingBox())!;
+      const panel = (await page.locator('#taxi-dashboard').boundingBox())!;
+      expect(panel.y).toBe(search.y);
+      const card = (await page.locator('#inspector').boundingBox())!;
+      expect(card.y - search.y - search.height).toBeLessThanOrEqual(12);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

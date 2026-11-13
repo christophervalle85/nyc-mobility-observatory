@@ -18,7 +18,7 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const picker = element('zone-picker'), search = element<HTMLInputElement>('area-search');
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
 const searchAnnouncement = element('search-announcement');
-const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
+const load = element<HTMLButtonElement>('load'), focusButton = element<HTMLButtonElement>('focus-area');
 const focusLabel = focusButton.querySelector('span')!;
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
@@ -112,9 +112,9 @@ function render(state: SessionState) {
   const stateMessages = {
     setup: '3D needs a public Cesium ion token.',
     idle: mock ? 'Preparing the mock stage…' : startup?.pending ? (document.visibilityState === 'visible' ? 'Opening NYC when the local footprint is ready…' : 'NYC will open when this page becomes visible.') : 'The city is stopped.',
-    loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D… You can stop at any time.',
+    loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D…',
     ready: mock ? 'Mock stage ready. No imagery loaded.' : '',
-    partial: 'Some tiles failed to stream. Use Stop 3D to prevent new requests.',
+    partial: 'Some tiles failed to stream.',
     error: state.failure ? messages[state.failure] : messages.network,
     stopped: '3D unloaded. No city imagery is displayed.',
   };
@@ -126,13 +126,12 @@ function render(state: SessionState) {
   status.classList.toggle('visually-hidden', state.phase !== 'partial' && state.phase !== 'error');
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
-  load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
-  load.hidden = active || Boolean(startup?.pending);
+  load.textContent = state.phase === 'error' ? 'Retry once' : 'Open 3D';
+  load.hidden = active || !configured || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || cutoutPending || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
-  load.setAttribute('aria-busy', String(state.phase === 'loading')); stop.disabled = !active && !startup?.pending;
+  load.setAttribute('aria-busy', String(state.phase === 'loading'));
   const fallbackFocus = geographyReady ? search : element('main');
-  if (focusedAction === load && load.hidden) (stop.disabled ? fallbackFocus : stop).focus();
-  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? fallbackFocus : load).focus();
+  if (focusedAction === load && load.hidden) fallbackFocus.focus();
   element('session-limit').hidden = state.attempts < 2 || active;
   const liveActive = active && !mock;
   element('cesium-view').hidden = !liveActive;
@@ -473,7 +472,6 @@ load.addEventListener('click', () => {
   engine.retry();
   void controller.load();
 });
-stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
 async function focusSelectedArea() {
   const focused = diagnostics.span('focus.duration');
   const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);

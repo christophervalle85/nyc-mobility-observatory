@@ -36,6 +36,7 @@ a { color: inherit; text-underline-offset: .2em; }
   pointer-events: none;
 }
 .session-info { grid-area: session; justify-self: end; align-self: start; min-inline-size: 0; max-inline-size: min(100%, 24rem); pointer-events: auto; font-size: var(--text-xs); }
+.session-info:not(:has(#load:not([hidden]), #status:not(.visually-hidden), #session-limit:not([hidden]))) { position: absolute; grid-area: auto; inset: 0 auto auto 0; inline-size: 1px; block-size: 1px; overflow: hidden; pointer-events: none; }
 .session-row { display: flex; flex-wrap: wrap; justify-content: end; align-items: center; gap: var(--space-2xs); }
 #status:not(.visually-hidden), #session-limit {
   padding: var(--space-2xs) var(--space-xs);
@@ -43,7 +44,6 @@ a { color: inherit; text-underline-offset: .2em; }
   background: var(--color-paper-3);
 }
 #session-limit { margin: var(--space-2xs) 0 0; }
-#stop { background: var(--color-paper); }
 
 button, input, select, summary { font: inherit; }
 button, input, select {
@@ -418,7 +418,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 .visually-hidden, .skip-link:not(:focus) { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .skip-link { position: absolute; inset-inline-start: var(--space-xs); inset-block-start: var(--space-xs); z-index: var(--z-sticky-nav); padding: var(--space-xs); background: var(--color-paper-3); }
 @media (hover: hover) {
-  button:hover:not(:disabled, .map-icon), #stop:hover:not(:disabled), summary:hover { background: var(--color-paper-2); }
+  button:hover:not(:disabled, .map-icon), summary:hover { background: var(--color-paper-2); }
   #focus-area:hover:not(:disabled), #clear-selection:hover:not(:disabled), #taxi-open:hover:not(:disabled), #taxi-close:hover, #taxi-retry:hover, #taxi-hours > summary:hover { background: var(--color-map-capsule-action-hover); }
   .map-icon:hover:not(:disabled) { box-shadow: var(--shadow-map-capsule), inset 0 0 0 24px var(--color-map-capsule-action); }
   #clear-search:hover { background: var(--color-map-capsule-action); }
@@ -449,6 +449,27 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   #zone-picker { max-block-size: min(9rem, 20dvh); }
   .floating-rail:has(#area-results:not([hidden])) .stage-tools { position: sticky; inset-block-end: 4.5rem; }
   .floating-rail:has(.taxi-dashboard:not([hidden])) { grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+}
+@media (width > 46rem) {
+  .floating-rail:not(:has(#load:not([hidden]), #status:not(.visually-hidden), #session-limit:not([hidden]))) {
+    grid-template-rows: auto auto minmax(11rem, 1fr) auto;
+    grid-template-areas: "search dashboard" "details dashboard" "viewport viewport" ". camera";
+  }
+  .floating-rail:not(:has(#load:not([hidden]), #status:not(.visually-hidden), #session-limit:not([hidden]))) .taxi-dashboard {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+  }
+}
+@media (width <= 46rem) {
+  .floating-rail:not(:has(#load:not([hidden]), #status:not(.visually-hidden), #session-limit:not([hidden]))) {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "search" "details" "viewport" "camera";
+  }
+  .floating-rail:not(:has(#load:not([hidden]), #status:not(.visually-hidden), #session-limit:not([hidden]))):has(.taxi-dashboard:not([hidden])) {
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "search" "details" "dashboard" "viewport" "camera";
+  }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
 @media (forced-colors: active) {
