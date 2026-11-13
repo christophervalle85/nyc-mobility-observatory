@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test';
 const datasetPath = '/data/yellow-taxi-2026-09.json';
 
 async function openTaxiDashboard(page: Page) {
-  await page.getByRole('button', { name: 'Taxi dropoffs', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeVisible();
+  await page.getByRole('button', { name: 'Transportation data', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeVisible();
 }
 
 async function selectArea(page: Page, id: string, name: RegExp) {
@@ -27,17 +27,17 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   });
   await page.goto('/?mode=mock&zone=90');
   await expect(page.locator('#selection-title')).toHaveText('Flatiron');
-  await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeHidden();
   expect(dataRequests).toEqual([]);
   await openTaxiDashboard(page);
   await expect(page.getByLabel('Start date')).toHaveValue('2026-09-01');
   await expect(page.getByLabel('End date')).toHaveValue('2026-09-07');
   // Golden values come from the archived M1 taxi/zone_hour.csv for run 0566a3a0.
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
-  await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeFocused();
   const panel = page.locator('#taxi-dashboard');
   await expect(panel).toHaveCSS('width', '416px');
-  const chart = page.locator('#taxi-dashboard canvas');
+  const chart = page.locator('#taxi-chart');
   await expect(chart).toBeVisible();
   expect(await chart.evaluate(element => {
     const canvas = element as HTMLCanvasElement;
@@ -62,7 +62,7 @@ test('the hourly table follows the chart date and selected area', async ({ page 
   await expect(page.locator('#taxi-total')).toHaveText('2,848');
 
   await page.getByText('Hourly counts', { exact: true }).press('Enter');
-  const table = page.getByRole('table', { name: 'Hourly yellow taxi dropoffs' });
+  const table = page.getByRole('table', { name: 'Hourly transportation counts' });
   await expect(table).toBeVisible();
   await expect(table.getByRole('columnheader', { name: 'Hour (ET)' })).toBeVisible();
   await expect(table.getByRole('columnheader', { name: 'Dropoffs' })).toBeVisible();
@@ -80,7 +80,7 @@ test('the hourly table follows the chart date and selected area', async ({ page 
   await chartDate.selectOption('2026-09-07');
 
   await selectArea(page, '79', /East Village/);
-  await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeVisible();
   await expect(start).toHaveValue('2026-09-07');
   await expect(end).toHaveValue('2026-09-08');
   await expect(page.locator('#taxi-total')).toHaveText('4,175');
@@ -94,7 +94,7 @@ test('the hourly table follows the chart date and selected area', async ({ page 
   await expect(rows.last().getByRole('cell').last()).toHaveText('0');
 
   await page.getByRole('button', { name: 'Close area details' }).click();
-  await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeHidden();
   await expect(page.getByRole('combobox', { name: 'Search areas' })).toBeFocused();
 });
 
@@ -173,11 +173,11 @@ for (const unavailable of ['missing', 'invalid']) {
     await expect(page.locator('#taxi-total')).not.toHaveText(/\d/);
     await selectArea(page, '79', /East Village/);
     await expect(page.locator('#selection-title')).toHaveText('East Village');
-    await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeVisible();
     await page.getByRole('button', { name: 'Show all NYC' }).click();
-    await page.getByRole('button', { name: 'Close taxi dashboard' }).click();
-    await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Taxi dropoffs', exact: true })).toBeFocused();
+    await page.getByRole('button', { name: 'Close transportation dashboard' }).click();
+    await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Transportation data', exact: true })).toBeFocused();
   });
 }
 
@@ -192,7 +192,7 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]]) {
     await expect(page.getByLabel('End date')).toBeInViewport();
     const overview = page.getByRole('button', { name: 'Show all NYC' });
     await expect(overview).toBeInViewport({ ratio: 1 });
-    await page.getByRole('button', { name: 'Close taxi dashboard' }).click({ trial: true });
+    await page.getByRole('button', { name: 'Close transportation dashboard' }).click({ trial: true });
     await overview.click({ trial: true });
     await expect(page.getByRole('button', { name: 'Stop 3D' })).toHaveCount(0);
     if (width === 1280) {
@@ -205,3 +205,78 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+test('September subway and taxi share the range and day while keeping independent totals', async ({ page }) => {
+  await page.goto('/?mode=mock&zone=90');
+  await openTaxiDashboard(page);
+  const station = page.getByLabel('Subway station complex');
+  await station.selectOption('1');
+  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#subway-total')).toHaveText('60,410');
+  await expect(page.locator('#subway-coverage')).toContainText(/168 (of|\/) 168/);
+  await expect(page.locator('#subway-chart')).toBeVisible();
+  const taxiPlot = (await page.locator('#taxi-chart').boundingBox())!;
+  const subwayPlot = (await page.locator('#subway-chart').boundingBox())!;
+  expect(subwayPlot.x).toBe(taxiPlot.x);
+  expect(subwayPlot.width).toBe(taxiPlot.width);
+  const taxiColor = await page.locator('#taxi-chart').evaluate(element => getComputedStyle(element).color);
+  await expect(page.locator('#subway-chart')).not.toHaveCSS('color', taxiColor);
+  await page.getByLabel('Chart date').selectOption('2026-09-02');
+  await expect(page.locator('#subway-total')).toHaveText('60,410');
+  await page.getByText('Hourly counts', { exact: true }).press('Enter');
+  const rows = page.locator('#taxi-hour-rows tr');
+  await expect(rows).toHaveCount(24);
+  await expect(rows.first()).toContainText('Sep 2, 00:00');
+  await expect(rows.first().getByRole('cell')).toHaveCount(2);
+  await selectArea(page, '79', /East Village/);
+  await expect(station).toHaveValue('1');
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-02');
+  await expect(page.locator('#taxi-total')).toHaveText('17,090');
+});
+
+test('flagged subway hours are gaps, and a subway fetch failure leaves taxi usable', async ({ context, page }) => {
+  await context.route('**/data/subway-2026-09.json', route => route.fulfill({ status: 503 }));
+  await page.goto('/?mode=mock&zone=90');
+  await openTaxiDashboard(page);
+  await expect(page.locator('#subway-status')).toContainText(/could not|unavailable/i);
+  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await context.unroute('**/data/subway-2026-09.json');
+  await page.locator('#subway-retry').click();
+  await page.getByLabel('Subway station complex').selectOption('601');
+  await page.getByText('Hourly counts', { exact: true }).press('Enter');
+  const flagged = page.locator('#taxi-hour-rows tr').filter({ hasText: 'Sep 1, 03:00' });
+  await expect(flagged.getByRole('cell').last()).toHaveText(/missing|flagged|unavailable/i);
+  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+});
+
+
+test('a subway export waits for taxi provenance and rejects a different run', async ({ context, page }) => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await context.route(`**${datasetPath}`, async route => {
+    await pending;
+    await route.continue();
+  });
+  await context.route('**/data/subway-2026-09.json', route => route.fulfill({
+    json: {
+      version: 1, month: '2026-09', timezone: 'America/New_York',
+      runId: 'a'.repeat(64), sourceSha256: 'b'.repeat(64),
+      stations: [{ id: 1, name: 'Station', borough: 'Queens', counts: Array(720).fill(1) }],
+    },
+  }));
+  try {
+    await page.goto('/?mode=mock&zone=90');
+    await openTaxiDashboard(page);
+    const station = page.getByLabel('Subway station complex');
+    await expect(station.locator('option[value="1"]')).toHaveCount(1);
+    await expect(station).toBeDisabled();
+    release();
+    await expect(page.locator('#taxi-total')).toHaveText('9,919');
+    await expect(page.locator('#subway-status')).toContainText('unavailable for this September run');
+    await expect(station).toBeDisabled();
+    await expect(page.locator('#subway-chart')).toBeHidden();
+  } finally {
+    release();
+    await context.unrouteAll({ behavior: 'ignoreErrors' });
+  }
+});
