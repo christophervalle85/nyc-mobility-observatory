@@ -1,4 +1,5 @@
-import { parseTaxiData, taxiDateRange, taxiHourLabel, taxiSeries, TAXI_END, TAXI_MONTH, TAXI_START } from './taxi-data.ts';
+import { septemberRangePicker } from './september-range-picker.ts';
+import { parseTaxiData, taxiDateRange, taxiHourLabel, taxiSeries, TAXI_MONTH } from './taxi-data.ts';
 import type { TaxiData } from './taxi-data.ts';
 import { nearbyStations, parseSubwayData } from './subway-data.ts';
 import type { SubwayData, SubwayStation } from './subway-data.ts';
@@ -75,7 +76,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const find = <T extends HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
   const heading = find('#taxi-heading'), area = find('#taxi-area'), status = find('#taxi-status');
   const closer = find<HTMLButtonElement>('#taxi-close'), retry = find<HTMLButtonElement>('#taxi-retry');
-  const start = find<HTMLSelectElement>('#taxi-start'), end = find<HTMLSelectElement>('#taxi-end');
+  const dateRange = septemberRangePicker(panel, render);
   const results = find('#taxi-results'), total = find('#taxi-total'), chart = find<HTMLCanvasElement>('#taxi-chart');
   const scaleTop = find('#taxi-y-top'), scaleMiddle = find('#taxi-y-middle');
   const subwayStatus = find('#subway-status'), subwayRetry = find<HTMLButtonElement>('#subway-retry');
@@ -97,9 +98,6 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
   }
 
-  for (const field of [start, end]) addDateOptions(field, TAXI_START, TAXI_END);
-  start.value = TAXI_START;
-  end.value = `${TAXI_MONTH}-07`;
   let selection: TaxiArea | null = null;
   const taxi: Dataset<TaxiData> = { pending: false, failed: false };
   const subway: Dataset<SubwayData> = { pending: false, failed: false };
@@ -176,15 +174,12 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       : mismatchedRun ? 'Subway data is unavailable for this September run.'
       : subway.data && taxi.pending ? 'Checking that both datasets are from the same September run…'
       : subway.failed ? 'Subway data could not load. Retry to try again.' : '';
-    const range = taxiDateRange(start.value, end.value);
-    for (const field of [start, end]) {
-      field.setAttribute('aria-invalid', String(!field.validity.valid || Boolean(start.value && end.value && start.value > end.value)));
-    }
+    const { start, end } = dateRange.value;
+    const range = taxiDateRange(start, end);
     const series = taxi.data && range ? taxiSeries(taxi.data, selection.id, range) : null;
     const selectedStation = station.disabled ? undefined : stations.get(Number(station.value));
     highlightStation(selectedStation ?? null);
-    status.textContent = !range ? 'Choose a start and end date in September 2026, with the start on or before the end.'
-      : taxi.pending ? 'Loading taxi dropoffs…'
+    status.textContent = taxi.pending ? 'Loading taxi dropoffs…'
       : taxi.failed ? 'Taxi data could not load. Retry to try again.'
       : !series ? 'Taxi data is unavailable for this area.' : '';
     if (!range || (!series && !selectedStation)) {
@@ -196,12 +191,12 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       renderHours();
       return;
     }
-    const nextChartDateRange = `${start.value}/${end.value}`;
+    const nextChartDateRange = `${start}/${end}`;
     if (chartDateRange !== nextChartDateRange) {
       const previous = day.value;
       day.replaceChildren();
-      addDateOptions(day, start.value, end.value);
-      day.value = previous >= start.value && previous <= end.value ? previous : start.value;
+      addDateOptions(day, start, end);
+      day.value = previous >= start && previous <= end ? previous : start;
       chartDateRange = nextChartDateRange;
     }
     const firstHour = (Number(day.value.slice(-2)) - 1) * hoursPerDay;
@@ -278,6 +273,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
 
   function close(restoreFocus: boolean) {
     if (panel.hidden) return;
+    dateRange.close();
     panel.hidden = true;
     highlightStation(null);
     opener.setAttribute('aria-expanded', 'false');
@@ -302,13 +298,13 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   closer.addEventListener('click', () => close(true));
   panel.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return;
-    if (panel.querySelector('select:is(:open)')) return;
+    if (panel.querySelector('select:is(:open), dialog[open]')) return;
     event.preventDefault();
     close(true);
   });
   retry.addEventListener('click', () => { void loadTaxi(); });
   subwayRetry.addEventListener('click', () => { void loadSubway(); });
-  for (const field of [start, end, day, station]) field.addEventListener('change', render);
+  for (const field of [day, station]) field.addEventListener('change', render);
   hours.addEventListener('toggle', renderHours);
   const resize = new ResizeObserver(paint);
   for (const canvas of [chart, subwayChart]) resize.observe(canvas);
