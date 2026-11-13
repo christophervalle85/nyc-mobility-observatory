@@ -25,7 +25,7 @@ const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
-const attribution = document.querySelector<HTMLElement>('.attribution-strip')!;
+const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
 const cardDisclosures = [element<HTMLDetailsElement>('sources')];
 let selectionAnchor: SelectionAnchor | null = null;
 
@@ -41,8 +41,8 @@ function positionAreaCard() {
       outlineTop: selectionAnchor.outlineTop === undefined ? undefined : map.top + selectionAnchor.outlineTop },
     { width: inspector.offsetWidth, height: inspector.offsetHeight },
     { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
-      bottom: Math.min(innerHeight, map.bottom, attribution.getBoundingClientRect().top) },
-    [...cardObstacles, ...openPanels].map(control => control.getBoundingClientRect()),
+      bottom: Math.min(innerHeight, map.bottom) },
+    [...cardObstacles, attribution, ...openPanels].map(control => control.getBoundingClientRect()),
   );
   inspector.toggleAttribute('data-anchored', Boolean(position));
   if (!position) return;

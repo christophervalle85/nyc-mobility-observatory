@@ -299,10 +299,30 @@ for (const [height, textSize] of [[568, '100%'], [900, '200%']] as const) {
     await expect(page.locator('#status')).toContainText('Mock stage ready');
     const credits = page.locator('#credits');
     await expect(credits).toBeInViewport({ ratio: 1 });
-    await page.locator('#city-overview').click({ trial: true });
+    const overview = page.locator('#city-overview');
+    await overview.click({ trial: true });
     await expect(credits).toBeInViewport({ ratio: 1 });
+    const overlay = page.getByRole('complementary', { name: 'Map attribution' });
+    const overlayBox = (await overlay.boundingBox())!;
+    const overviewBox = (await overview.boundingBox())!;
+    expect(overlayBox.x).toBeLessThan(24);
+    expect(overlayBox.x + overlayBox.width).toBeLessThan(overviewBox.x);
+    expect(overlayBox.y + overlayBox.height).toBeGreaterThan(height - 24);
   });
 }
+
+test('attribution stays visible when search and enlarged details exceed a short viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 430 });
+  await page.goto('/?mode=mock&zone=161');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await page.getByRole('combobox', { name: 'Search areas' }).focus();
+  await expect(page.getByRole('listbox', { name: 'Area results' })).toBeVisible();
+  await page.locator('#credits').evaluate(credits => {
+    credits.textContent = 'Cesium ion · Google Maps · Data SIO, NOAA, U.S. Navy, NGA, GEBCO · Landsat / Copernicus · IBCAO';
+  });
+  await expect(page.getByRole('complementary', { name: 'Map attribution' })).toBeInViewport({ ratio: 1 });
+  await page.getByRole('button', { name: 'Stop 3D' }).click({ trial: true });
+});
 
 test('Sources keeps internal keyboard navigation and dismisses on Escape or focus exit',async({page})=>{
  await page.setViewportSize({width:640,height:900});

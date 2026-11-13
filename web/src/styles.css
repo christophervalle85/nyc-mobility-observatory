@@ -14,7 +14,7 @@ a { color: inherit; text-underline-offset: .2em; }
 :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; box-shadow: 0 0 0 5px var(--color-paper-3); }
 ::selection { background: var(--color-accent); color: var(--color-accent-ink); }
 
-.city-stage { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-block-size: 100dvh; }
+.city-stage { display: grid; grid-template-rows: minmax(0, 1fr); min-block-size: 100dvh; }
 .city-viewport { position: relative; display: grid; min-inline-size: 0; isolation: isolate; }
 #cesium-view { position: absolute; inset: 0; }
 #cesium-view canvas { display: block; touch-action: none; }
@@ -248,16 +248,29 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
   }
 }
 
-.attribution-strip { position: sticky; inset-block-end: 0; z-index: var(--z-raised); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); padding: var(--space-2xs) var(--space-lg); border-block-start: 1px solid var(--color-ink-rule); background: var(--color-scene-background); color: var(--color-city-ink); font-size: var(--text-xs); overflow-wrap: anywhere; }
-.credits { flex: 1 1 12ch; min-inline-size: 0; }
-.credits .cesium-widget-credits { position: static; max-inline-size: 100%; white-space: normal; }
-.credits .cesium-credit-textContainer,
-.credits .cesium-credit-textContainer a,
-.credits .cesium-credit-logoContainer a { color: var(--color-city-ink); }
-#sources { margin-inline-start: auto; }
-#sources summary { min-block-size: 32px; }
+.map-attribution {
+  position: fixed;
+  inset-block-end: var(--space-md);
+  inset-inline-start: var(--space-lg);
+  z-index: var(--z-raised);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-xs);
+  inline-size: max-content;
+  max-inline-size: min(58rem, calc(100% - 92px));
+  padding: 3px var(--space-xs);
+  border-radius: 8px;
+  background: rgb(12 18 25 / 84%);
+  color: var(--color-city-ink);
+  font-size: .75rem;
+  overflow-wrap: anywhere;
+}
+.credits { min-inline-size: 0; max-inline-size: 100%; }
+.credits .cesium-widget-credits { position: static; max-inline-size: 100%; white-space: normal; font-size: inherit; padding: 0; }
+#sources summary { min-block-size: 24px; padding: 2px 4px; }
 #sources > summary:hover, #sources[open] > summary { background: var(--color-ink-rule); }
-#sources .tool-content { inset-inline-end: var(--space-sm); inline-size: 24rem; max-inline-size: calc(100% - 2 * var(--space-sm)); }
+#sources .tool-content { inset-inline-start: 0; inset-inline-end: auto; inline-size: min(24rem, calc(100vw - 2 * var(--space-lg))); }
 #footprint-notice { font-weight: 650; }
 
 .visually-hidden, .skip-link:not(:focus) { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -280,7 +293,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
     padding: var(--space-sm) var(--rail-inline-pad);
   }
   .session-info { position: sticky; inset-block-start: var(--space-2xs); z-index: var(--z-raised); justify-self: end; }
-  .attribution-strip { padding-inline: var(--space-sm); }
+  .map-attribution { inset-inline-start: 10px; inset-block-end: 10px; max-inline-size: calc(100% - 78px); }
 }
 @media (max-width: 46rem) and (max-height: 42rem) {
   .floating-rail { grid-template-rows: auto auto auto minmax(min(8rem, 14dvh), 1fr) auto; gap: var(--space-2xs); padding-block: var(--space-xs); }
@@ -293,6 +306,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 @media (forced-colors: active) {
   .search-row { --color-search-focus: Highlight; }
   :focus-visible, #cesium-view:has(canvas:focus-visible)::after { outline-color: Highlight; }
+  .map-attribution { background: Canvas; color: CanvasText; }
   .session-info, .search-row, #area-results, .inspector, .tool-content, .map-icon, #focus-area { border: 1px solid CanvasText; }
   .inspector { --glass-fill: CanvasText; }
   #area-search::placeholder { color: CanvasText; }
