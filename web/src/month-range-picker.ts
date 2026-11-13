@@ -1,38 +1,41 @@
-import { TAXI_END, TAXI_MONTH, TAXI_START } from './taxi-data.ts';
+import { dateLabel, daysInMonth, monthDate, monthLabel } from './mobility-months.ts';
 
-const firstDay = Number(TAXI_START.slice(-2));
-const lastDay = Number(TAXI_END.slice(-2));
-const iso = (day: number) => `${TAXI_MONTH}-${String(day).padStart(2, '0')}`;
-const firstWeekday = new Date(`${TAXI_START}T00:00:00Z`).getUTCDay();
 type Endpoint = 'start' | 'end';
 
-export function septemberRangePicker(panel: HTMLElement, change: () => void) {
+export function monthRangePicker(panel: HTMLElement, change: (month: string) => void) {
   const calendar = panel.querySelector<HTMLElement>('#taxi-calendar')!;
   const hint = calendar.querySelector<HTMLElement>('#taxi-calendar-hint')!;
+  const title = calendar.querySelector<HTMLElement>('#taxi-calendar-title')!;
+  const previous = calendar.querySelector<HTMLButtonElement>('#calendar-previous')!;
+  const next = calendar.querySelector<HTMLButtonElement>('#calendar-next')!;
   const days = calendar.querySelector<HTMLElement>('.calendar-days')!;
   const triggers = {
     start: panel.querySelector<HTMLButtonElement>('#taxi-start')!,
     end: panel.querySelector<HTMLButtonElement>('#taxi-end')!,
   };
-  const range = { start: firstDay, end: 7 };
+  const range = { start: 1, end: 7 };
+  let months: readonly string[] = [];
+  let month = '', viewedMonth = '';
   let endpoint: Endpoint = 'start';
   const buttons: HTMLButtonElement[] = [];
   const isOpen = () => calendar.matches(':popover-open');
-  days.style.setProperty('--first-weekday', String(firstWeekday + 1));
+  const iso = (day: number) => monthDate(month, day);
 
   function updateFields() {
     for (const side of ['start', 'end'] as const) {
-      triggers[side].querySelector('span')!.textContent = `Sep ${range[side]}, 2026`;
+      triggers[side].querySelector('span')!.textContent = dateLabel(iso(range[side]), 'full');
     }
   }
 
   function bounds() {
-    return endpoint === 'start' ? [firstDay, range.end] : [range.start, lastDay];
+    const lastDay = daysInMonth(viewedMonth);
+    if (viewedMonth !== month) return [1, lastDay];
+    return endpoint === 'start' ? [1, range.end] : [range.start, lastDay];
   }
 
   function focusDay(day: number) {
-    for (const [index, button] of buttons.entries()) button.tabIndex = index + firstDay === day ? 0 : -1;
-    const button = buttons[day - firstDay];
+    for (const [index, button] of buttons.entries()) button.tabIndex = index + 1 === day ? 0 : -1;
+    const button = buttons[day - 1];
     button.focus({ preventScroll: true });
     const cell = button.getBoundingClientRect();
     const top = calendar.getBoundingClientRect().top + calendar.clientTop;
@@ -60,42 +63,48 @@ export function septemberRangePicker(panel: HTMLElement, change: () => void) {
   }
 
   function open(side: Endpoint) {
+    if (!month) return;
     if (isOpen() && endpoint === side) {
       calendar.hidePopover();
       return;
     }
     if (isOpen()) calendar.hidePopover();
     endpoint = side;
-    const [minimum, maximum] = bounds();
-    hint.textContent = side === 'start'
-      ? `Choose a start date on or before September ${range.end}.`
-      : `Choose an end date on or after September ${range.start}.`;
-    for (const [index, button] of buttons.entries()) {
-      const day = firstDay + index;
-      button.disabled = day < minimum || day > maximum;
-      button.setAttribute('aria-pressed', String(day === range[side]));
-      button.toggleAttribute('data-in-range', day >= range.start && day <= range.end);
-    }
+    viewedMonth = month;
+    renderMonth(range[side]);
     calendar.showPopover();
     for (const key of ['start', 'end'] as const) triggers[key].setAttribute('aria-expanded', String(key === side));
     position();
     if (isOpen()) focusDay(range[side]);
   }
 
-  for (let day = firstDay; day <= lastDay; day++) {
+  function makeDay(day: number) {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = String(day);
-    button.setAttribute('aria-label', `September ${day}`);
+    const selected = viewedMonth === month && day === range[endpoint];
+    const [minimum, maximum] = bounds();
+    button.setAttribute('aria-label', dateLabel(monthDate(viewedMonth, day), 'long'));
+    button.setAttribute('aria-pressed', String(selected));
+    button.toggleAttribute('data-in-range', viewedMonth === month && day >= range.start && day <= range.end);
+    button.disabled = day < minimum || day > maximum;
     button.tabIndex = -1;
     button.addEventListener('click', () => {
       const [minimum, maximum] = bounds();
       if (day < minimum || day > maximum) return;
+      if (month !== viewedMonth) {
+        month = viewedMonth;
+        const last = daysInMonth(month);
+        range.start = Math.min(range.start, last);
+        range.end = Math.min(range.end, last);
+      }
       range[endpoint] = day;
+      if (endpoint === 'start') range.end = Math.max(range.end, day);
+      else range.start = Math.min(range.start, day);
       updateFields();
       calendar.hidePopover();
       triggers[endpoint].focus({ preventScroll: true });
-      change();
+      change(month);
     });
     button.addEventListener('keydown', event => {
       const direction = getComputedStyle(days).direction === 'rtl' ? -1 : 1;
@@ -106,11 +115,54 @@ export function septemberRangePicker(panel: HTMLElement, change: () => void) {
       const [minimum, maximum] = bounds();
       focusDay(Math.max(minimum, Math.min(maximum, day + offset)));
     });
-    buttons.push(button);
-    days.append(button);
+    return button;
   }
 
-  updateFields();
+  function renderMonth(focusableDay: number) {
+    const index = months.indexOf(viewedMonth);
+    previous.disabled = index === months.length - 1;
+    next.disabled = index === 0;
+    const label = monthLabel(viewedMonth);
+    title.textContent = label;
+    days.setAttribute('aria-label', `${label} dates`);
+    const first = new Date(`${monthDate(viewedMonth, 1)}T00:00:00Z`);
+    const weekday = first.getUTCDay();
+    const last = daysInMonth(viewedMonth);
+    hint.textContent = viewedMonth !== month
+      ? 'Choose a date to view this month.'
+      : endpoint === 'start'
+        ? `Choose a start date on or before ${dateLabel(iso(range.end), 'long')}.`
+        : `Choose an end date on or after ${dateLabel(iso(range.start), 'long')}.`;
+    buttons.splice(0, buttons.length, ...Array.from({ length: last }, (_, index) => makeDay(index + 1)));
+    buttons[focusableDay - 1].tabIndex = 0;
+    const adjacentDay = (offset: number) => {
+      const date = new Date(first);
+      date.setUTCDate(1 + offset);
+      const cell = document.createElement('span');
+      cell.className = 'calendar-other-day';
+      cell.textContent = String(date.getUTCDate());
+      cell.setAttribute('aria-hidden', 'true');
+      return cell;
+    };
+    const leading = Array.from({ length: weekday }, (_, i) => adjacentDay(i - weekday));
+    const trailing = Array.from({ length: (7 - (weekday + last) % 7) % 7 }, (_, i) => adjacentDay(last + i));
+    days.replaceChildren(...leading, ...buttons, ...trailing);
+  }
+
+  function browse(offset: number, control: HTMLButtonElement) {
+    const target = months[months.indexOf(viewedMonth) + offset];
+    if (!target) return;
+    viewedMonth = target;
+    const [minimum, maximum] = bounds();
+    const day = Math.max(minimum, Math.min(maximum, range[endpoint]));
+    renderMonth(day);
+    position();
+    if (!isOpen()) return;
+    if (control.disabled) focusDay(day);
+  }
+
+  previous.addEventListener('click', () => browse(1, previous));
+  next.addEventListener('click', () => browse(-1, next));
   for (const side of ['start', 'end'] as const) triggers[side].addEventListener('click', () => open(side));
   calendar.addEventListener('toggle', () => {
     if (!isOpen()) for (const trigger of Object.values(triggers)) trigger.setAttribute('aria-expanded', 'false');
@@ -134,6 +186,12 @@ export function septemberRangePicker(panel: HTMLElement, change: () => void) {
   window.addEventListener('resize', position);
   return {
     get value() { return { start: iso(range.start), end: iso(range.end) }; },
+    setMonths(available: readonly string[]) {
+      months = available;
+      month = available[0];
+      updateFields();
+      for (const trigger of Object.values(triggers)) trigger.disabled = false;
+    },
     close() { if (isOpen()) calendar.hidePopover(); },
   };
 }

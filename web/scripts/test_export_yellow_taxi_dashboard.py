@@ -97,6 +97,14 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(output.read_bytes(), b"existing")
         self.assertEqual(set(self.run.iterdir()), before)
 
+    def test_august_has_744_hours(self) -> None:
+        self.manifest["identity"]["month"] = "2026-08"
+        self.archive("2026-08-01 00:00:00,1,2\n2026-08-31 23:00:00,263,3\n")
+        data = json.loads(export(self.run, self.geo))
+        self.assertEqual(data["month"], "2026-08")
+        self.assertTrue(all(len(values) == 744 for values in data["zones"].values()))
+        self.assertEqual(data["zones"]["263"][-1], 3)
+
     def test_corruption_and_size_mismatches(self) -> None:
         for name in ("taxi/zone_hour.csv", "taxi/quality.json"):
             with self.subTest(name=name):

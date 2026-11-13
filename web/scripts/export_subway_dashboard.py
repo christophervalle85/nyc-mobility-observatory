@@ -1,4 +1,4 @@
-"""Export validated September subway comparison observations, preserving unknown hours."""
+"""Export validated monthly subway comparison observations, preserving unknown hours."""
 
 import argparse
 import csv
@@ -12,7 +12,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from export_yellow_taxi_dashboard import HOURS, MONTH, WEB, integer, object_value, verified_bytes
+from export_yellow_taxi_dashboard import WEB, integer, month_calendar, object_value, verified_bytes
 
 HEADER = [
     "transit_hour_local",
@@ -32,8 +32,9 @@ HEADER = [
 def export(run: Path) -> bytes:
     manifest = object_value(json.loads((run / "manifest.json").read_bytes()), "manifest")
     identity = object_value(manifest.get("identity"), "identity")
-    if manifest.get("status") != "completed" or identity.get("month") != MONTH:
-        raise ValueError("A completed September 2026 run is required")
+    if manifest.get("status") != "completed":
+        raise ValueError("A completed run is required")
+    month, start, hours = month_calendar(identity.get("month"))
     run_id = manifest.get("run_id")
     if not isinstance(run_id, str) or not re.fullmatch(r"[0-9a-f]{64}", run_id):
         raise ValueError("Invalid portable run ID")
@@ -42,7 +43,7 @@ def export(run: Path) -> bytes:
     quality = object_value(
         json.loads(verified_bytes(run, outputs, "subway/quality.json")), "subway quality"
     )
-    if quality.get("month") != MONTH or quality.get("timezone") != "America/New_York":
+    if quality.get("month") != month or quality.get("timezone") != "America/New_York":
         raise ValueError("Invalid subway month or timezone")
     ids = quality.get("station_universe_ids")
     if not isinstance(ids, list) or not ids:
@@ -53,7 +54,7 @@ def export(run: Path) -> bytes:
     if len(ids) != integer(quality.get("station_universe_count"), "station_universe_count"):
         raise ValueError("Station universe count mismatch")
     stations = {
-        value: {"id": value, "name": "", "borough": "", "counts": [None] * HOURS}
+        value: {"id": value, "name": "", "borough": "", "counts": [None] * hours}
         for value in sorted(ids)
     }
     identities = {}
@@ -83,9 +84,9 @@ def export(run: Path) -> bytes:
             stations[station_id].update(latitude=latitude, longitude=longitude)
             identities[station_id] = station_identity
         stamp = datetime.strptime(label, "%Y-%m-%d %H:%M:%S")
-        hour = int((stamp - datetime(2026, 9, 1)).total_seconds() // 3600)
-        if label != stamp.strftime("%Y-%m-%d %H:00:00") or not 0 <= hour < HOURS:
-            raise ValueError("Invalid September hour")
+        hour = int((stamp - start).total_seconds() // 3600)
+        if label != stamp.strftime("%Y-%m-%d %H:00:00") or not 0 <= hour < hours:
+            raise ValueError("Invalid hour for manifest month")
         key = (station_id, hour)
         if key in seen:
             raise ValueError("Duplicate station/hour")
@@ -108,19 +109,19 @@ def export(run: Path) -> bytes:
         stations[station_id]["name"] = name
         stations[station_id]["borough"] = borough
     expected = {
-        "station_hour_denominator": len(stations) * HOURS,
+        "station_hour_denominator": len(stations) * hours,
         "observed_station_hours": observed,
         "eligible_station_hours": comparable,
-        "missing_station_hours": len(stations) * HOURS - observed,
+        "missing_station_hours": len(stations) * hours - observed,
     }
-    if len(seen) != len(stations) * HOURS:
+    if len(seen) != len(stations) * hours:
         raise ValueError("Archive must explicitly account for every station/hour")
     for field, actual in expected.items():
         if integer(quality.get(field), field) != actual:
             raise ValueError(f"Quality reconciliation failed: {field}")
     result = {
         "version": 1,
-        "month": MONTH,
+        "month": month,
         "timezone": "America/New_York",
         "runId": run_id,
         "sourceSha256": hashlib.sha256(source).hexdigest(),
@@ -132,15 +133,17 @@ def export(run: Path) -> bytes:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=WEB / "public/data/subway-2026-09.json")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     temporary = None
     try:
         data = export(args.run_dir)
-        with tempfile.NamedTemporaryFile(dir=args.output.parent, delete=False) as handle:
+        month = json.loads(data)["month"]
+        output = args.output or WEB / f"public/data/subway-{month}.json"
+        with tempfile.NamedTemporaryFile(dir=output.parent, delete=False) as handle:
             temporary = Path(handle.name)
             handle.write(data)
-        os.replace(temporary, args.output)
+        os.replace(temporary, output)
     except (OSError, ValueError, csv.Error) as exc:
         parser.exit(1, f"Export failed: {exc}\n")
     finally:

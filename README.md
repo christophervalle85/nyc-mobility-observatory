@@ -3,8 +3,9 @@
 The city-stage prototype opens on the Midtown skyline with continuous Google
 Photorealistic 3D Tiles through Cesium ion when configured. Search and select
 local TLC areas, use **Zoom to area** to move the camera, or select **Show all NYC**
-to frame the five boroughs. The **Transportation data** dashboard compares September 2026 yellow taxi
-dropoffs for a selected TLC area with estimated entries at a selected subway station.
+to frame the five boroughs. The **Transportation data** dashboard shows yellow taxi
+dropoffs for a selected TLC area alongside estimated entries at a nearby subway
+station complex. Both modes are available for August and September 2026.
 
 ## Open the local map
 
@@ -25,9 +26,13 @@ Follow the [web setup and safety notes](web/README.md).
 
 To try the dashboard without a token, run `npm run dev:verify` from `web/` and
 open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90).
-Select **Mobility data**, choose a subway station complex, and set an inclusive September date range.
-The default range, September 1 through 7, shows 9,919 dropoffs. See the
-[dashboard coverage and export instructions](web/README.md#try-the-transportation-dashboard).
+Select **Mobility data**, then open **Start date** or **End date** and use the calendar arrows to browse months. Pick a date in August to load August data.
+Flatiron shows 9,919 dropoffs for September 1 through 7 and 11,005 for August 1
+through 7. Choose a **Subway station complex** to see estimated entries for the same
+date range. See the [dashboard controls, coverage and export instructions](web/README.md#try-the-transportation-dashboard).
+
+The dashboard uses frozen monthly archives. Historical backfill and recurring
+publication are described in the [multi-month specification](docs/specs/multi-month-mobility.md#historical-and-ongoing-coverage).
 
 See the [M2 verification report](docs/reports/m2-cesium-prototype.md) for completed
 checks and live-validation limits. The previous borough and land masks are available
