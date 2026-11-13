@@ -13,16 +13,19 @@ import type { LandFootprint } from './land-footprint.ts';
 import { cutoutMode } from './cutout-mode.ts';
 import { areaCardPosition } from './area-card-position.ts';
 import type { SelectionAnchor } from './selection-anchor.ts';
+import { taxiDashboard } from './taxi-dashboard.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element('zone-picker'), search = element<HTMLInputElement>('area-search');
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
 const searchAnnouncement = element('search-announcement');
-const load = element<HTMLButtonElement>('load'), stop = element<HTMLButtonElement>('stop'), focusButton = element<HTMLButtonElement>('focus-area');
+const load = element<HTMLButtonElement>('load'), focusButton = element<HTMLButtonElement>('focus-area');
 const focusLabel = focusButton.querySelector('span')!;
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
+const taxiPanel = element('taxi-dashboard');
+const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search);
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
@@ -42,7 +45,7 @@ function positionAreaCard() {
     { width: inspector.offsetWidth, height: inspector.offsetHeight },
     { left: Math.max(0, map.left), top: Math.max(0, map.top), right: Math.min(innerWidth, map.right),
       bottom: Math.min(innerHeight, map.bottom) },
-    [...cardObstacles, attribution, ...openPanels].map(control => control.getBoundingClientRect()),
+    [...cardObstacles, attribution, taxiPanel, ...openPanels].map(control => control.getBoundingClientRect()),
   );
   inspector.toggleAttribute('data-anchored', Boolean(position));
   if (!position) return;
@@ -58,7 +61,7 @@ function setSelectionAnchor(point: typeof selectionAnchor) {
 
 if (!mock) {
   const resize = new ResizeObserver(positionAreaCard);
-  for (const node of [cityViewport, inspector, attribution, ...cardObstacles]) resize.observe(node);
+  for (const node of [cityViewport, inspector, attribution, taxiPanel, ...cardObstacles]) resize.observe(node);
   window.addEventListener('scroll', positionAreaCard, { passive: true });
   for (const menu of cardDisclosures) menu.addEventListener('toggle', positionAreaCard);
 }
@@ -68,7 +71,7 @@ if (CSS.supports('backdrop-filter', 'url("#area-search-lens")')) {
   const resizeLenses = new ResizeObserver(entries => {
     for (const { target, borderBoxSize } of entries) {
       const size = borderBoxSize[0];
-      const [width, height] = target === searchRow ? [272, 48] : [224, 104];
+      const [width, height] = target === searchRow ? [272, 48] : [272, 104];
       target.toggleAttribute('data-lens', size?.inlineSize === width && size.blockSize === height);
     }
   });
@@ -109,9 +112,9 @@ function render(state: SessionState) {
   const stateMessages = {
     setup: '3D needs a public Cesium ion token.',
     idle: mock ? 'Preparing the mock stage…' : startup?.pending ? (document.visibilityState === 'visible' ? 'Opening NYC when the local footprint is ready…' : 'NYC will open when this page becomes visible.') : 'The city is stopped.',
-    loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D… You can stop at any time.',
+    loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D…',
     ready: mock ? 'Mock stage ready. No imagery loaded.' : '',
-    partial: 'Some tiles failed to stream. Use Stop 3D to prevent new requests.',
+    partial: 'Some tiles failed to stream.',
     error: state.failure ? messages[state.failure] : messages.network,
     stopped: '3D unloaded. No city imagery is displayed.',
   };
@@ -123,13 +126,12 @@ function render(state: SessionState) {
   status.classList.toggle('visually-hidden', state.phase !== 'partial' && state.phase !== 'error');
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
-  load.textContent = state.phase === 'error' ? 'Retry once' : 'Resume 3D';
-  load.hidden = active || Boolean(startup?.pending);
+  load.textContent = state.phase === 'error' ? 'Retry once' : 'Open 3D';
+  load.hidden = active || !configured || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || cutoutPending || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
-  load.setAttribute('aria-busy', String(state.phase === 'loading')); stop.disabled = !active && !startup?.pending;
+  load.setAttribute('aria-busy', String(state.phase === 'loading'));
   const fallbackFocus = geographyReady ? search : element('main');
-  if (focusedAction === load && load.hidden) (stop.disabled ? fallbackFocus : stop).focus();
-  if (focusedAction === stop && stop.disabled) (load.hidden || load.disabled ? fallbackFocus : load).focus();
+  if (focusedAction === load && load.hidden) fallbackFocus.focus();
   element('session-limit').hidden = state.attempts < 2 || active;
   const liveActive = active && !mock;
   element('cesium-view').hidden = !liveActive;
@@ -314,7 +316,7 @@ function renderResults() {
   picker.scrollTop = 0;
   selectedRow = null;
   updateSelectedResult();
-  searchCount.textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.'
+  searchCount.textContent = results.length === 0 ? 'No matching TLC areas.'
     : pluralRules.select(results.length) === 'one' ? '1 matching TLC area.' : `${numberFormat.format(results.length)} matching TLC areas.`;
   measured();
 }
@@ -326,6 +328,7 @@ function selectZone(id: number | null, interaction = true) {
   const next = zone?.id ?? null;
   if (next !== selected) setSelectionAnchor(null);
   selected = next;
+  showAreaResults(false);
   inspector.hidden = !zone;
   element('selection-title').textContent = zone?.properties.zone ?? 'TLC area';
   element('zone-id').textContent = zone ? String(zone.properties.location_id) : '';
@@ -333,12 +336,15 @@ function selectZone(id: number | null, interaction = true) {
   controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
+  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone } : null);
   measured();
 }
 function showAreaResults(open: boolean) {
-  if (resultsPanel.hidden === !open || (open && !geographyReady)) return;
+  open = open && geographyReady && search.value.trim().length > 0;
+  if (resultsPanel.hidden === !open) return;
   resultsPanel.hidden = !open;
   search.setAttribute('aria-expanded', String(open));
+  inspector.hidden = open || selected === null;
   if (open) {
     searchAnnouncement.textContent = '';
     renderResults();
@@ -351,18 +357,25 @@ function chooseResult(row: HTMLElement | undefined) {
   if (!zone) return;
   selectZone(zone.id);
   search.focus({ preventScroll: true });
-  showAreaResults(false);
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
   if (controller.canReturnToView()) return;
   const { phase, draining } = controller.state;
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
 }
-search.addEventListener('focus', () => showAreaResults(true));
+// Text inputs match :focus-visible after pointer focus as well as keyboard focus.
+search.parentElement!.addEventListener('pointerdown', () => search.setAttribute('data-pointer-focus', ''));
+search.addEventListener('blur', () => search.removeAttribute('data-pointer-focus'));
 search.addEventListener('click', () => showAreaResults(true));
-search.addEventListener('input', () => { diagnostics.interaction(); showAreaResults(true); renderResults(); });
+search.addEventListener('input', () => {
+  diagnostics.interaction();
+  clearSearch.hidden = search.value.length === 0;
+  showAreaResults(true);
+  if (!resultsPanel.hidden) renderResults();
+});
 search.addEventListener('keydown', event => {
   if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (!search.value.trim()) return;
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
     showAreaResults(true);
@@ -380,7 +393,9 @@ search.addEventListener('keydown', event => {
   }
 });
 areaControls.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || event.isComposing || resultsPanel.hidden) return;
+  if (event.isComposing || resultsPanel.hidden) return;
+  if (event.key === 'Tab' && event.target === clearSearch && !event.shiftKey) showAreaResults(false);
+  if (event.key !== 'Escape') return;
   event.preventDefault();
   search.focus({ preventScroll: true });
   showAreaResults(false);
@@ -394,10 +409,17 @@ picker.addEventListener('click', event => {
 });
 // Keep the in-flow panel in place until the current pointer gesture can deliver its click.
 let pointer: number | undefined;
+let backgroundPress: { id: number; x: number; y: number } | undefined;
 let pointerRelease: ReturnType<typeof setTimeout> | undefined;
 document.addEventListener('pointerdown', event => {
   clearTimeout(pointerRelease);
   if (!resultsPanel.hidden) pointer = event.pointerId;
+  backgroundPress = event.target === cityViewport
+    ? { id: event.pointerId, x: event.clientX, y: event.clientY } : undefined;
+}, true);
+document.addEventListener('pointermove', event => {
+  if (backgroundPress?.id === event.pointerId &&
+      Math.hypot(event.clientX - backgroundPress.x, event.clientY - backgroundPress.y) > 5) backgroundPress = undefined;
 }, true);
 document.addEventListener('pointerup', event => {
   if (event.pointerId !== pointer) return;
@@ -408,6 +430,7 @@ document.addEventListener('pointerup', event => {
 }, true);
 document.addEventListener('pointercancel', event => {
   if (event.pointerId === pointer) pointer = undefined;
+  if (event.pointerId === backgroundPress?.id) backgroundPress = undefined;
 }, true);
 areaControls.addEventListener('focusout', event => {
   if (pointer === undefined && !areaControls.contains(event.relatedTarget as Node | null)) {
@@ -417,7 +440,12 @@ areaControls.addEventListener('focusout', event => {
 document.addEventListener('click', event => {
   clearTimeout(pointerRelease);
   pointer = undefined;
-  if (!areaControls.contains(event.target as Node)) showAreaResults(false);
+  const target = event.target as Element;
+  const dismissSelection = target === cityViewport && backgroundPress !== undefined;
+  backgroundPress = undefined;
+  if (areaControls.contains(target)) return;
+  if (dismissSelection) selectZone(null);
+  else showAreaResults(false);
 }, true);
 for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
   menu.addEventListener('focusout', event => {
@@ -430,11 +458,12 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
     menu.querySelector<HTMLElement>('summary')?.focus();
   });
 }
-clearSearch.addEventListener('click', () => {
+clearSearch.addEventListener('click', event => {
+  search.toggleAttribute('data-pointer-focus', event.detail > 0);
   search.value = '';
   search.focus();
-  showAreaResults(true);
-  renderResults();
+  clearSearch.hidden = true;
+  showAreaResults(false);
 });
 clearSelection.addEventListener('click', () => { selectZone(null); search.focus(); });
 load.addEventListener('click', () => {
@@ -443,7 +472,6 @@ load.addEventListener('click', () => {
   engine.retry();
   void controller.load();
 });
-stop.addEventListener('click', () => { startup?.stop(); controller.stop(); });
 async function focusSelectedArea() {
   const focused = diagnostics.span('focus.duration');
   const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -480,7 +508,10 @@ async function loadZones() {
     const validated = diagnostics.span('geography.validate');
     try { zones = parseZones(input); } finally { validated(); }
     if (!zones.features.length) throw new Error('No local zones');
-    geographyReady = true; search.disabled = false; search.placeholder = 'Search areas';
+    geographyReady = true;
+    search.disabled = false;
+    // A thin space separates the empty-field caret from the placeholder.
+    search.placeholder = '\u2009Search areas';
     selectZone(resolveZone(zones, query.get('zone'))?.id ?? null, false);
     if (landAsset) {
       land = await landAsset;

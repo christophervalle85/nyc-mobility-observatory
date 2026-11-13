@@ -1,6 +1,6 @@
 # NYC city-stage prototype
 
-The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The prototype has one 3D viewport and leaves mobility counts, charts, date filters and live traffic out of scope.
+The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The taxi dashboard shows September 2026 yellow taxi dropoff totals and hourly counts for a selected area and date range.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ npm ci --ignore-scripts
 npm run dev:live
 ```
 
-Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, select **Stop 3D**, restart `npm run dev:live`, then refresh the page.
+Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, close the preview tab, restart `npm run dev:live`, then reopen the page.
 
 For 3D, edit the ignored `web/.env.local` file locally:
 
@@ -22,11 +22,30 @@ VITE_CESIUM_ION_TOKEN=
 
 Place your public Cesium ion client token after `=` and restart the server. Do not paste it into chat, commit it or include it in screenshots/logs. Vite exposes this value to the browser; it is not a secret store. Use only a read-only `assets:read` token restricted to the necessary asset, Google Photorealistic 3D Tiles (ion asset 2275207), and the local URL where supported. Never use an administrative, secret or write-enabled token. Check asset enablement and your current ion plan and usage in your account. This app cannot verify those account settings.
 
-The stage makes one automatic startup attempt per page session. Use **Stop 3D** during startup or viewing to cancel pending startup, prevent automatic resumption and destroy the viewer and listeners. Requests already in flight may finish. **Resume 3D** and **Retry once** share the two-attempt session budget and wait for pending resource creation to settle, including after stopping or a timeout. Errors never retry automatically. If you hit a request limit, stop and check your usage. Reloading starts a new session, so avoid repeated reloads or loads.
+The stage makes one automatic startup attempt per page session. Leaving or closing the page cancels pending startup and unloads the viewer and listeners. Requests already in flight may finish. **Retry once** shares the two-attempt session budget and waits for pending resource creation to settle after a timeout. Errors never retry automatically. If you hit a request limit, stop and check your usage. Reloading starts a new session, so avoid repeated reloads or loads.
 
 The app skips Cesium's default imagery, terrain and geocoding services. Request-render mode reduces idle rendering. Camera movement can still request more tiles and count toward ion usage and billing. Rendering starts at CSS-pixel resolution and applies device pixel ratio once, clamped between 1 and 1.5, with no fixed frame-rate cap. The tile settings use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. The cache settings can increase bandwidth and memory use and apply to tile cache only.
 
 Keep the on-screen Cesium and imagery provider credits visible during live 3D. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
+
+## Try the taxi dashboard
+
+With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Taxi dropoffs** on the area card. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view one day of hourly bars from the selected range. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
+
+The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway counts remain outside the dashboard.
+
+To regenerate the browser asset, run this from the repository root with the completed archive in place. See the [M1 pilot report](../docs/reports/m1-pilot.md) for the run and offline replay instructions.
+
+```sh
+python3 web/scripts/export_yellow_taxi_dashboard.py \
+  --run-dir .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
+```
+
+If you keep the completed run elsewhere, pass its directory to `--run-dir`. The exporter validates `taxi/zone_hour.csv` and `taxi/quality.json` against the run manifest and writes aggregate counts to `web/public/data/yellow-taxi-2026-09.json`. Run the focused exporter tests from the repository root with:
+
+```sh
+python3 -m unittest discover -s web/scripts -p 'test_export_yellow_taxi_dashboard.py'
+```
 
 ## Compare imagery cutouts
 
@@ -39,7 +58,7 @@ The cutouts use generalized source boundaries and leave TLC area IDs, picking ge
 
 ## Find and focus a TLC area
 
-Use **Search areas** to filter by name, borough or exact TLC ID. Leave the field blank to browse all 263 TLC areas. Each result shows the area's name, borough and TLC ID. Click or tap a row to select it.
+Use **Search areas** to filter by name, borough or exact TLC ID. Results open when you enter a query and take the place of any open area card. Click the empty map to dismiss either panel. Each result shows the area's name, borough and TLC ID. Click or tap a row to select it.
 
 Use the Up and Down arrow keys to move through the results. With the list open, Enter chooses the active row or the first match if no row is active. Escape closes the list and keeps the query and selection.
 
@@ -72,7 +91,7 @@ npm run build
 npm run test:e2e
 ```
 
-The verification server supports explicit mock scenarios through `?mode=mock&scenario=auth` (`rate`, `timeout`, `network`, `webgl` and `partial` also work). Mock mode simulates controls and scene state using local geography, with no 2D map or city imagery; it never constructs a Cesium viewer or loads imagery. The Playwright suite uses synthetic geography, blocks external requests, and uses installed Google Chrome. Unit tests use Node's TypeScript stripping and mocked scene resources. Build output is intentionally token-free and is for local QA, not a configured deployment.
+The verification server supports explicit mock scenarios through `?mode=mock&scenario=auth` (`rate`, `timeout`, `network`, `webgl` and `partial` also work). Mock mode simulates controls and scene state using local geography, with no 2D map or city imagery; it never constructs a Cesium viewer or loads imagery. Playwright uses installed Google Chrome and blocks external requests. Its cases include synthetic geography for map controls and the published September counts for the taxi dashboard. Unit tests use Node's TypeScript stripping and mocked scene resources. Build output is intentionally token-free and is for local QA, not a configured deployment.
 
 `npm run preview` serves that safe build at <http://127.0.0.1:4173>. Cesium worker/widget assets are copied from the pinned npm package into ignored `public/cesium/` during dev/build. No remote CDN or font request is needed at startup.
 

@@ -65,7 +65,24 @@ test('a search result chosen during startup comes into view once 3D is ready', a
   await expect(page.locator('#focus-status')).toHaveText('');
   await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy', 'false');
 });
-test('search pill browses on focus and Escape preserves the query and selection', async ({ page }) => {
+test('search pill shows its focus ring only when reached by keyboard', async ({ page }) => {
+  await page.goto('/?mode=mock');
+  const search = page.getByRole('combobox', { name: 'Search areas' });
+  const pill = page.locator('.search-row');
+  await search.click();
+  await search.pressSequentially('161');
+  await expect(search).toBeFocused();
+  await expect(pill).toHaveCSS('outline-style', 'none');
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(pill).toHaveCSS('outline-style', 'none');
+  await search.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(search).toBeFocused();
+  await expect(pill).toHaveCSS('outline-style', 'solid');
+});
+
+test('search results and area details alternate beneath the search pill', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?mode=mock&zone=161');
   const search = page.getByRole('combobox', { name: 'Search areas' });
   const picker = page.locator('#zone-picker');
@@ -73,12 +90,20 @@ test('search pill browses on focus and Escape preserves the query and selection'
   await expect(search).toBeEnabled();
   await expect(search).toHaveAttribute('aria-expanded', 'false');
   await expect(picker).toBeHidden();
-  await search.focus();
+  await search.click();
+  await search.press('ArrowDown');
+  await search.fill('   ');
+  await expect(picker).toBeHidden();
+  await expect(page.locator('#inspector')).toBeVisible();
+  await search.fill('Manhattan');
   await expect(picker).toBeVisible();
+  await expect(page.locator('#inspector')).toBeHidden();
   await expect(search).toHaveAttribute('aria-controls', 'zone-picker');
   await expect(search).toHaveAttribute('aria-expanded', 'true');
-  await expect(picker.getByRole('option')).toHaveCount(1);
-  await search.fill('Manhattan');
+  const pill = await page.locator('.search-row').boundingBox();
+  const results = await page.locator('#area-results').boundingBox();
+  expect(pill).not.toBeNull();
+  expect(results).toMatchObject({ x: pill?.x, width: pill?.width });
   await search.press('Escape');
   await expect(picker).toBeHidden();
   await expect(search).toHaveAttribute('aria-expanded', 'false');
@@ -99,18 +124,34 @@ test('search pill browses on focus and Escape preserves the query and selection'
   await expect(search).toBeFocused();
   await search.click();
   await expect(picker).toBeVisible();
-  await page.getByRole('button', { name: 'Stop 3D' }).focus();
+  const overview = page.getByRole('button', { name: 'Show all NYC' });
+  await expect(overview).toBeEnabled();
+  await overview.focus();
   await expect(picker).toBeHidden();
-  await search.focus();
+  await search.click();
   await expect(picker).toBeVisible();
   const clear = page.getByRole('button', { name: 'Clear search' });
   await page.keyboard.press('Tab');
   await expect(clear).toBeFocused();
   await expect(picker).toBeVisible();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Close area details' })).toBeFocused();
   await expect(picker).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Close area details' })).toBeFocused();
   await expect(page.locator('#zone-id')).toHaveText('161');
+  await page.mouse.move(550, 300);
+  await page.mouse.down();
+  await page.mouse.move(620, 300);
+  await page.mouse.up();
+  await expect(page.locator('#inspector')).toBeVisible();
+  await page.locator('#city-viewport').click({ position: { x: 550, y: 300 } });
+  await expect(page.locator('#inspector')).toBeHidden();
+  await expect(page).not.toHaveURL(/zone=161/);
+  await search.click();
+  await expect(picker).toBeVisible();
+  await page.locator('#city-viewport').click({ position: { x: 550, y: 300 } });
+  await expect(picker).toBeHidden();
+  await expect(page.locator('#inspector')).toBeHidden();
+  await expect(search).toHaveValue('Manhattan');
 });
 test('the map keeps a named overview action and removes the camera menu', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -135,8 +176,12 @@ test('the map keeps a named overview action and removes the camera menu', async 
   await expect(overview).toBeFocused();
 });
 test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
-test('mock stage starts automatically once, Stop stays stopped until deliberate Resume',async({page})=>{await page.goto('/?mode=mock');await expect(page.locator('#status')).toContainText('Mock stage ready');await expect(page.locator('#load')).toBeHidden();await page.locator('#stop').click();await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeVisible();await page.locator('#load').click();await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#stop').click();await expect(page.locator('#load')).toBeDisabled();await expect(page.locator('#area-search')).toBeFocused()});
-test('Stop before delayed geography prevents automatic startup',async({context,page})=>{let release!:()=>void;const wait=new Promise<void>(resolve=>{release=resolve});await context.route('**/data/taxi-zones.geojson',async route=>{await wait;await route.fulfill({json:fixture})});await page.goto('/?mode=mock');await page.locator('#stop').click();release();await expect(page.locator('#area-search')).toBeEnabled();await page.locator('#area-search').focus();await expect(page.getByRole('option')).toHaveCount(1);await expect(page.locator('#status')).toContainText('unloaded');await expect(page.locator('#load')).toBeEnabled()});
+test('mock stage opens automatically without a visible session button', async ({ page }) => {
+  await page.goto('/?mode=mock');
+  await expect(page.locator('#status')).toContainText('Mock stage ready');
+  await expect(page.locator('#load')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Stop 3D' })).toHaveCount(0);
+});
 test('local filtering preserves selection and never causes a camera focus', async ({ page }) => {
   await page.goto('/?mode=mock&zone=161');
   await expect(page.locator('#zone-id')).toHaveText('161');
@@ -151,7 +196,8 @@ test('local filtering preserves selection and never causes a camera focus', asyn
   await page.locator('#clear-search').click();
   await expect(page.locator('#area-search')).toBeFocused();
   await expect(page.locator('#area-search')).toHaveValue('');
-  await expect(page.getByRole('option')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#area-results')).toBeHidden();
+  await expect(page.locator('#inspector')).toBeVisible();
 });
 test('keyboard search focuses the area only after Enter commits the selection', async ({ context, page }) => {
   await context.route('**/data/taxi-zones.geojson', route => route.continue());
@@ -160,7 +206,7 @@ test('keyboard search focuses the area only after Enter commits the selection', 
   const search = page.getByRole('combobox', { name: 'Search areas' });
   const picker = page.getByRole('listbox', { name: 'Area results' });
   await search.focus();
-  await expect(picker.getByRole('option')).toHaveCount(263);
+  await expect(picker).toBeHidden();
   await search.pressSequentially('Midtown');
   await expect(picker.getByRole('option').first()).toHaveAttribute('id', 'area-result-161');
   await search.press('ArrowDown');
@@ -180,16 +226,16 @@ test('keyboard search focuses the area only after Enter commits the selection', 
   await expect(focus).toHaveAttribute('aria-busy', 'false');
 });
 test('automatic failure does not auto-retry and shares the two-attempt budget',async({page})=>{await page.goto('/?mode=mock&scenario=auth');await expect(page.locator('#status')).toContainText('Access denied');await expect(page.locator('#load')).toHaveText('Retry once');await page.locator('#load').click();await expect(page.locator('#session-limit')).toBeVisible();await expect(page.locator('#load')).toBeDisabled()});
-for(const width of[320,1280,1920])test(`credits and standalone Stop stay visible at${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#status')).toHaveClass('visually-hidden');await expect(page.locator('.session-info')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)});
+for(const width of[320,1280,1920])test(`credits stay visible without a session button at${width}px`,async({page})=>{await page.setViewportSize({width,height:900});await page.goto('/?mode=mock');await expect(page.locator('#credits')).toBeVisible();await expect(page.locator('#stop')).toHaveCount(0);await expect(page.locator('#status')).toHaveClass('visually-hidden');await expect(page.locator('.session-info')).toHaveCSS('background-color','rgba(0, 0, 0, 0)');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)});
 for(const scenario of['rate','timeout','network','webgl','partial'])test(`mock${scenario} has an honest stage state`,async({page})=>{await page.goto(`/?mode=mock&scenario=${scenario}`);await expect(page.locator('#status')).not.toContainText('Preparing');await expect(page.locator('#status')).not.toContainText('Loading');await expect(page.locator('#focus-area')).toBeHidden();if(scenario==='rate'||scenario==='webgl')await expect(page.locator('#load')).toBeDisabled()});
-test('all 263 official areas remain selectable without a second map', async ({ context, page }) => {
+test('official TLC matches scroll and remain selectable without a second map', async ({ context, page }) => {
   await context.route('**/data/taxi-zones.geojson', route => route.continue());
   await page.goto('/?mode=mock');
   const search = page.getByRole('combobox', { name: 'Search areas' });
   await expect(search).toBeEnabled();
-  await search.focus();
+  await search.fill('Manhattan');
   const list = page.getByRole('listbox', { name: 'Area results' });
-  await expect(list.getByRole('option')).toHaveCount(263);
+  await expect(list.getByRole('option', { name: /Midtown Center.*Manhattan/ })).toHaveCount(1);
   const dimensions = await list.evaluate(element => ({
     height: element.clientHeight, scrollHeight: element.scrollHeight,
   }));
@@ -206,7 +252,7 @@ test('all 263 official areas remain selectable without a second map', async ({ c
   await expect(list.getByRole('option', { name: /^Corona.*Queens.*TLC ID 57$/ })).toBeInViewport();
   await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);
 });
-test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toBeVisible();await expect(page.locator('#credits')).toBeVisible()});
+test('reduced motion, RTL and200percent text keep stage controls available',async({page})=>{await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/?mode=mock&zone=161');await page.evaluate(()=>{document.documentElement.style.fontSize='200%';document.documentElement.dir='rtl'});await page.setViewportSize({width:640,height:900});await expect(page.locator('#status')).toContainText('Mock stage ready');await page.locator('#focus-area').click();await expect(page.locator('#focus-area')).toHaveAttribute('aria-busy','false');await expect(page.locator('#stop')).toHaveCount(0);await expect(page.locator('#credits')).toBeVisible()});
 
 test('desktop area details stay compact and usable', async ({ context, page }) => {
   await context.route('**/data/taxi-zones.geojson', route => route.continue());
@@ -224,7 +270,7 @@ test('desktop area details stay compact and usable', async ({ context, page }) =
   await expect(card.locator('#zone-id')).toBeInViewport();
 
   const bounds = (await card.boundingBox())!;
-  expect.soft(bounds.width, 'The normal desktop card should leave room for the map').toBeLessThanOrEqual(230);
+  expect(bounds.width).toBe((await page.locator('.search-row').boundingBox())?.width);
   expect.soft(bounds.height, 'A short area title should fit in the compact card').toBeLessThanOrEqual(118);
   const titleBox = (await title.boundingBox())!;
   const metadataBox = (await metadata.boundingBox())!;
@@ -265,7 +311,7 @@ for (const width of [320, 640, 1440]) test(`map controls and selected area stay 
   await page.setViewportSize({ width, height });
   await page.goto('/?mode=mock&zone=161');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
-  for (const selector of ['#area-search', '#focus-area', '#city-overview', '#stop', '#credits']) {
+  for (const selector of ['#area-search', '#focus-area', '#city-overview', '#credits']) {
     await expect(page.locator(selector)).toBeInViewport();
   }
   const searchPanel = (await page.locator('#area-controls').boundingBox())!;
@@ -273,15 +319,14 @@ for (const width of [320, 640, 1440]) test(`map controls and selected area stay 
   const gap = inspector.y - (searchPanel.y + searchPanel.height);
   expect(gap, 'Mock selection details should appear under search').toBeGreaterThanOrEqual(0);
   expect(gap, 'Mock selection details should stay close to search').toBeLessThanOrEqual(12);
-  expect(inspector.x).toBeLessThan(searchPanel.x + searchPanel.width);
-  expect(inspector.x + inspector.width).toBeGreaterThan(searchPanel.x);
-  await page.locator('#area-search').focus();
+  expect(inspector.x).toBe(searchPanel.x);
+  expect(inspector.width).toBe(searchPanel.width);
+  await page.locator('#area-search').fill('161');
   await expect(page.locator('#zone-picker')).toBeInViewport();
   await page.keyboard.press('Escape');
   await page.locator('#focus-area').click({ trial: true });
   await expect(page.getByRole('button', { name: 'Show all NYC' })).toBeInViewport();
   await page.locator('#area-search').click({ trial: true });
-  await page.locator('#stop').click({ trial: true });
   await expect(page.locator('#credits')).toBeInViewport();
 });
 
@@ -292,8 +337,7 @@ for (const width of [320, 640]) test(`closing area details returns keyboard focu
   await expect(page.locator('#status')).toContainText('Mock stage ready');
   await page.getByRole('button', { name: 'Close area details' }).press('Enter');
   await expect(page.locator('#inspector')).toBeHidden();
-  await expect(page.locator('#zone-picker')).toBeVisible();
-  await expect(page.getByRole('option', { selected: true })).toHaveCount(0);
+  await expect(page.locator('#zone-picker')).toBeHidden();
   await expect(page.locator('#area-search')).toBeFocused();
   await expect(page.locator('#area-search')).toBeInViewport();
 });
@@ -322,13 +366,12 @@ test('attribution stays visible when search and enlarged details exceed a short 
   await page.setViewportSize({ width: 320, height: 430 });
   await page.goto('/?mode=mock&zone=161');
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-  await page.getByRole('combobox', { name: 'Search areas' }).focus();
+  await page.getByRole('combobox', { name: 'Search areas' }).fill('161');
   await expect(page.getByRole('listbox', { name: 'Area results' })).toBeVisible();
   await page.locator('#credits').evaluate(credits => {
     credits.textContent = 'Cesium ion · Google Maps · Data SIO, NOAA, U.S. Navy, NGA, GEBCO · Landsat / Copernicus · IBCAO';
   });
   await expect(page.getByRole('complementary', { name: 'Map attribution' })).toBeInViewport({ ratio: 1 });
-  await page.getByRole('button', { name: 'Stop 3D' }).click({ trial: true });
 });
 
 test('Sources keeps internal keyboard navigation and dismisses on Escape or focus exit',async({page})=>{
@@ -346,9 +389,9 @@ test('Sources keeps internal keyboard navigation and dismisses on Escape or focu
  await page.keyboard.press('Tab');await page.keyboard.press('Escape');
  await expect(details).toHaveJSProperty('open',false);
  await expect(summary).toBeFocused();
- await summary.click();await page.locator('#stop').focus();
+ await summary.click();await page.locator('#city-overview').focus();
  await expect(details).toHaveJSProperty('open',false);
- await expect(page.locator('#stop')).toBeFocused();
+ await expect(page.locator('#city-overview')).toBeFocused();
 });
 
 test('selection changes retain matching area rows when the search is unchanged', async ({ context, page }) => {
@@ -418,36 +461,13 @@ for(const failure of ['missing','invalid'])test(`${failure} optional land asset 
  page.on('request',request=>{const url=new URL(request.url());if(url.pathname==='/data/city-land.json')assetRequests.push('land');if(url.hostname!=='127.0.0.1')external.push('external')});
  await page.goto('/?mode=mock&cutout=land');
  await expect(page.locator('#status')).toContainText('Mock stage ready');
- await page.locator('#area-search').focus();
+ await page.locator('#area-search').fill('161');
  await page.getByRole('option', { name: /Synthetic test area.*Manhattan/ }).click();
  await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
  await expect(page.locator('#area-search')).toBeEnabled();
  await page.locator('#sources>summary').click();
  await expect(page.locator('#footprint-notice')).toContainText(/DCP land cutout unavailable.*continuous imagery/i);
  expect(assetRequests).toEqual(['land']);expect(external).toEqual([]);
-});
-
-test('Resume waits for the land cutout after stopping startup', async ({ context, page }) => {
-  let release!: () => void;
-  const held = new Promise<void>(resolve => { release = resolve; });
-  await context.route('**/data/city-land.json', async route => {
-    await held;
-    await route.continue();
-  });
-  try {
-    await page.goto('/?mode=mock&cutout=land');
-    await expect(page.locator('#area-search')).toBeEnabled({ timeout: 1000 });
-    await page.getByRole('button', { name: 'Stop 3D' }).click();
-    const resume = page.getByRole('button', { name: 'Resume 3D' });
-    await expect(resume).toBeVisible();
-    await expect(resume).toBeDisabled({ timeout: 1000 });
-    release();
-    await expect(resume).toBeEnabled();
-    await expect(page.locator('#status')).toContainText('unloaded');
-  } finally {
-    release();
-    await context.unrouteAll({ behavior: 'ignoreErrors' });
-  }
 });
 
 test('stalled optional land asset leaves local controls usable and reaches isolated startup after its timeout',async({context,page})=>{
@@ -463,7 +483,7 @@ test('stalled optional land asset leaves local controls usable and reaches isola
   await page.goto('/?mode=mock&cutout=land');
   // Optional display geometry must not hold the already-fetched local area list.
   await expect(page.locator('#area-search')).toBeEnabled({timeout:1000});
-  await page.locator('#area-search').focus();
+  await page.locator('#area-search').fill('161');
   await page.getByRole('option', { name: /Synthetic test area.*Manhattan/ }).click();
   await expect(page.locator('#selection-title')).toHaveText('Synthetic test area');
   // The unresolved route stays held: startup must recover through the 3s timeout.
