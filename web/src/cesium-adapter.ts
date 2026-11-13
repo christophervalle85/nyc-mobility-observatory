@@ -2,7 +2,7 @@ import {
   Viewer, Ion, Cesium3DTileset, GeoJsonDataSource, Cartesian3, Math as CesiumMath,
   Color, ColorMaterialProperty, ScreenSpaceEventHandler, ScreenSpaceEventType,
   Entity, SceneMode, Cartesian2, BoundingSphere, HeadingPitchRange, Matrix4,
-  ClippingPolygon, ClippingPolygonCollection, EasingFunction,
+  ClippingPolygon, ClippingPolygonCollection, EasingFunction, CameraEventType, KeyboardEventModifier,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { managedAdapter } from './managed-adapter.ts';
@@ -59,6 +59,11 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     const cameraController = viewer.scene.screenSpaceCameraController;
     cameraController.minimumZoomDistance = 200; cameraController.maximumZoomDistance = 180_000;
     cameraController.enableLook = false;
+    cameraController.zoomEventTypes = [
+      CameraEventType.RIGHT_DRAG, CameraEventType.PINCH,
+      { eventType: CameraEventType.WHEEL, modifier: KeyboardEventModifier.CTRL },
+      { eventType: CameraEventType.WHEEL, modifier: KeyboardEventModifier.ALT },
+    ];
     cameraController.maximumTiltAngle = Math.PI * 70 / 180;
     const overviewTarget = () => cityOverview(geography, container.clientWidth / Math.max(1, container.clientHeight), 'fovy' in viewer.camera.frustum ? viewer.camera.frustum.fovy ?? Math.PI/3 : Math.PI/3);
     const initial = overviewTarget();
@@ -143,7 +148,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
     function reportPartial() { partialSeen = true; cancelCameraFlight(); anchor?.publish(null, null); partial?.(); }
     function canInteract() { return !disposed && tilesAttached && zonesAttached && !partialSeen; }
     const canvas = viewer.scene.canvas;
-    canvas.setAttribute('aria-label', 'Interactive NYC map. Use arrow keys to move and plus or minus to zoom.');
+    canvas.setAttribute('aria-label', 'Interactive NYC map. Arrow keys move, Shift plus arrow keys look around, and plus or minus zoom.');
     canvas.tabIndex = 0;
     const anchor = onSelectionAnchor && {
       project: selectionAnchorProjection(viewer.scene),
@@ -194,8 +199,42 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       profile?.interaction();
       cancelCameraFlight();
     }
+    function lookAround(horizontal: number, vertical: number) {
+      startManualNavigation();
+      const camera = viewer.camera;
+      camera.setView({
+        orientation: {
+          heading: CesiumMath.zeroToTwoPi(camera.heading + horizontal),
+          pitch: CesiumMath.clamp(camera.pitch + vertical, -Math.PI / 2, Math.PI / 12),
+          roll: camera.roll,
+        },
+      });
+      viewer.scene.requestRender();
+    }
+    function onMapWheel(event: WheelEvent) {
+      if (!tilesAttached || event.metaKey || event.shiftKey) return;
+      if (event.ctrlKey || event.altKey) {
+        startManualNavigation();
+        return;
+      }
+      if (event.buttons || (!event.deltaX && !event.deltaY)) return;
+      event.preventDefault();
+      // Wheel events don't reliably identify a trackpad. Unmodified scrolling
+      // always looks around, and Alt-scroll or a browser pinch signal zooms.
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1;
+      const angle = (delta: number) => CesiumMath.clamp(delta * scale, -90, 90) * .002;
+      lookAround(angle(event.deltaX), -angle(event.deltaY));
+    }
     const onMapKey = (event: KeyboardEvent) => {
       if (!tilesAttached || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.shiftKey && event.key.startsWith('Arrow')) {
+        const step = Math.PI / 36;
+        const horizontal = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+        const vertical = event.key === 'ArrowDown' ? -step : event.key === 'ArrowUp' ? step : 0;
+        lookAround(horizontal, vertical);
+        event.preventDefault();
+        return;
+      }
       const camera = viewer.camera;
       const height = camera.positionCartographic.height;
       const amount = Math.max(25, height * .12);
@@ -236,14 +275,14 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       pointers.delete(event.pointerId);
     }
     canvas.addEventListener('pointerdown', onPointerDown, true);
-    canvas.addEventListener('wheel', startManualNavigation, { capture: true, passive: true });
+    canvas.addEventListener('wheel', onMapWheel, { capture: true, passive: false });
     canvas.addEventListener('keydown', onMapKey);
     window.addEventListener('pointermove', onPointerMove, true);
     window.addEventListener('pointerup', onPointerEnd, true);
     window.addEventListener('pointercancel', onPointerEnd, true);
     cleanup.push(() => {
       canvas.removeEventListener('pointerdown', onPointerDown, true);
-      canvas.removeEventListener('wheel', startManualNavigation, true);
+      canvas.removeEventListener('wheel', onMapWheel, true);
       canvas.removeEventListener('keydown', onMapKey);
       window.removeEventListener('pointermove', onPointerMove, true);
       window.removeEventListener('pointerup', onPointerEnd, true);

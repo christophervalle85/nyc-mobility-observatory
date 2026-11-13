@@ -25,3 +25,11 @@ test('reduced-motion focus retains source fit and current orientation with zero 
  assert.deepEqual(view,{heading:1.1,pitch:-.7,range:target.range,duration:0});
  assert.equal('maximumHeight' in view,false);
 });
+
+test('area focus stays above the map after looking at or above the horizon', () => {
+  for (const pitch of [0, Math.PI / 12]) {
+    const view = focusView(target, { heading: 1.1, pitch }, 0);
+    assert.equal(view.heading, 1.1);
+    assert.ok(view.pitch <= -Math.PI / 9);
+  }
+});
