@@ -1,19 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SessionController, failureCategory } from '../src/session.ts';
-import type { SceneAdapter, SessionState } from '../src/session.ts';
+import type { SceneAdapter, SessionState, StationMarker } from '../src/session.ts';
 
 function fixture(configured = true, timeout = 1000) {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
   let update!: (phase: 'ready' | 'partial') => void;
   const pending = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
-  const calls = { create: 0, load: 0, dispose: 0, selection: null as number | null };
+  const calls = { create: 0, load: 0, dispose: 0, selection: null as number | null, station: null as StationMarker | null };
   const states: SessionState[] = [];
   const adapter: SceneAdapter = {
     focus: async () => false, cancelFocus() {},
     load: (change) => { calls.load++; update = change; return pending; },
     whenSettled: () => pending.catch(() => undefined),
+    selectStation: station => { calls.station = station; },
     dispose: () => { calls.dispose++; }, select: (id) => { calls.selection = id; },
   };
   const controller = new SessionController(configured, () => { calls.create++; return adapter; }, (state) => states.push(state), timeout, id => id === 161);
@@ -78,4 +79,20 @@ for (const ending of ['stop', 'timeout'] as const) test(`${ending} blocks retry 
   assert.equal(f.controller.state.draining, false);
   await f.controller.load();
   assert.equal(f.calls.create, 2, 'a deliberate retry is permitted after all work settles');
+});
+
+
+test('a station chosen before the map loads is restored and clears independently of the taxi area', async () => {
+  const f = fixture();
+  const station = { id: 314, name: '66 St–Lincoln Center', longitude: -73.983, latitude: 40.774 };
+  f.controller.select(161);
+  f.controller.selectStation(station);
+  assert.equal(f.calls.station, null);
+  const loading = f.controller.load();
+  f.resolve();
+  await loading;
+  assert.deepEqual(f.calls.station, station);
+  f.controller.selectStation(null);
+  assert.equal(f.calls.station, null);
+  assert.equal(f.calls.selection, 161);
 });

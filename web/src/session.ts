@@ -2,9 +2,11 @@ import type { FootprintState } from './study-footprint.ts';
 export type Phase = 'setup' | 'idle' | 'loading' | 'ready' | 'partial' | 'error' | 'stopped';
 export type Failure = 'auth' | 'rate' | 'timeout' | 'webgl' | 'network';
 export interface SessionState { phase: Phase; attempts: number; failure?: Failure; draining: boolean; focusing: boolean }
+export interface StationMarker { id: number; name: string; longitude: number; latitude: number }
 export interface SceneAdapter {
   load(update: (phase: 'ready' | 'partial') => void): Promise<void>;
   select(id: number | null): void;
+  selectStation?(station: StationMarker | null): void;
   dispose(): void;
   whenSettled(): Promise<void>;
   focus(id: number, reducedMotion: boolean): Promise<boolean>;
@@ -30,6 +32,7 @@ export class SessionController {
   private change: (state: SessionState) => void;
   private timeout: number;
   private adapter?: SceneAdapter;
+  private station: StationMarker | null = null;
   private generation = 0;
   private pending?: Promise<void>;
   private inFlight?: Promise<void>;
@@ -79,6 +82,7 @@ export class SessionController {
     this.pending = Promise.race([work, abort]).then(() => {
       if (generation === this.generation) {
         this.adapter?.select(this.selected);
+        this.adapter?.selectStation?.(this.station);
         this.publish(this.state.phase === 'partial' ? 'partial' : 'ready');
       }
     }).catch((error: unknown) => {
@@ -129,6 +133,11 @@ export class SessionController {
     this.cancelMovement(); const moved = this.adapter.overview?.() ?? false; this.change(this.state); return moved;
   }
   footprint(): FootprintState | undefined { return this.adapter?.footprint?.(); }
+  selectStation(station: StationMarker | null): void {
+    if (station?.id === this.station?.id) return;
+    this.station = station;
+    this.adapter?.selectStation?.(station);
+  }
   select(id: number | null): void {
     const next = id !== null && this.isKnownZone(id) ? id : null;
     if (next === this.selected) return;

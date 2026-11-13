@@ -83,7 +83,7 @@
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m13.25 2.75-3.4 10.5-2.1-5-5-2.1 10.5-3.4Z"/></svg>
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.25 3.5 3 6.75 6.25 10M3 6.75h6.5a3 3 0 0 1 0 6h-2"/></svg>
             </button>
-            <button type="button" id="taxi-open" aria-controls="taxi-dashboard" aria-expanded="false">Taxi dropoffs</button>
+            <button type="button" id="taxi-open" aria-controls="taxi-dashboard" aria-expanded="false">Mobility data</button>
           </div>
           <p id="outside-city" class="control-hint" hidden>Newark Airport is outside NYC.</p>
           <p id="focus-status" class="control-hint" role="status"></p>
@@ -91,28 +91,61 @@
         <section id="taxi-dashboard" class="taxi-dashboard" aria-labelledby="taxi-heading" hidden>
           <header class="taxi-header">
             <div>
-              <h2 id="taxi-heading" tabindex="-1">Yellow taxi dropoffs</h2>
+              <h2 id="taxi-heading" tabindex="-1">Transportation data</h2>
               <p id="taxi-area"></p>
             </div>
-            <button type="button" id="taxi-close" aria-label="Close taxi dashboard"><span aria-hidden="true">×</span></button>
+            <button type="button" id="taxi-close" aria-label="Close transportation dashboard"><span aria-hidden="true">×</span></button>
           </header>
-          <p class="taxi-month">September 2026</p>
-          <div class="taxi-dates">
-            <label for="taxi-start">Start date<select id="taxi-start" aria-describedby="taxi-status"></select></label>
-            <label for="taxi-end">End date<select id="taxi-end" aria-describedby="taxi-status"></select></label>
+          <div class="taxi-date-fields">
+            <div class="taxi-date-field">
+              <span id="taxi-start-label">Start date</span>
+              <button type="button" id="taxi-start" aria-haspopup="dialog" aria-controls="taxi-calendar" aria-expanded="false" aria-labelledby="taxi-start-label taxi-start-value">
+                <span id="taxi-start-value"></span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="2"/><path d="M6 3v4m8-4v4M3 9h14"/></svg>
+              </button>
+            </div>
+            <div class="taxi-date-field">
+              <span id="taxi-end-label">End date</span>
+              <button type="button" id="taxi-end" aria-haspopup="dialog" aria-controls="taxi-calendar" aria-expanded="false" aria-labelledby="taxi-end-label taxi-end-value">
+                <span id="taxi-end-value"></span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="2"/><path d="M6 3v4m8-4v4M3 9h14"/></svg>
+              </button>
+            </div>
           </div>
+          <div id="taxi-calendar" popover="manual" role="dialog" aria-labelledby="taxi-calendar-title" aria-describedby="taxi-calendar-hint">
+            <h3 id="taxi-calendar-title">September 2026</h3>
+            <p id="taxi-calendar-hint"></p>
+            <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+            <div class="calendar-days" role="group" aria-label="September dates"></div>
+          </div>
+          <label class="subway-station" for="subway-station">Subway station complex
+            <select id="subway-station" aria-describedby="subway-status subway-station-note" disabled>
+              <option value="">Choose a nearby station</option>
+            </select>
+          </label>
+          <p id="subway-station-note">Up to six stations within 1.2 km. Distances are from the area center.</p>
           <p id="taxi-status" role="status" tabindex="-1"></p>
           <button type="button" id="taxi-retry" hidden>Retry taxi data</button>
+          <p id="subway-status" role="status" tabindex="-1"></p>
+          <button type="button" id="subway-retry" hidden>Retry subway data</button>
           <div id="taxi-results" hidden>
-            <div class="taxi-total">
-              <p>Total for date range</p>
-              <output id="taxi-total" for="taxi-start taxi-end"></output>
+            <div class="transportation-totals" aria-label="Totals for selected dates">
+              <div id="taxi-metric" class="transportation-metric" hidden>
+                <p id="taxi-metric-label">Yellow taxi dropoffs</p>
+                <output id="taxi-total" aria-labelledby="taxi-metric-label" for="taxi-start taxi-end"></output>
+              </div>
+              <div id="subway-metric" class="transportation-metric" hidden>
+                <p id="subway-metric-label">Estimated subway entries</p>
+                <output id="subway-total" aria-labelledby="subway-metric-label" for="subway-station taxi-start taxi-end"></output>
+                <p id="subway-coverage"></p>
+              </div>
             </div>
-            <figure class="taxi-chart">
-              <figcaption id="taxi-chart-caption">
-                <span>Hourly dropoffs <small>ET</small></span>
-                <select id="taxi-chart-day" aria-label="Chart date"></select>
-              </figcaption>
+            <div class="taxi-chart-controls">
+              <h3>Hourly comparison <small>ET</small></h3>
+              <select id="taxi-chart-day" aria-label="Chart date"></select>
+            </div>
+            <figure id="taxi-figure" class="taxi-chart taxi-figure" hidden>
+              <figcaption id="taxi-chart-caption">Yellow taxi dropoffs</figcaption>
               <div class="taxi-plot" aria-hidden="true">
                 <div class="taxi-scale"><span id="taxi-y-top"></span><span id="taxi-y-middle"></span><span>0</span></div>
                 <canvas id="taxi-chart"></canvas>
@@ -120,11 +153,20 @@
               </div>
               <p id="taxi-chart-summary"></p>
             </figure>
+            <figure id="subway-figure" class="taxi-chart subway-figure" hidden>
+              <figcaption>Estimated subway entries</figcaption>
+              <div class="taxi-plot" aria-hidden="true">
+                <div class="taxi-scale"><span id="subway-y-top"></span><span id="subway-y-middle"></span><span>0</span></div>
+                <canvas id="subway-chart"></canvas>
+                <div class="taxi-axis"><span>12 AM</span><span>Noon</span><span>11 PM</span></div>
+              </div>
+              <p id="subway-chart-summary"></p>
+            </figure>
             <details id="taxi-hours">
               <summary>Hourly counts</summary>
               <div class="taxi-table" role="region" aria-label="Hourly count table" tabindex="0">
-                <table aria-label="Hourly yellow taxi dropoffs">
-                  <thead><tr><th scope="col">Hour (ET)</th><th scope="col">Dropoffs</th></tr></thead>
+                <table aria-label="Hourly transportation counts">
+                  <thead><tr><th scope="col">Hour (ET)</th><th id="taxi-hour-column" scope="col">Dropoffs</th><th id="subway-hour-column" scope="col" hidden>Estimated entries</th></tr></thead>
                   <tbody id="taxi-hour-rows"></tbody>
                 </table>
               </div>
@@ -154,7 +196,7 @@
             <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
             <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
             <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
-            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Select an area to see its September 2026 yellow taxi dropoffs.</p>
+            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Open Mobility data from a selected area to compare September 2026 yellow taxi dropoffs and subway entries.</p>
             <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
             <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
           </div>

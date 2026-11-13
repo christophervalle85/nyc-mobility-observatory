@@ -1,6 +1,6 @@
 # NYC city-stage prototype
 
-The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The taxi dashboard shows September 2026 yellow taxi dropoff totals and hourly counts for a selected area and date range.
+The local Vite + TypeScript + CesiumJS prototype opens on the Midtown skyline with continuous Google Photorealistic 3D Tiles. With a usable Cesium ion token, 3D starts once the local geography validates and the page first becomes visible. Search and map selection use official TLC zones from local GeoJSON. The transportation dashboard compares September 2026 yellow taxi dropoffs for a selected TLC area with estimated entries at a selected subway station complex.
 
 ## Run locally
 
@@ -28,23 +28,25 @@ The app skips Cesium's default imagery, terrain and geocoding services. Request-
 
 Keep the on-screen Cesium and imagery provider credits visible during live 3D. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
 
-## Try the taxi dashboard
+## Try the transportation dashboard
 
-With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Taxi dropoffs** on the area card. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view one day of hourly bars from the selected range. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
+With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Mobility data** on the area card and choose a **Subway station complex** to compare. Open **Start date** or **End date** to pick a day on the September calendar. Each field disables dates that would reverse the range. Choose the same day in both fields for a one-day range. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view both modes on the same day. Each chart uses its own count scale. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
 
-The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway counts remain outside the dashboard.
+The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway totals sum estimated entries over comparison-eligible observed hours. Missing and flagged hours appear as gaps. The picker lists up to six station complexes within 1.2 km of the selected area’s center, ordered by straight-line distance.
 
-To regenerate the browser asset, run this from the repository root with the completed archive in place. See the [M1 pilot report](../docs/reports/m1-pilot.md) for the run and offline replay instructions.
+To regenerate the browser assets, run these commands from the repository root with the completed archive in place. See the [M1 pilot report](../docs/reports/m1-pilot.md) for the run and offline replay instructions.
 
 ```sh
+python3 web/scripts/export_subway_dashboard.py \
+  --run-dir .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
 python3 web/scripts/export_yellow_taxi_dashboard.py \
   --run-dir .data/runs/0566a3a050ff0a2d1de02ccc510416f0d21f226725afdbf2ea6eab610cbc0ebe
 ```
 
-If you keep the completed run elsewhere, pass its directory to `--run-dir`. The exporter validates `taxi/zone_hour.csv` and `taxi/quality.json` against the run manifest and writes aggregate counts to `web/public/data/yellow-taxi-2026-09.json`. Run the focused exporter tests from the repository root with:
+If you keep the completed run elsewhere, pass its directory to `--run-dir`. Both exporters validate the archived hourly CSV and quality report against the run manifest. The aggregate JSON files go in `web/public/data/`. Run the exporter tests from the repository root with:
 
 ```sh
-python3 -m unittest discover -s web/scripts -p 'test_export_yellow_taxi_dashboard.py'
+python3 -m unittest discover -s web/scripts -p 'test_export_*_dashboard.py'
 ```
 
 ## Compare imagery cutouts

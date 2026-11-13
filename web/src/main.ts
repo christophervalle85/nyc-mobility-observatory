@@ -25,7 +25,7 @@ const query = new URLSearchParams(location.search), mock = query.get('mode') ===
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const taxiPanel = element('taxi-dashboard');
-const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search);
+const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search, station => controller.selectStation(station));
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
@@ -248,6 +248,7 @@ function liveAdapter(): SceneAdapter {
       if (!disposed) diagnostics.event('scene.resourcesAttached');
     },
     select(id) { delegate?.select(id); },
+    selectStation(station) { delegate?.selectStation?.(station); },
     hasOverviewReturn() { return delegate?.hasOverviewReturn?.() ?? false; },
     overview() { return delegate?.overview?.() ?? false; }, footprint() { return delegate?.footprint?.(); },
     canReturnToView() { return delegate?.canReturnToView?.() ?? false; },
@@ -336,7 +337,8 @@ function selectZone(id: number | null, interaction = true) {
   controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
-  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone } : null);
+  const center = zone && areaTarget(zones, zone.id);
+  dashboard.select(zone ? { id: zone.id, name: zone.properties.zone, center } : null);
   measured();
 }
 function showAreaResults(open: boolean) {
