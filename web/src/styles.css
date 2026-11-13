@@ -88,7 +88,7 @@ button[aria-busy=true] { cursor: progress; }
   border: 0;
   border-radius: var(--radius-pill);
   padding-block: var(--space-2xs);
-  padding-inline: 0 var(--space-sm);
+  padding-inline: var(--space-3xs) var(--space-sm);
   background: transparent;
   color: inherit;
   font-size: var(--text-md);

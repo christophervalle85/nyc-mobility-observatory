@@ -510,7 +510,10 @@ async function loadZones() {
     const validated = diagnostics.span('geography.validate');
     try { zones = parseZones(input); } finally { validated(); }
     if (!zones.features.length) throw new Error('No local zones');
-    geographyReady = true; search.disabled = false; search.placeholder = 'Search areas';
+    geographyReady = true;
+    search.disabled = false;
+    // A thin space separates the empty-field caret from the placeholder.
+    search.placeholder = '\u2009Search areas';
     selectZone(resolveZone(zones, query.get('zone'))?.id ?? null, false);
     if (landAsset) {
       land = await landAsset;
