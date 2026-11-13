@@ -319,7 +319,7 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       let id:number|null;
       try {
         const ground=viewer.camera.pickEllipsoid(event.position,viewer.scene.ellipsoid);
-        if(!ground)return;
+        if(!ground){choose(null);return;}
         const point=viewer.scene.ellipsoid.cartesianToCartographic(ground);
         id=picker.pick(CesiumMath.toDegrees(point.longitude),CesiumMath.toDegrees(point.latitude))?.id??null;
       } finally { picked?.(); }

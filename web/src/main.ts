@@ -71,7 +71,7 @@ if (CSS.supports('backdrop-filter', 'url("#area-search-lens")')) {
   const resizeLenses = new ResizeObserver(entries => {
     for (const { target, borderBoxSize } of entries) {
       const size = borderBoxSize[0];
-      const [width, height] = target === searchRow ? [272, 48] : [224, 104];
+      const [width, height] = target === searchRow ? [272, 48] : [272, 104];
       target.toggleAttribute('data-lens', size?.inlineSize === width && size.blockSize === height);
     }
   });
@@ -317,7 +317,7 @@ function renderResults() {
   picker.scrollTop = 0;
   selectedRow = null;
   updateSelectedResult();
-  searchCount.textContent = results.length === 0 ? 'No matching TLC areas. Clear search to show all areas.'
+  searchCount.textContent = results.length === 0 ? 'No matching TLC areas.'
     : pluralRules.select(results.length) === 'one' ? '1 matching TLC area.' : `${numberFormat.format(results.length)} matching TLC areas.`;
   measured();
 }
@@ -329,6 +329,7 @@ function selectZone(id: number | null, interaction = true) {
   const next = zone?.id ?? null;
   if (next !== selected) setSelectionAnchor(null);
   selected = next;
+  showAreaResults(false);
   inspector.hidden = !zone;
   element('selection-title').textContent = zone?.properties.zone ?? 'TLC area';
   element('zone-id').textContent = zone ? String(zone.properties.location_id) : '';
@@ -340,9 +341,11 @@ function selectZone(id: number | null, interaction = true) {
   measured();
 }
 function showAreaResults(open: boolean) {
-  if (resultsPanel.hidden === !open || (open && !geographyReady)) return;
+  open = open && geographyReady && search.value.trim().length > 0;
+  if (resultsPanel.hidden === !open) return;
   resultsPanel.hidden = !open;
   search.setAttribute('aria-expanded', String(open));
+  inspector.hidden = open || selected === null;
   if (open) {
     searchAnnouncement.textContent = '';
     renderResults();
@@ -355,18 +358,22 @@ function chooseResult(row: HTMLElement | undefined) {
   if (!zone) return;
   selectZone(zone.id);
   search.focus({ preventScroll: true });
-  showAreaResults(false);
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
   if (controller.canReturnToView()) return;
   const { phase, draining } = controller.state;
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
 }
-search.addEventListener('focus', () => showAreaResults(true));
 search.addEventListener('click', () => showAreaResults(true));
-search.addEventListener('input', () => { diagnostics.interaction(); showAreaResults(true); renderResults(); });
+search.addEventListener('input', () => {
+  diagnostics.interaction();
+  clearSearch.hidden = search.value.length === 0;
+  showAreaResults(true);
+  if (!resultsPanel.hidden) renderResults();
+});
 search.addEventListener('keydown', event => {
   if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (!search.value.trim()) return;
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
     showAreaResults(true);
@@ -384,7 +391,9 @@ search.addEventListener('keydown', event => {
   }
 });
 areaControls.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || event.isComposing || resultsPanel.hidden) return;
+  if (event.isComposing || resultsPanel.hidden) return;
+  if (event.key === 'Tab' && event.target === clearSearch && !event.shiftKey) showAreaResults(false);
+  if (event.key !== 'Escape') return;
   event.preventDefault();
   search.focus({ preventScroll: true });
   showAreaResults(false);
@@ -398,10 +407,17 @@ picker.addEventListener('click', event => {
 });
 // Keep the in-flow panel in place until the current pointer gesture can deliver its click.
 let pointer: number | undefined;
+let backgroundPress: { id: number; x: number; y: number } | undefined;
 let pointerRelease: ReturnType<typeof setTimeout> | undefined;
 document.addEventListener('pointerdown', event => {
   clearTimeout(pointerRelease);
   if (!resultsPanel.hidden) pointer = event.pointerId;
+  backgroundPress = event.target === cityViewport
+    ? { id: event.pointerId, x: event.clientX, y: event.clientY } : undefined;
+}, true);
+document.addEventListener('pointermove', event => {
+  if (backgroundPress?.id === event.pointerId &&
+      Math.hypot(event.clientX - backgroundPress.x, event.clientY - backgroundPress.y) > 5) backgroundPress = undefined;
 }, true);
 document.addEventListener('pointerup', event => {
   if (event.pointerId !== pointer) return;
@@ -412,6 +428,7 @@ document.addEventListener('pointerup', event => {
 }, true);
 document.addEventListener('pointercancel', event => {
   if (event.pointerId === pointer) pointer = undefined;
+  if (event.pointerId === backgroundPress?.id) backgroundPress = undefined;
 }, true);
 areaControls.addEventListener('focusout', event => {
   if (pointer === undefined && !areaControls.contains(event.relatedTarget as Node | null)) {
@@ -421,7 +438,12 @@ areaControls.addEventListener('focusout', event => {
 document.addEventListener('click', event => {
   clearTimeout(pointerRelease);
   pointer = undefined;
-  if (!areaControls.contains(event.target as Node)) showAreaResults(false);
+  const target = event.target as Element;
+  const dismissSelection = target === cityViewport && backgroundPress !== undefined;
+  backgroundPress = undefined;
+  if (areaControls.contains(target)) return;
+  if (dismissSelection) selectZone(null);
+  else showAreaResults(false);
 }, true);
 for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
   menu.addEventListener('focusout', event => {
@@ -437,8 +459,8 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>('#sources')) {
 clearSearch.addEventListener('click', () => {
   search.value = '';
   search.focus();
-  showAreaResults(true);
-  renderResults();
+  clearSearch.hidden = true;
+  showAreaResults(false);
 });
 clearSelection.addEventListener('click', () => { selectZone(null); search.focus(); });
 load.addEventListener('click', () => {

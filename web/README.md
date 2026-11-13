@@ -58,7 +58,7 @@ The cutouts use generalized source boundaries and leave TLC area IDs, picking ge
 
 ## Find and focus a TLC area
 
-Use **Search areas** to filter by name, borough or exact TLC ID. Leave the field blank to browse all 263 TLC areas. Each result shows the area's name, borough and TLC ID. Click or tap a row to select it.
+Use **Search areas** to filter by name, borough or exact TLC ID. Results open when you enter a query and take the place of any open area card. Click the empty map to dismiss either panel. Each result shows the area's name, borough and TLC ID. Click or tap a row to select it.
 
 Use the Up and Down arrow keys to move through the results. With the list open, Enter chooses the active row or the first match if no row is active. Escape closes the list and keeps the query and selection.
 
