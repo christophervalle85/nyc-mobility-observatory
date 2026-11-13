@@ -1,6 +1,6 @@
 # M2 September taxi dashboard
 
-Select a TLC area, open **Taxi dropoffs** from its map card, and choose a start and end date in September 2026. Show the total for those inclusive dates and a chart with one value per hour. The map card stays compact and the map remains usable with or without 3D imagery.
+Select a TLC area, open **Taxi dropoffs** from its map card, and choose a start and end date in September 2026. Show the total for those inclusive dates. Choose a day within that range to see its 24 hourly bars and exact counts. The map card stays compact and the map remains usable with or without 3D imagery.
 
 ## Data contract
 

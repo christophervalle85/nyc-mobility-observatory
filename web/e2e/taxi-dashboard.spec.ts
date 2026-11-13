@@ -35,6 +35,9 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   // Golden values come from the archived M1 taxi/zone_hour.csv for run 0566a3a0.
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeFocused();
+  const panel = page.locator('#taxi-dashboard');
+  const search = page.locator('.search-row');
+  expect((await panel.boundingBox())?.width).toBe((await search.boundingBox())?.width);
   const chart = page.locator('#taxi-dashboard canvas');
   await expect(chart).toBeVisible();
   expect(await chart.evaluate(element => {
@@ -50,13 +53,13 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   expect(dataRequests).toEqual(['GET']);
 });
 
-test('the hourly table includes both endpoints and follows the selected area', async ({ page }) => {
+test('the hourly table follows the chart date and selected area', async ({ page }) => {
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
   const start = page.getByLabel('Start date');
   const end = page.getByLabel('End date');
-  await end.fill('2026-09-08');
-  await start.fill('2026-09-07');
+  await end.selectOption('2026-09-08');
+  await start.selectOption('2026-09-07');
   await expect(page.locator('#taxi-total')).toHaveText('2,848');
 
   await page.getByText('Hourly counts', { exact: true }).press('Enter');
@@ -65,11 +68,17 @@ test('the hourly table includes both endpoints and follows the selected area', a
   await expect(table.getByRole('columnheader', { name: 'Hour (ET)' })).toBeVisible();
   await expect(table.getByRole('columnheader', { name: 'Dropoffs' })).toBeVisible();
   const rows = table.locator('tbody tr');
-  await expect(rows).toHaveCount(48);
+  await expect(rows).toHaveCount(24);
   await expect(rows.first().getByText('Sep 7, 00:00', { exact: true })).toBeVisible();
-  await expect(rows.last().getByText('Sep 8, 23:00', { exact: true })).toBeVisible();
+  await expect(rows.last().getByText('Sep 7, 23:00', { exact: true })).toBeVisible();
   await expect(rows.first().getByRole('cell').last()).toHaveText('72');
+  const chartDate = page.getByLabel('Chart date');
+  await expect(chartDate.locator('option')).toHaveCount(2);
+  await chartDate.selectOption('2026-09-08');
+  await expect(rows.last().getByText('Sep 8, 23:00', { exact: true })).toBeVisible();
   await expect(rows.last().getByRole('cell').last()).toHaveText('45');
+  await expect(page.locator('#taxi-total')).toHaveText('2,848');
+  await chartDate.selectOption('2026-09-07');
 
   await selectArea(page, '79', /East Village/);
   await expect(page.getByRole('heading', { name: 'Yellow taxi dropoffs' })).toBeVisible();
@@ -77,11 +86,11 @@ test('the hourly table includes both endpoints and follows the selected area', a
   await expect(end).toHaveValue('2026-09-08');
   await expect(page.locator('#taxi-total')).toHaveText('4,175');
   await expect(rows.first().getByRole('cell').last()).toHaveText('164');
-  await expect(rows.last().getByRole('cell').last()).toHaveText('116');
+  await expect(rows.last().getByRole('cell').last()).toHaveText('90');
 
   await selectArea(page, '110', /Great Kills Park/);
   await expect(page.locator('#taxi-total')).toHaveText('0');
-  await expect(rows).toHaveCount(48);
+  await expect(rows).toHaveCount(24);
   await expect(rows.first().getByRole('cell').last()).toHaveText('0');
   await expect(rows.last().getByRole('cell').last()).toHaveText('0');
 
@@ -99,16 +108,18 @@ test('invalid date ranges hide the total until both dates are valid', async ({ p
   const total = page.locator('#taxi-total');
   await expect(total).toHaveText('9,919');
 
-  for (const invalid of ['', '2026-09-08', '2026-08-31']) {
-    await start.fill(invalid);
-    await expect(status).toBeVisible();
-    await expect(status).toHaveText(/\S/);
-    await expect(total).not.toHaveText(/\d/);
-  }
+  await expect(start.locator('option')).toHaveCount(30);
+  await expect(start.locator('option').first()).toHaveText('Sep 1');
+  await expect(start.locator('option').last()).toHaveText('Sep 30');
+  await start.selectOption('2026-09-08');
+  await expect(status).toBeVisible();
+  await expect(status).toHaveText(/start on or before the end/);
+  await expect(total).not.toHaveText(/\d/);
 
-  await end.fill('2026-09-30');
-  await start.fill('2026-09-30');
+  await end.selectOption('2026-09-30');
+  await start.selectOption('2026-09-30');
   await expect(total).toHaveText('1,696');
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-30');
 });
 
 test('pending taxi data updates the current area after loading', async ({ context, page }) => {

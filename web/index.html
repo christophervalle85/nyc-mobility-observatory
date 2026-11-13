@@ -97,24 +97,28 @@
             </div>
             <button type="button" id="taxi-close" aria-label="Close taxi dashboard"><span aria-hidden="true">×</span></button>
           </header>
+          <p class="taxi-month">September 2026</p>
           <div class="taxi-dates">
-            <label for="taxi-start">Start date<input id="taxi-start" type="date" aria-describedby="taxi-status" /></label>
-            <label for="taxi-end">End date<input id="taxi-end" type="date" aria-describedby="taxi-status" /></label>
+            <label for="taxi-start">Start date<select id="taxi-start" aria-describedby="taxi-status"></select></label>
+            <label for="taxi-end">End date<select id="taxi-end" aria-describedby="taxi-status"></select></label>
           </div>
           <p id="taxi-status" role="status" tabindex="-1"></p>
           <button type="button" id="taxi-retry" hidden>Retry taxi data</button>
           <div id="taxi-results" hidden>
             <div class="taxi-total">
-              <p>Total dropoffs</p>
+              <p>Total for date range</p>
               <output id="taxi-total" for="taxi-start taxi-end"></output>
             </div>
             <figure class="taxi-chart">
-              <figcaption id="taxi-chart-caption">Dropoffs per hour (ET)</figcaption>
+              <figcaption id="taxi-chart-caption">
+                <span>Hourly dropoffs <small>ET</small></span>
+                <select id="taxi-chart-day" aria-label="Chart date"></select>
+              </figcaption>
               <div class="taxi-plot" aria-hidden="true">
                 <div class="taxi-scale"><span id="taxi-y-top"></span><span id="taxi-y-middle"></span><span>0</span></div>
                 <canvas id="taxi-chart"></canvas>
+                <div class="taxi-axis"><span>12 AM</span><span>Noon</span><span>11 PM</span></div>
               </div>
-              <div class="taxi-axis" aria-hidden="true"><span id="taxi-x-start"></span><span id="taxi-x-end"></span></div>
               <p id="taxi-chart-summary"></p>
             </figure>
             <details id="taxi-hours">

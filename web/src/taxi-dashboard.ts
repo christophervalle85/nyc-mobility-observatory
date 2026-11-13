@@ -4,6 +4,7 @@ import type { TaxiData } from './taxi-data.ts';
 const dataUrl = `/data/yellow-taxi-${TAXI_MONTH}.json`;
 const requestTimeout = 10_000;
 const number = new Intl.NumberFormat('en-US');
+const hoursPerDay = 24;
 const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
 function dateLabel(value: string) {
@@ -19,22 +20,27 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const find = <T extends HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
   const heading = find('#taxi-heading'), area = find('#taxi-area'), status = find('#taxi-status');
   const closer = find<HTMLButtonElement>('#taxi-close'), retry = find<HTMLButtonElement>('#taxi-retry');
-  const start = find<HTMLInputElement>('#taxi-start'), end = find<HTMLInputElement>('#taxi-end');
+  const start = find<HTMLSelectElement>('#taxi-start'), end = find<HTMLSelectElement>('#taxi-end');
   const results = find('#taxi-results'), total = find('#taxi-total'), chart = find<HTMLCanvasElement>('#taxi-chart');
   const scaleTop = find('#taxi-y-top'), scaleMiddle = find('#taxi-y-middle');
-  const axisStart = find('#taxi-x-start'), axisEnd = find('#taxi-x-end'), summary = find('#taxi-chart-summary');
+  const day = find<HTMLSelectElement>('#taxi-chart-day');
+  const summary = find('#taxi-chart-summary');
   const hours = find<HTMLDetailsElement>('#taxi-hours'), table = find('#taxi-hour-rows');
   const plot = chart.parentElement!;
-  for (const field of [start, end]) {
-    field.min = TAXI_START;
-    field.max = TAXI_END;
-    field.required = true;
+  function addDateOptions(select: HTMLSelectElement, first: string, last: string) {
+    for (let index = Number(first.slice(-2)); index <= Number(last.slice(-2)); index++) {
+      const value = `${TAXI_MONTH}-${String(index).padStart(2, '0')}`;
+      select.add(new Option(dateLabel(value), value));
+    }
   }
+
+  for (const field of [start, end]) addDateOptions(field, TAXI_START, TAXI_END);
   start.value = TAXI_START;
   end.value = `${TAXI_MONTH}-07`;
   let selection: TaxiArea | null = null;
   let data: TaxiData | undefined;
   let pending = false, failed = false;
+  let chartDateRange = '';
   let shown: { counts: readonly number[]; firstHour: number; scale: number } | undefined;
 
   function paint() {
@@ -57,16 +63,13 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
+    ctx.fillStyle = chartColor;
+    const slot = width / hoursPerDay;
     counts.forEach((value, index) => {
-      const x = 1 + index / (counts.length - 1) * (width - 2);
-      const y = height - 1 - value / scale * (height - 2);
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (value === 0) return;
+      const barHeight = Math.max(1, value / scale * (height - 2));
+      ctx.fillRect(index * slot + 1, height - 1 - barHeight, Math.max(1, slot - 2), barHeight);
     });
-    ctx.stroke();
   }
 
   function renderHours() {
@@ -109,19 +112,27 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       renderHours();
       return;
     }
-    const peak = Math.max(...series.counts);
+    const nextChartDateRange = `${start.value}/${end.value}`;
+    if (chartDateRange !== nextChartDateRange) {
+      const previous = day.value;
+      day.replaceChildren();
+      addDateOptions(day, start.value, end.value);
+      day.value = previous >= start.value && previous <= end.value ? previous : start.value;
+      chartDateRange = nextChartDateRange;
+    }
+    const firstHour = (Number(day.value.slice(-2)) - 1) * hoursPerDay;
+    const offset = firstHour - range.firstHour;
+    const counts = series.counts.slice(offset, offset + hoursPerDay);
+    const peak = Math.max(...counts);
     const increment = Math.max(1, 10 ** Math.floor(Math.log10(peak || 1)) / 2);
     const scale = Math.max(2, Math.ceil(peak / (increment * 2)) * increment * 2);
-    shown = { counts: series.counts, firstHour: range.firstHour, scale };
+    shown = { counts, firstHour, scale };
     status.textContent = '';
     results.hidden = false;
     total.textContent = number.format(series.total);
     scaleTop.textContent = number.format(scale);
     scaleMiddle.textContent = number.format(scale / 2);
-    axisStart.textContent = dateLabel(start.value);
-    axisEnd.textContent = dateLabel(end.value);
-    const rangeLabel = start.value === end.value ? axisStart.textContent : `${axisStart.textContent}–${axisEnd.textContent}`;
-    summary.textContent = `${rangeLabel} · ${number.format(series.counts.length)} hours · Peak ${number.format(peak)}/hour`;
+    summary.textContent = `${dateLabel(day.value)} · Peak ${number.format(peak)}/hour`;
     renderHours();
     paint();
   }
@@ -179,7 +190,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     close(true);
   });
   retry.addEventListener('click', () => { void load(); });
-  for (const field of [start, end]) field.addEventListener('input', render);
+  for (const field of [start, end, day]) field.addEventListener('change', render);
   hours.addEventListener('toggle', renderHours);
   new ResizeObserver(paint).observe(plot);
   const forcedColors = window.matchMedia('(forced-colors: active)');

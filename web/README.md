@@ -30,7 +30,7 @@ Keep the on-screen Cesium and imagery provider credits visible during live 3D. D
 
 ## Try the taxi dashboard
 
-With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Taxi dropoffs** on the area card. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use the chart or expand **Hourly counts** to see the breakdown. The dashboard also works in the live preview.
+With the web dependencies installed, run `npm run dev:verify` from `web/` and open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90). Select **Taxi dropoffs** on the area card. Set **Start date** and **End date** within September 2026. Both dates are inclusive in New York local time. The default range, September 1 through 7, shows 9,919 dropoffs in Flatiron. Use **Chart date** to view one day of hourly bars from the selected range. Expand **Hourly counts** for that day’s exact values. The dashboard also works in the live preview.
 
 The counts come from the frozen September 2026 TLC yellow taxi pickup-month file and cover September dropoffs from that file. Trips from adjacent pickup months are excluded. Subway counts remain outside the dashboard.
 
