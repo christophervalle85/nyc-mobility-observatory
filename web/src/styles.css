@@ -443,6 +443,7 @@ summary {
 summary::-webkit-details-marker { display: none; }
 summary::after { content: ''; flex: none; inline-size: .38em; block-size: .38em; border-right: 1px solid; border-bottom: 1px solid; transform: translateY(-.12em) rotate(45deg); }
 details[open] > summary { background: var(--color-paper-2); }
+.taxi-coverage[open] > summary { background: var(--color-map-capsule-action); }
 details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 .tool-content {
   position: absolute;
@@ -516,6 +517,7 @@ details[open] > summary::after { transform: translateY(.12em) rotate(225deg); }
 .skip-link { position: absolute; inset-inline-start: var(--space-xs); inset-block-start: var(--space-xs); z-index: var(--z-sticky-nav); padding: var(--space-xs); background: var(--color-paper-3); }
 @media (hover: hover) {
   button:hover:not(:disabled, .map-icon, #taxi-calendar button, .taxi-date-field button), summary:hover { background: var(--color-paper-2); }
+  .taxi-coverage > summary:hover { background: var(--color-map-capsule-action-hover); }
   #focus-area:hover:not(:disabled), #clear-selection:hover:not(:disabled), #taxi-open:hover:not(:disabled), #taxi-close:hover, #taxi-retry:hover, #subway-retry:hover { background: var(--color-map-capsule-action-hover); }
   .map-icon:hover:not(:disabled) { box-shadow: var(--shadow-map-capsule), inset 0 0 0 24px var(--color-map-capsule-action); }
   #clear-search:hover { background: var(--color-map-capsule-action); }
