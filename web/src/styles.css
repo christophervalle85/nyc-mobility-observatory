@@ -337,6 +337,51 @@ button[aria-busy=true] { cursor: progress; }
 .transportation-metric { display: grid; align-content: start; gap: var(--space-2xs); min-inline-size: 0; padding: var(--space-xs); border: 1px solid var(--color-map-capsule-edge); border-radius: 10px; }
 .transportation-metric p:first-child { font-size: var(--text-xs); font-weight: 650; }
 #taxi-total, #subway-total { font-size: var(--text-xl); font-weight: 670; line-height: 1.2; overflow-wrap: anywhere; }
+.mobility-trend { display: grid; gap: var(--space-xs); min-inline-size: 0; }
+.mobility-trend-legend { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); }
+.mobility-trend-legend, .mobility-trend-note, #taxi-range-coverage { color: var(--color-city-ink); font-size: var(--text-xs); }
+.trend-taxi-legend, .taxi-trend-bar { --trend-color: var(--color-accent-2); }
+.trend-subway-legend, .subway-trend-bar { --trend-color: oklch(84% 0.095 220); }
+.mobility-trend-legend span::before {
+  content: ''; display: inline-block; inline-size: .65em; block-size: .65em;
+  margin-inline-end: .4em; border: 1px solid var(--trend-color); border-radius: 2px;
+  background: var(--trend-color);
+}
+#mobility-trend-days {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 3rem;
+  justify-content: start;
+  gap: var(--space-2xs); overflow-x: auto; overscroll-behavior-inline: contain;
+  padding: var(--space-2xs); scrollbar-width: thin;
+}
+#mobility-trend-days .trend-day {
+  display: grid; align-content: end; gap: var(--space-2xs); min-inline-size: 0;
+  border-color: transparent; border-radius: 8px; background: transparent; color: inherit;
+  padding: var(--space-2xs); font-size: var(--text-xs); font-variant-numeric: tabular-nums;
+}
+#mobility-trend-days .trend-day[aria-pressed="true"] {
+  background: var(--color-map-capsule-action); border-color: var(--color-map-capsule-edge);
+}
+#mobility-trend-days .trend-day:focus-visible { outline-offset: -2px; }
+.trend-bars { display: grid; grid-auto-rows: 1.75rem; gap: var(--space-2xs); }
+.trend-bar-row { display: flex; align-items: end; justify-content: center; border-block-end: 1px solid var(--color-map-capsule-edge); }
+.mobility-trend:has(#trend-subway-legend[hidden]) .subway-trend-row,
+.mobility-trend:has(#trend-taxi-legend[hidden]) .taxi-trend-row { display: none; }
+.trend-bar {
+  display: block; inline-size: min(40%, .8rem); block-size: var(--trend-height);
+  min-block-size: 2px; border: 1px solid var(--trend-color); border-radius: 2px 2px 0 0;
+  background: var(--trend-color);
+}
+.trend-bar[data-gap] { background: transparent; border-color: transparent; border-block-end: 1px dashed var(--color-city-ink); }
+.trend-bar[data-partial] { background: transparent; border-style: dashed; }
+.trend-day-label { white-space: nowrap; }
+@media (hover: hover) {
+  #mobility-trend-days .trend-day:hover { background: var(--color-map-capsule-action-hover); }
+}
+@media (forced-colors: active) {
+  .trend-bar { border-color: CanvasText; background: CanvasText; }
+  .trend-bar[data-partial], .trend-bar[data-gap] { background: Canvas; }
+  #mobility-trend-days .trend-day[aria-pressed="true"] { border-color: Highlight; }
+}
 .taxi-chart { margin: 0; min-inline-size: 0; }
 .taxi-chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); }
 .chart-hour-label { color: var(--color-city-ink); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }

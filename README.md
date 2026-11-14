@@ -26,10 +26,10 @@ Follow the [web setup and safety notes](web/README.md).
 
 To try the dashboard without a token, run `npm run dev:verify` from `web/` and
 open [Flatiron in the mock preview](http://127.0.0.1:5174/?mode=mock&zone=90).
-Select **Mobility data**, then open **Start date** or **End date** and use the calendar arrows to browse months. Pick a date in August to load August data.
-Flatiron shows 9,919 dropoffs for September 1 through 7 and 11,005 for August 1
-through 7. Choose a **Subway station complex** to see estimated entries for the same
-date range. See the [dashboard controls, coverage and export instructions](web/README.md#try-the-transportation-dashboard).
+Select **Mobility data** and use the Start and End calendars to select a range
+within or across months. Choose a day in **Daily trend** to see its hourly
+charts. Flatiron shows 10,165 taxi dropoffs from August 29 through September 4.
+See the [dashboard controls, coverage and export instructions](web/README.md#try-the-transportation-dashboard).
 
 The dashboard uses frozen monthly archives. Historical backfill and recurring
 publication are described in the [multi-month specification](docs/specs/multi-month-mobility.md#historical-and-ongoing-coverage).
