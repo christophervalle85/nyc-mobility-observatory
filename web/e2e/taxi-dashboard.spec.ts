@@ -95,7 +95,7 @@ test('interactive hours follow the chart date and selected area', async ({ page 
   await expect(page.getByRole('combobox', { name: 'Search areas' })).toBeFocused();
 });
 
-test('the date menu opens below the chart field and Escape closes only the menu', async ({ page }) => {
+test('the date menu stays anchored to its chart field and Escape closes only the menu', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
@@ -108,7 +108,7 @@ test('the date menu opens below the chart field and Escape closes only the menu'
   await expect(row).toBeVisible();
   const fieldBounds = (await day.boundingBox())!;
   const rowBounds = (await row.boundingBox())!;
-  expect(rowBounds.y).toBeGreaterThan(fieldBounds.y + fieldBounds.height);
+  expect(rowBounds.y >= fieldBounds.y + fieldBounds.height || rowBounds.y + rowBounds.height <= fieldBounds.y).toBe(true);
   expect(Math.abs(rowBounds.x + rowBounds.width - fieldBounds.x - fieldBounds.width)).toBeLessThan(7);
   await page.keyboard.press('Escape');
   await expect(page.locator('#taxi-chart-day:open')).toHaveCount(0);
@@ -307,7 +307,7 @@ test('a subway export waits for taxi provenance and rejects a different run', as
     await page.goto('/?mode=mock&zone=90');
     await openTaxiDashboard(page);
     const station = page.getByLabel('Subway station complex');
-    await expect(station.locator('option[value="1"]')).toHaveCount(1);
+    await expect(station.locator('option[value="1"]')).toHaveCount(0);
     await expect(station).toBeDisabled();
     release();
     await expect(page.locator('#taxi-total')).toHaveText('9,919');
@@ -333,7 +333,7 @@ test('Lincoln Square East suggests nearby stations and distant areas keep taxi a
   await expect(page.locator('#taxi-total')).toHaveText('0');
 });
 
-test('the catalog switches Flatiron to August and keeps an available station', async ({ page }) => {
+test('calendar spans August and September and the daily trend opens hourly detail', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', request => requests.push(new URL(request.url()).pathname));
   await page.goto('/?mode=mock&zone=90');
@@ -345,35 +345,42 @@ test('the catalog switches Flatiron to August and keeps an available station', a
   const station = page.locator('#subway-station');
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await station.selectOption('601');
-  expect(requests).not.toContain('/data/yellow-taxi-2026-08.json');
-
   await start.click();
-  await expect(calendar.getByRole('button', { name: 'Next month' })).toBeDisabled();
   await calendar.getByRole('button', { name: 'Previous month' }).click();
   await expect(calendar).toHaveAccessibleName('August 2026');
-  await expect(calendar.getByRole('button', { name: 'Previous month' })).toBeDisabled();
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   expect(requests).not.toContain('/data/yellow-taxi-2026-08.json');
-  await calendar.getByRole('button', { name: 'August 1', exact: true }).click();
-  await expect(page.locator('#taxi-total')).toHaveText('11,005');
-  await expect(page.locator('#selection-title')).toHaveText('Flatiron');
-  await expect(station).toHaveValue('601');
-  await expect(page.locator('#subway-total')).toHaveText(/\d/);
-  await expect(page.getByLabel('Chart date')).toHaveValue('2026-08-01');
-  await expect(page.getByRole('button', { name: 'Start date Aug 1, 2026' })).toBeVisible();
-  await page.getByRole('button', { name: 'End date Aug 7, 2026' }).click();
-  await calendar.getByRole('button', { name: 'August 31', exact: true }).click();
-  await expect(page.locator('#taxi-total')).toHaveText('45,364');
-
+  await calendar.getByRole('button', { name: 'August 29', exact: true }).click();
+  await expect(end).toHaveAccessibleName('End date Sep 7, 2026');
   await end.click();
-  await calendar.getByRole('button', { name: 'Next month' }).click();
-  await expect(calendar).toHaveAccessibleName('September 2026');
-  await calendar.getByRole('button', { name: 'September 7', exact: true }).click();
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
-  await expect(page.getByRole('button', { name: 'End date Sep 7, 2026' })).toBeVisible();
+  await calendar.getByRole('button', { name: 'September 4', exact: true }).click();
+  await expect(start).toHaveAccessibleName('Start date Aug 29, 2026');
+  await expect(page.locator('#taxi-total')).toHaveText('10,165');
+  await expect(page.locator('#taxi-range-coverage')).toHaveText('7 of 7 days covered');
+  await expect(page.locator('#subway-total')).toHaveText('222,844');
+  await expect(page.locator('#subway-coverage')).toHaveText('166 of 168 comparable hours');
+  await expect(station).toHaveValue('601');
+  await expect(page.locator('#selection-title')).toHaveText('Flatiron');
+  const trend = page.getByRole('region', { name: 'Daily trend' });
+  await expect(trend.getByRole('button')).toHaveCount(7);
+  const aug31 = trend.getByRole('button', { name: /Aug 31, 2026/ });
+  const sep1 = trend.getByRole('button', { name: /Sep 1, 2026.*1,423 taxi dropoffs.*34,290 estimated subway entries.*partial/ });
+  await aug31.click();
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-08-31');
+  await expect(page.locator('#chart-hour-taxi')).toHaveText('35');
+  await aug31.press('ArrowRight');
+  await expect(sep1).toBeFocused();
+  await sep1.press('Enter');
+  await expect(sep1).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-01');
+  await expect(page.locator('#chart-hour-taxi')).toHaveText('27');
+  await expect(page.locator('#chart-hour-subway')).toHaveText('315');
+  await expect(start).toHaveAccessibleName('Start date Aug 29, 2026');
+  await expect(end).toHaveAccessibleName('End date Sep 4, 2026');
+  expect(requests.filter(path => path === datasetPath)).toHaveLength(1);
 });
 
-test('a delayed September request cannot replace August results', async ({ context, page }) => {
+test('a delayed September request cannot replace an August-only range', async ({ context, page }) => {
   let release!: () => void;
   const delayed = new Promise<void>(resolve => { release = resolve; });
   await context.route(`**${datasetPath}`, async route => {
@@ -387,6 +394,9 @@ test('a delayed September request cannot replace August results', async ({ conte
     await page.getByRole('button', { name: /Start date/ }).click();
     await page.getByRole('button', { name: 'Previous month' }).click();
     await page.getByRole('button', { name: 'August 1', exact: true }).click();
+    await page.getByRole('button', { name: /End date/ }).click();
+    await page.getByRole('button', { name: 'Previous month' }).click();
+    await page.getByRole('button', { name: 'August 7', exact: true }).click();
     await expect(page.locator('#taxi-total')).toHaveText('11,005');
     release();
     await context.unrouteAll({ behavior: 'wait' });
@@ -394,6 +404,29 @@ test('a delayed September request cannot replace August results', async ({ conte
   } finally {
     release();
   }
+});
+
+test('a failed taxi month remains a gap and can be retried independently', async ({ context, page }) => {
+  const august = '**/data/yellow-taxi-2026-08.json';
+  await context.route(august, route => route.fulfill({ status: 503 }));
+  await page.goto('/?mode=mock&zone=90');
+  await openTaxiDashboard(page);
+  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await page.getByRole('button', { name: /Start date/ }).click();
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  await page.getByRole('button', { name: 'August 31', exact: true }).click();
+  const gap = page.getByRole('button', { name: /Aug 31, 2026.*taxi dropoffs unavailable/ });
+  await expect(gap).toBeVisible();
+  await expect(page.locator('#taxi-range-coverage')).toHaveText('7 of 8 days covered');
+  await gap.click();
+  await expect(page.locator('#mobility-day-unavailable')).toBeVisible();
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-08-31');
+  await context.unroute(august);
+  await page.getByRole('button', { name: 'Retry taxi data' }).click();
+  await expect(page.locator('#taxi-total')).toHaveText('10,987');
+  await expect(page.locator('#taxi-range-coverage')).toHaveText('8 of 8 days covered');
+  await expect(page.getByRole('slider', { name: 'Hourly taxi dropoffs' })).toBeVisible();
+  await expect(page.locator('#chart-hour-taxi')).toHaveText('35');
 });
 
 test('a catalog entry enables another month with only taxi data', async ({ context, page }) => {

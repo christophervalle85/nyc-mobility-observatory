@@ -143,6 +143,7 @@
               <div id="taxi-metric" class="transportation-metric" hidden>
                 <p id="taxi-metric-label">Yellow taxi dropoffs</p>
                 <output id="taxi-total" aria-labelledby="taxi-metric-label" for="taxi-start taxi-end"></output>
+                <p id="taxi-range-coverage"></p>
               </div>
               <div id="subway-metric" class="transportation-metric" hidden>
                 <p id="subway-metric-label">Estimated subway entries</p>
@@ -150,6 +151,16 @@
                 <p id="subway-coverage"></p>
               </div>
             </div>
+            <section id="mobility-trend" class="mobility-trend" aria-labelledby="mobility-trend-heading">
+              <h3 id="mobility-trend-heading">Daily trend</h3>
+              <div class="mobility-trend-legend">
+                <span id="trend-taxi-legend" class="trend-taxi-legend">Taxi dropoffs</span>
+                <span id="trend-subway-legend" class="trend-subway-legend">Estimated subway entries</span>
+              </div>
+              <div id="mobility-trend-days" role="group" aria-label="Days"></div>
+              <p class="mobility-trend-note">Select a day for hourly detail. The two series have separate scales. Dashed bars indicate partial data.</p>
+            </section>
+            <p id="mobility-day-unavailable" class="chart-coverage-note" hidden>No hourly data for this day.</p>
             <div class="taxi-chart-controls">
               <div>
                 <h3>Hourly comparison</h3>

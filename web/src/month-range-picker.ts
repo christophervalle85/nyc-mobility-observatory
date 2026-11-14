@@ -2,7 +2,7 @@ import { dateLabel, daysInMonth, monthDate, monthLabel } from './mobility-months
 
 type Endpoint = 'start' | 'end';
 
-export function monthRangePicker(panel: HTMLElement, change: (month: string) => void) {
+export function monthRangePicker(panel: HTMLElement, change: () => void) {
   const calendar = panel.querySelector<HTMLElement>('#taxi-calendar')!;
   const hint = calendar.querySelector<HTMLElement>('#taxi-calendar-hint')!;
   const title = calendar.querySelector<HTMLElement>('#taxi-calendar-title')!;
@@ -13,29 +13,42 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
     start: panel.querySelector<HTMLButtonElement>('#taxi-start')!,
     end: panel.querySelector<HTMLButtonElement>('#taxi-end')!,
   };
-  const range = { start: 1, end: 7 };
+  const range = { start: '', end: '' };
   let months: readonly string[] = [];
-  let month = '', viewedMonth = '';
+  let viewedMonth = '';
   let endpoint: Endpoint = 'start';
   const buttons: HTMLButtonElement[] = [];
   const isOpen = () => calendar.matches(':popover-open');
-  const iso = (day: number) => monthDate(month, day);
+
+  function closeCalendar(restoreFocus = false) {
+    if (!isOpen()) return;
+    calendar.hidePopover();
+    for (const trigger of Object.values(triggers)) trigger.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) triggers[endpoint].focus({ preventScroll: true });
+  }
 
   function updateFields() {
     for (const side of ['start', 'end'] as const) {
-      triggers[side].querySelector('span')!.textContent = dateLabel(iso(range[side]), 'full');
+      triggers[side].querySelector('span')!.textContent = dateLabel(range[side], 'full');
     }
   }
 
   function bounds() {
     const lastDay = daysInMonth(viewedMonth);
-    if (viewedMonth !== month) return [1, lastDay];
-    return endpoint === 'start' ? [1, range.end] : [range.start, lastDay];
+    const other = endpoint === 'start' ? range.end : range.start;
+    const month = other.slice(0, 7);
+    if (viewedMonth !== month) {
+      const validMonth = endpoint === 'start' ? viewedMonth < month : viewedMonth > month;
+      return validMonth ? [1, lastDay] : [1, 0];
+    }
+    const limit = Number(other.slice(8));
+    return endpoint === 'start' ? [1, limit] : [limit, lastDay];
   }
 
   function focusDay(day: number) {
-    for (const [index, button] of buttons.entries()) button.tabIndex = index + 1 === day ? 0 : -1;
     const button = buttons[day - 1];
+    if (!button || button.disabled) return;
+    for (const [index, button] of buttons.entries()) button.tabIndex = index + 1 === day ? 0 : -1;
     button.focus({ preventScroll: true });
     const cell = button.getBoundingClientRect();
     const top = calendar.getBoundingClientRect().top + calendar.clientTop;
@@ -49,7 +62,7 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
     const field = triggers[endpoint].getBoundingClientRect();
     const panelBounds = panel.getBoundingClientRect();
     if (field.bottom <= panelBounds.top || field.top >= panelBounds.bottom) {
-      calendar.hidePopover();
+      closeCalendar();
       return;
     }
     const { width, height } = calendar.getBoundingClientRect();
@@ -63,48 +76,40 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
   }
 
   function open(side: Endpoint) {
-    if (!month) return;
+    if (!range[side]) return;
     if (isOpen() && endpoint === side) {
-      calendar.hidePopover();
+      closeCalendar();
       return;
     }
-    if (isOpen()) calendar.hidePopover();
+    closeCalendar();
     endpoint = side;
-    viewedMonth = month;
-    renderMonth(range[side]);
+    viewedMonth = range[side].slice(0, 7);
+    const focusableDay = Number(range[side].slice(8));
+    renderMonth(focusableDay);
     calendar.showPopover();
     for (const key of ['start', 'end'] as const) triggers[key].setAttribute('aria-expanded', String(key === side));
     position();
-    if (isOpen()) focusDay(range[side]);
+    if (isOpen()) focusDay(focusableDay);
   }
 
   function makeDay(day: number) {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = String(day);
-    const selected = viewedMonth === month && day === range[endpoint];
+    const value = monthDate(viewedMonth, day);
     const [minimum, maximum] = bounds();
-    button.setAttribute('aria-label', dateLabel(monthDate(viewedMonth, day), 'long'));
-    button.setAttribute('aria-pressed', String(selected));
-    button.toggleAttribute('data-in-range', viewedMonth === month && day >= range.start && day <= range.end);
+    button.setAttribute('aria-label', dateLabel(value, 'long'));
+    button.setAttribute('aria-pressed', String(value === range[endpoint]));
+    button.toggleAttribute('data-in-range', value >= range.start && value <= range.end);
     button.disabled = day < minimum || day > maximum;
     button.tabIndex = -1;
     button.addEventListener('click', () => {
       const [minimum, maximum] = bounds();
       if (day < minimum || day > maximum) return;
-      if (month !== viewedMonth) {
-        month = viewedMonth;
-        const last = daysInMonth(month);
-        range.start = Math.min(range.start, last);
-        range.end = Math.min(range.end, last);
-      }
-      range[endpoint] = day;
-      if (endpoint === 'start') range.end = Math.max(range.end, day);
-      else range.start = Math.min(range.start, day);
+      range[endpoint] = value;
       updateFields();
-      calendar.hidePopover();
-      triggers[endpoint].focus({ preventScroll: true });
-      change(month);
+      closeCalendar(true);
+      change();
     });
     button.addEventListener('keydown', event => {
       const direction = getComputedStyle(days).direction === 'rtl' ? -1 : 1;
@@ -128,13 +133,12 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
     const first = new Date(`${monthDate(viewedMonth, 1)}T00:00:00Z`);
     const weekday = first.getUTCDay();
     const last = daysInMonth(viewedMonth);
-    hint.textContent = viewedMonth !== month
-      ? 'Choose a date to view this month.'
-      : endpoint === 'start'
-        ? `Choose a start date on or before ${dateLabel(iso(range.end), 'long')}.`
-        : `Choose an end date on or after ${dateLabel(iso(range.start), 'long')}.`;
+    hint.textContent = endpoint === 'start'
+      ? `Choose a start date on or before ${dateLabel(range.end, 'full')}.`
+      : `Choose an end date on or after ${dateLabel(range.start, 'full')}.`;
     buttons.splice(0, buttons.length, ...Array.from({ length: last }, (_, index) => makeDay(index + 1)));
-    buttons[focusableDay - 1].tabIndex = 0;
+    const focusable = buttons[focusableDay - 1];
+    if (focusable && !focusable.disabled) focusable.tabIndex = 0;
     const adjacentDay = (offset: number) => {
       const date = new Date(first);
       date.setUTCDate(1 + offset);
@@ -154,11 +158,14 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
     if (!target) return;
     viewedMonth = target;
     const [minimum, maximum] = bounds();
-    const day = Math.max(minimum, Math.min(maximum, range[endpoint]));
+    const day = Math.max(minimum, Math.min(maximum, Number(range[endpoint].slice(8))));
     renderMonth(day);
     position();
     if (!isOpen()) return;
-    if (control.disabled) focusDay(day);
+    if (control.disabled) {
+      if (maximum >= minimum) focusDay(day);
+      else (control === previous ? next : previous).focus({ preventScroll: true });
+    }
   }
 
   previous.addEventListener('click', () => browse(1, previous));
@@ -170,7 +177,7 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
   function dismissOutside(event: Event) {
     const target = event.target as Node;
     if (isOpen() && !calendar.contains(target) && !triggers.start.contains(target) && !triggers.end.contains(target)) {
-      calendar.hidePopover();
+      closeCalendar();
     }
   }
   document.addEventListener('focusin', dismissOutside);
@@ -178,20 +185,22 @@ export function monthRangePicker(panel: HTMLElement, change: (month: string) => 
   calendar.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    calendar.hidePopover();
-    triggers[endpoint].focus({ preventScroll: true });
+    closeCalendar(true);
   });
   panel.addEventListener('scroll', position, { passive: true });
   window.addEventListener('scroll', position, { passive: true });
   window.addEventListener('resize', position);
   return {
-    get value() { return { start: iso(range.start), end: iso(range.end) }; },
+    get value() { return { ...range }; },
     setMonths(available: readonly string[]) {
       months = available;
-      month = available[0];
+      const month = available[0];
+      if (!month) return;
+      range.start = monthDate(month, 1);
+      range.end = monthDate(month, 7);
       updateFields();
       for (const trigger of Object.values(triggers)) trigger.disabled = false;
     },
-    close() { if (isOpen()) calendar.hidePopover(); },
+    close: closeCalendar,
   };
 }
