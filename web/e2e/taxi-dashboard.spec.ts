@@ -387,6 +387,34 @@ test('calendar spans August and September and the daily trend opens hourly detai
   expect(requests.filter(path => path === datasetPath)).toHaveLength(1);
 });
 
+test('daily trend keeps the same day width as the range changes', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?mode=mock&zone=90');
+  await openTaxiDashboard(page);
+  const trend = page.getByRole('region', { name: 'Daily trend' });
+  const days = trend.getByRole('button');
+  await expect(days).toHaveCount(7);
+  const dayWidth = (await days.first().boundingBox())!.width;
+  const trendSize = (await trend.boundingBox())!;
+  await page.getByRole('button', { name: /End date/ }).click();
+  await page.getByRole('button', { name: 'September 1', exact: true }).click();
+  await expect(days).toHaveCount(1);
+  expect((await days.first().boundingBox())!.width).toBe(dayWidth);
+  const shortTrendSize = (await trend.boundingBox())!;
+  expect(shortTrendSize.width).toBe(trendSize.width);
+  expect(shortTrendSize.height).toBe(trendSize.height);
+
+  await page.getByRole('button', { name: /End date/ }).click();
+  await page.getByRole('button', { name: 'September 30', exact: true }).click();
+  await expect(days).toHaveCount(30);
+  expect((await days.first().boundingBox())!.width).toBe(dayWidth);
+  const track = trend.getByRole('group', { name: 'Days' });
+  expect(await track.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
+  await days.first().press('End');
+  await expect(days.last()).toBeFocused();
+  await expect(days.last()).toBeInViewport();
+});
+
 test('a delayed September request cannot replace an August-only range', async ({ context, page }) => {
   let release!: () => void;
   const delayed = new Promise<void>(resolve => { release = resolve; });
