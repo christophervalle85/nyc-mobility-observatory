@@ -363,6 +363,9 @@ test('calendar spans August and September and the daily trend opens hourly detai
   await expect(page.locator('#selection-title')).toHaveText('Flatiron');
   const trend = page.getByRole('region', { name: 'Daily trend' });
   await expect(trend.getByRole('button')).toHaveCount(7);
+  await expect(trend.getByRole('button', { name: /Aug 29, 2026/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-08-29');
+  await expect(page.locator('#chart-hour-taxi')).toHaveText('131');
   const aug31 = trend.getByRole('button', { name: /Aug 31, 2026/ });
   const sep1 = trend.getByRole('button', { name: /Sep 1, 2026.*1,423 taxi dropoffs.*34,290 estimated subway entries.*partial/ });
   await aug31.click();
@@ -377,6 +380,10 @@ test('calendar spans August and September and the daily trend opens hourly detai
   await expect(page.locator('#chart-hour-subway')).toHaveText('315');
   await expect(start).toHaveAccessibleName('Start date Aug 29, 2026');
   await expect(end).toHaveAccessibleName('End date Sep 4, 2026');
+  await end.click();
+  await calendar.getByRole('button', { name: 'September 5', exact: true }).click();
+  await expect(page.getByLabel('Chart date')).toHaveValue('2026-08-29');
+  await expect(trend.getByRole('button', { name: /Aug 29, 2026/ })).toHaveAttribute('aria-pressed', 'true');
   expect(requests.filter(path => path === datasetPath)).toHaveLength(1);
 });
 

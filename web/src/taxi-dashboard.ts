@@ -249,10 +249,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
     const nextChartDateRange = `${start}/${end}`;
     if (chartDateRange !== nextChartDateRange) {
-      const previous = day.value;
       day.replaceChildren(...range.days.map(({ date }) => new Option(dateLabel(date, 'full'), date)));
-      day.value = previous >= start && previous <= end ? previous : start;
-      if (day.value !== previous) selectedHour = 0;
+      day.value = start;
+      selectedHour = 0;
       chartDateRange = nextChartDateRange;
     }
     const current = range.days.find(item => item.date === day.value)!;
