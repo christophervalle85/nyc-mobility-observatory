@@ -99,7 +99,7 @@ def test_discovery_independent_empty_errors_and_rejections(tmp_path, monkeypatch
             data = b"".join(
                 f'<a href="https://d37ci6vzurychx.cloudfront.net/trip-data/'
                 f'yellow_tripdata_{month}.parquet">x</a>'.encode()
-                for month in ("2015-01", "2024-02", "9998-01")
+                for month in ("2010-12", "2011-01", "2015-01", "2024-02", "9998-01")
             )
         elif "wujg" in name:
             data = coverage()
@@ -109,10 +109,13 @@ def test_discovery_independent_empty_errors_and_rejections(tmp_path, monkeypatch
 
     monkeypatch.setattr(discovery, "download", fake_download)
     result = discovery.discover(tmp_path)
-    assert [item["month"] for item in result["months"]] == ["2024-02", "2015-01"]
+    assert [item["month"] for item in result["months"]] == ["2024-02", "2015-01", "2011-01"]
     assert all(item["taxi"] and not item["subway"] for item in result["months"])
     assert [source["status"] for source in result["sources"]] == ["ok", "empty", "error"]
-    assert {item["month"] for item in result["rejected"]} == {"9998-01"}
+    assert {item["month"] for item in result["rejected"]} == {"2010-12", "9998-01"}
+    legacy = next(item for item in result["rejected"] if item["month"] == "2010-12")
+    assert legacy["source"] == "tlc"
+    assert legacy["reason"] == "legacy taxi coordinates require a verified zone-ID adapter"
 
 
 def test_current_and_partial_mta_months_are_rejected(tmp_path, monkeypatch):

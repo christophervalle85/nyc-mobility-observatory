@@ -231,6 +231,8 @@ def discover(root: Path) -> dict:
                 reason = None
                 if month >= current:
                     reason = "current or future calendar month"
+                elif source == "tlc" and month < "2011-01":
+                    reason = "legacy taxi coordinates require a verified zone-ID adapter"
                 elif not entry["complete_edges"]:
                     reason = "partial observed month edges"
                 if reason:

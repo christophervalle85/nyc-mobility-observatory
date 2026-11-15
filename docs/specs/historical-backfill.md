@@ -27,8 +27,7 @@ and newly captured pilot counts. Report observed source and dashboard limits.
 
 ## Pilot evidence
 
-- Live discovery on November 15, 2026 returned 204 TLC links and 214 union
-  candidates. The current MTA dataset showed coverage through October. The
+- Live discovery on November 15, 2026 returned 204 TLC links and 214 source months before applying the taxi format boundary. The current MTA dataset showed coverage through October. The
   historical dataset's grouped query timed out, so discovery used its observed
   January 2020 through December 2024 span. These are candidates. Subway exports
   from the span must have observations on the first and last days of each month.
@@ -37,6 +36,6 @@ and newly captured pilot counts. Report observed source and dashboard limits.
   identically. A repeat batch skipped all three already published months.
 - Flatiron showed 2,799 taxi dropoffs over June 30–July 1 in Chrome. Clicking
   July 1 changed the midnight count from 37 to 33.
-- All twelve 2010 TLC Parquet footers used coordinates instead of zone IDs.
-  The January 2011 footer uses zone IDs and local timestamps. January and
-  December 2009 spot checks also showed coordinates.
+- All 24 TLC Parquet footers from 2009–2010 use coordinates. January 2011
+  has zone IDs and timestamps, so discovery reports the coordinate files as
+  requiring a separate adapter. Each month from 2011 still needs validation.

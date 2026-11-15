@@ -154,6 +154,7 @@ failure, and the command exits nonzero if any attempted month fails.
 
 The catalog advertises files only after validation. Existing published
 months stay in place. The current export format omits daylight-saving
-transition months. Older taxi files with coordinates require a compatible
-zone assignment before they can be used. See the
+transition months. The 2009–2010 taxi files use coordinates and need a
+validated zone assignment before they can be used. The current backfill
+requires a taxi file and adds subway data when the same month is available. See the
 [historical backfill specification](docs/specs/historical-backfill.md).
