@@ -17,7 +17,9 @@ from urllib.parse import urlencode, urlparse
 
 from .core import canonical_bytes, file_hash, month_bounds, reject_symlinks, safe_directory
 
-ORIGINS = {"d37ci6vzurychx.cloudfront.net", "data.ny.gov"}
+ORIGINS = {"d37ci6vzurychx.cloudfront.net", "data.ny.gov", "www.nyc.gov"}
+TLC_INDEX = "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
+MTA_DATASETS = ("wujg-7c2s", "5wq4-mkjj")
 MTA = "https://data.ny.gov/resource/5wq4-mkjj.csv"
 METADATA = "https://data.ny.gov/api/views/5wq4-mkjj.json"
 MAX_MTA_ROWS = 5_000_000
@@ -40,6 +42,7 @@ def validate_url(url: str) -> None:
         or parsed.password
         or parsed.port not in (None, 443)
         or parsed.fragment
+        or (parsed.hostname == "www.nyc.gov" and url != TLC_INDEX)
     ):
         raise ValueError("source URL must use an approved HTTPS origin without credentials")
 
@@ -56,6 +59,7 @@ def _publish_temp(temp: Path, root: Path, name: str, suffix: str, digest: str) -
         ".json",
         ".parquet",
         ".zip",
+        ".html",
     ):
         raise ValueError("invalid raw asset name or suffix")
     destination = root / "raw" / name / (digest + suffix)
@@ -221,25 +225,36 @@ def _count(asset: dict, root: Path) -> int:
     return count
 
 
+def mta_dataset(month: str) -> str:
+    """Choose a fixed official dataset; no caller-supplied URL or dataset identifier."""
+    month_bounds(month)
+    if month < "2020-01":
+        raise ValueError("MTA hourly acquisition supports 2020 onward")
+    return MTA_DATASETS[0] if month < "2025-01" else MTA_DATASETS[1]
+
+
 def capture_mta(root: Path, month: str) -> tuple[dict, dict]:
+    dataset = mta_dataset(month)
+    resource = f"https://data.ny.gov/resource/{dataset}.csv"
+    metadata = f"https://data.ny.gov/api/views/{dataset}.json"
     start, end = (value.replace(" ", "T") for value in month_bounds(month))
     where = f"transit_timestamp >= '{start}' AND transit_timestamp < '{end}'"
-    count_url = MTA + "?" + urlencode({"$select": "count(*) as count", "$where": where})
+    count_url = resource + "?" + urlencode({"$select": "count(*) as count", "$where": where})
     query = {"$select": MTA_FIELDS, "$where": where, "$order": ":id", "$limit": MAX_MTA_ROWS + 1}
     assets = {}
     assets["metadata_before"] = download(
-        METADATA, root, "metadata_before", ".json", max_bytes=5 * 1024 * 1024
+        metadata, root, "metadata_before", ".json", max_bytes=5 * 1024 * 1024
     )
     before = _metadata(assets["metadata_before"], root)
     assets["count_before"] = download(count_url, root, "count_before", ".csv", max_bytes=4096)
     count = _count(assets["count_before"], root)
     assets["subway"] = download(
-        MTA + "?" + urlencode(query), root, "subway", ".csv", max_bytes=1024**3
+        resource + "?" + urlencode(query), root, "subway", ".csv", max_bytes=1024**3
     )
     assets["count_after"] = download(count_url, root, "count_after", ".csv", max_bytes=4096)
     after_count = _count(assets["count_after"], root)
     assets["metadata_after"] = download(
-        METADATA, root, "metadata_after", ".json", max_bytes=5 * 1024 * 1024
+        metadata, root, "metadata_after", ".json", max_bytes=5 * 1024 * 1024
     )
     after = _metadata(assets["metadata_after"], root)
     if before["rowsUpdatedAt"] != after["rowsUpdatedAt"] or count != after_count:
@@ -346,6 +361,8 @@ def save_snapshot(document: dict, root: Path) -> Path:
 
 def acquire(root: Path, month: str, taxi_only: bool = False) -> Path:
     month_bounds(month)
+    if not taxi_only:
+        mta_dataset(month)  # Reject unsupported periods before downloading any assets.
     prefix = "https://d37ci6vzurychx.cloudfront.net/"
     assets = {
         "taxi": download(
