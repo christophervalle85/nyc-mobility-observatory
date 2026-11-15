@@ -85,6 +85,18 @@ class SubwayExportTests(unittest.TestCase):
         self.assertEqual(counts[:4], [2.5, None, None, 0])
         self.assertEqual(sum(value is not None for value in counts), 718)
 
+    def test_optional_month_edge_check_rejects_an_unobserved_last_day(self) -> None:
+        self.assertEqual(export(self.run, require_month_edges=True), export(self.run))
+        for row in self.rows[-24:]:
+            row[6:] = ["", "false", "false", "false", "missing_observation"]
+        self.quality["observed_station_hours"] -= 24
+        self.quality["eligible_station_hours"] -= 24
+        self.quality["missing_station_hours"] += 24
+        self.write_archive()
+        self.assertEqual(json.loads(export(self.run))["stations"][0]["counts"][-24:], [None] * 24)
+        with self.assertRaisesRegex(ValueError, "month edges"):
+            export(self.run, require_month_edges=True)
+
     def test_completed_month_and_portable_run_identity(self) -> None:
         path = self.run / "manifest.json"
         original = json.loads(path.read_text())

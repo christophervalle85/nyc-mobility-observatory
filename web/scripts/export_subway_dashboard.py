@@ -29,7 +29,7 @@ HEADER = [
 ]
 
 
-def export(run: Path) -> bytes:
+def export(run: Path, *, require_month_edges: bool = False) -> bytes:
     manifest = object_value(json.loads((run / "manifest.json").read_bytes()), "manifest")
     identity = object_value(manifest.get("identity"), "identity")
     if manifest.get("status") != "completed":
@@ -60,6 +60,7 @@ def export(run: Path) -> bytes:
     identities = {}
     seen = set()
     observed = comparable = 0
+    observed_first_day = observed_last_day = False
     reader = csv.reader(io.StringIO(source.decode("utf-8")), strict=True)
     if next(reader, None) != HEADER:
         raise ValueError("Unexpected subway CSV header")
@@ -100,6 +101,8 @@ def export(run: Path) -> bytes:
         count = None
         if obs == "true":
             observed += 1
+            observed_first_day |= hour < 24
+            observed_last_day |= hour >= hours - 24
             count = float(value)
             if not math.isfinite(count) or not 0 <= count <= 9007199254740991:
                 raise ValueError("Ridership must be finite and nonnegative")
@@ -108,6 +111,8 @@ def export(run: Path) -> bytes:
             stations[station_id]["counts"][hour] = count
         stations[station_id]["name"] = name
         stations[station_id]["borough"] = borough
+    if require_month_edges and not (observed_first_day and observed_last_day):
+        raise ValueError("Subway archive has no observations on one or both month edges")
     expected = {
         "station_hour_denominator": len(stations) * hours,
         "observed_station_hours": observed,

@@ -25,3 +25,6 @@ web/*.tsbuildinfo
 web/public/cesium/
 web/.hallmark/sloplint-*/
 web/.hallmark/salt
+
+# Local dashboard backfill writer lock.
+.backfill.lock

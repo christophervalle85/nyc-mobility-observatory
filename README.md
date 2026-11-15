@@ -130,3 +130,30 @@ Only tiny synthetic CSV fixtures belong in Git for M1. The derived official TLC
 GeoJSON and its provenance are intentionally versioned under `web/public/data/`
 for M2. Raw trip/subway data and local credentials remain ignored. No deployment
 or remote publishing is included.
+
+## Backfill published history
+
+From the repository root, discover eligible source months first, then run a
+bounded backfill. The command uses the official TLC index and MTA hourly
+datasets, archives raw files locally, and publishes verified aggregates to
+the dashboard data directory.
+
+```sh
+PYTHONPATH=src uv run python web/scripts/backfill.py --discover-only
+PYTHONPATH=src uv run python web/scripts/backfill.py --limit 3
+PYTHONPATH=src uv run python web/scripts/backfill.py
+```
+
+Rerun the same command to pick up unfinished months. It skips published
+months, validates and reuses matching completed runs or frozen snapshots, and
+prints a result per attempted month. Use `--since` and `--through` for
+inclusive month bounds or `--dashboard-dir` to stage a separate local data
+directory. An incomplete discovery report exits before trying candidate
+captures. Other months continue after a per-month capture or validation
+failure, and the command exits nonzero if any attempted month fails.
+
+The catalog advertises files only after validation. Existing published
+months stay in place. The current export format omits daylight-saving
+transition months. Older taxi files with coordinates require a compatible
+zone assignment before they can be used. See the
+[historical backfill specification](docs/specs/historical-backfill.md).
