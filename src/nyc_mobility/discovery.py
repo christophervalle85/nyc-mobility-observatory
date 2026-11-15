@@ -31,7 +31,7 @@ class YellowLinks(HTMLParser):
             match = re.fullmatch(
                 r"https://d37ci6vzurychx\.cloudfront\.net/trip-data/"
                 r"yellow_tripdata_([0-9]{4}-(?:0[1-9]|1[0-2]))\.parquet",
-                value,
+                value.strip(" \t\n\r\f"),
             )
             if match:
                 month_bounds(match[1])

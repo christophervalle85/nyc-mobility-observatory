@@ -32,6 +32,13 @@ def test_tlc_accepts_only_exact_official_yellow_links():
     assert discovery.parse_tlc(html.encode()) == ["2026-09"]
 
 
+def test_tlc_handles_surrounding_html_whitespace_in_archive_links():
+    base = "https://d37ci6vzurychx.cloudfront.net/trip-data/"
+    html = f'<a href="\t{base}yellow_tripdata_2024-01.parquet ">yellow</a>'
+    html += f'<a href="{base}yellow_tripdata_2024-02.parquet ?alternate=1 ">other</a>'
+    assert discovery.parse_tlc(html.encode()) == ["2024-01"]
+
+
 def test_discovery_index_origin_is_narrowly_allowed():
     acquisition.validate_url(acquisition.TLC_INDEX)
     for url in (
