@@ -9,6 +9,7 @@ import platform
 import shutil
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -196,7 +197,15 @@ def validate_job(job: tuple[Path, str, dict]) -> dict:
         run = run_month(root, month, reference)
         print(f"{month} validated {run.name}", flush=True)
         return {"month": month, "run": run.name, "status": "validated"}
-    except (OSError, ValueError, csv.Error, duckdb.Error, KeyError, TypeError) as exc:
+    except (
+        OSError,
+        ValueError,
+        csv.Error,
+        duckdb.Error,
+        KeyError,
+        TypeError,
+        IncompleteRead,
+    ) as exc:
         print(f"{month} failed: {exc}", flush=True)
         return {"month": month, "status": "failed", "reason": str(exc)}
 

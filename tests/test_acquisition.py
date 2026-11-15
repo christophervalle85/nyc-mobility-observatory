@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import urllib.request
+from http.client import IncompleteRead
 from urllib.error import URLError
 
 import pytest
@@ -124,6 +125,36 @@ def test_retry_transient_network_error(tmp_path):
         == 2
     )
     assert opener.calls == 2
+
+
+def test_retry_discards_incomplete_chunked_body(tmp_path, monkeypatch):
+    from nyc_mobility import acquisition
+
+    class Incomplete(Response):
+        def read1(self, size):
+            if self.tell():
+                raise IncompleteRead(b"")
+            return super().read(2)
+
+    class Flaky(Opener):
+        def open(self, request, timeout):
+            self.calls += 1
+            return Incomplete(b"discard", None) if self.calls == 1 else Response(b"ok", 2)
+
+    monkeypatch.setattr(acquisition.time, "sleep", lambda _: None)
+    opener = Flaky(None)
+    asset = acquisition.download(
+        "https://data.ny.gov/resource/a.csv",
+        tmp_path,
+        "subway",
+        ".csv",
+        max_bytes=10,
+        opener=opener,
+    )
+    assert opener.calls == 2
+    assert acquisition.verify_asset(asset, tmp_path).read_bytes() == b"ok"
+    assert len(list((tmp_path / "raw" / "subway").iterdir())) == 1
+    assert not list((tmp_path / "tmp").iterdir())
 
 
 def test_mutable_source_checks_fail_closed(tmp_path, monkeypatch):

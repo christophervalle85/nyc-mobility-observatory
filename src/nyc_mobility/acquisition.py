@@ -11,6 +11,7 @@ import time
 import urllib.request
 import zipfile
 from datetime import UTC, datetime
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
@@ -153,7 +154,7 @@ def download(
                     "Not provided; HTTP Last-Modified is not a publication date."
                 ),
             }
-        except (URLError, TimeoutError, ConnectionError) as exc:
+        except (URLError, TimeoutError, ConnectionError, IncompleteRead) as exc:
             retryable = not isinstance(exc, HTTPError) or exc.code == 429 or exc.code >= 500
             if not retryable or attempt == retries or time.monotonic() >= deadline:
                 raise

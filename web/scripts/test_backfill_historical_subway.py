@@ -3,14 +3,23 @@
 import json
 import tempfile
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
+from unittest.mock import patch
 
-from backfill_historical_subway import verify_capture
+from backfill_historical_subway import validate_job, verify_capture
 
 from nyc_mobility.acquisition import mta_requests, store_bytes
 
 
 class CaptureVerificationTests(unittest.TestCase):
+    def test_exhausted_body_retry_fails_only_its_month(self) -> None:
+        with patch("backfill_historical_subway.run_month", side_effect=IncompleteRead(b"")):
+            result = validate_job((Path("unused"), "2024-12", {}))
+        self.assertEqual(result["month"], "2024-12")
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("IncompleteRead", result["reason"])
+
     def test_replay_checks_source_queries_and_archived_version_and_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
