@@ -6,15 +6,48 @@ import math
 import os
 import re
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from export_yellow_taxi_dashboard import WEB, integer, month_calendar, object_value
 
 
-def catalog(data_dir: Path) -> bytes:
+def published_run_pairs(data_dir: Path) -> dict[str, tuple[str, str]]:
+    index = data_dir / "mobility-months.json"
+    if not index.exists():
+        return {}
+    if index.is_symlink():
+        raise ValueError("Catalog cannot be a symbolic link")
+    document = object_value(json.loads(index.read_bytes()), "catalog")
+    entries = document.get("months")
+    if (
+        type(document.get("version")) is not int
+        or document["version"] != 1
+        or not isinstance(entries, list)
+    ):
+        raise ValueError("Invalid published catalog")
+    pairs = {}
+    for entry in entries:
+        entry = object_value(entry, "month entry")
+        if not {"taxiRunId", "subwayRunId"} & entry.keys():
+            continue
+        month, _, _ = month_calendar(entry.get("month"))
+        if month in pairs or entry.get("taxi") is not True or entry.get("subway") is not True:
+            raise ValueError("Invalid independent run binding")
+        pairs[month] = (entry.get("taxiRunId"), entry.get("subwayRunId"))
+    return pairs
+
+
+def catalog(
+    data_dir: Path,
+    *,
+    independent_runs: dict[str, tuple[str, str]] | None = None,
+    asset_paths: Iterable[Path] | None = None,
+) -> bytes:
     months = {}
     run_ids = {}
-    for path in sorted(data_dir.iterdir()):
+    pairs = published_run_pairs(data_dir) if independent_runs is None else independent_runs
+    for path in sorted(data_dir.iterdir() if asset_paths is None else asset_paths):
         match = re.fullmatch(r"(yellow-taxi|subway)-([0-9]{4}-[0-9]{2})\.json", path.name)
         if match is None:
             continue
@@ -33,9 +66,7 @@ def catalog(data_dir: Path) -> bytes:
                 r"[0-9a-f]{64}", asset[field]
             ):
                 raise ValueError(f"Invalid {field}: {path.name}")
-        if month in run_ids and run_ids[month] != asset["runId"]:
-            raise ValueError(f"Modes must share a completed run for {month}")
-        run_ids[month] = asset["runId"]
+        run_ids.setdefault(month, {})[mode] = asset["runId"]
         if mode == "taxi":
             zones = object_value(asset.get("zones"), "zones")
             if set(zones) != {str(i) for i in range(1, 264)}:
@@ -85,6 +116,19 @@ def catalog(data_dir: Path) -> bytes:
         months.setdefault(month, {"month": month, "taxi": False, "subway": False})[mode] = True
     if not months:
         raise ValueError("No validated mobility assets; preserving the existing catalog")
+    for month, pair in pairs.items():
+        observed = run_ids.get(month, {})
+        if (
+            not "2020-01" <= month < "2025-01"
+            or set(observed) != {"taxi", "subway"}
+            or pair != (observed["taxi"], observed["subway"])
+            or pair[0] == pair[1]
+        ):
+            raise ValueError(f"Invalid independent run binding for {month}")
+        months[month].update(taxiRunId=pair[0], subwayRunId=pair[1])
+    for month, modes in run_ids.items():
+        if len(set(modes.values())) > 1 and month not in pairs:
+            raise ValueError(f"Modes must share a completed run for {month}")
     result = {"version": 1, "months": [months[month] for month in sorted(months, reverse=True)]}
     return (json.dumps(result, separators=(",", ":")) + "\n").encode()
 

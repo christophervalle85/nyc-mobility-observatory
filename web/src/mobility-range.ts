@@ -1,8 +1,9 @@
-import { daysInMonth, hoursPerDay, monthDate } from './mobility-months.ts';
+import { daysInMonth, hoursPerDay, mobilityRunMatches, monthDate } from './mobility-months.ts';
+import type { MobilityRunBindings } from './mobility-months.ts';
 import type { TaxiData } from './taxi-data.ts';
 import type { SubwayData } from './subway-data.ts';
 
-export interface MobilityMonthData {
+export interface MobilityMonthData extends MobilityRunBindings {
   taxi?: TaxiData | null;
   subway?: SubwayData | null;
 }
@@ -93,7 +94,7 @@ function coverage(days: readonly ModeDay[]): ModeCoverage {
 
 /** Inclusive local-clock days, including months absent from the published catalog.
  * Partial totals sum only comparable observed hours; null means no comparable hours.
- * Run provenance is checked per month, and a mismatch excludes that month's subway only.
+ * Bound exports are checked separately. Legacy pairs compare subway against the taxi run.
  */
 export function buildMobilityRange(input: MobilityRangeInput): MobilityRange | null {
   const { start, end, zoneId, stationId, months } = input;
@@ -104,11 +105,12 @@ export function buildMobilityRange(input: MobilityRangeInput): MobilityRange | n
     const firstHour = (Number(date.slice(8)) - 1) * hoursPerDay;
     const taxi = data?.taxi;
     const subway = data?.subway;
-    const matchingRun = !taxi || taxi.runId === subway?.runId;
-    const station = matchingRun ? subway?.stations.find(item => item.id === stationId) : undefined;
+    const taxiSeries = taxi && mobilityRunMatches(data, 'taxi', taxi.runId) ? taxi.zones.get(zoneId) : undefined;
+    const station = subway && mobilityRunMatches(data, 'subway', subway.runId, taxi?.runId)
+      ? subway.stations.find(item => item.id === stationId) : undefined;
     days.push({
       date,
-      taxi: modeDay(taxi?.zones.get(zoneId), firstHour),
+      taxi: modeDay(taxiSeries, firstHour),
       subway: modeDay(station?.counts, firstHour),
     });
     if (date === end) break;

@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import duckdb
-from export_mobility_months import catalog
+from export_mobility_months import catalog, published_run_pairs
 from export_subway_dashboard import export as export_subway
 from export_yellow_taxi_dashboard import WEB, month_calendar
 from export_yellow_taxi_dashboard import export as export_taxi
@@ -71,10 +71,30 @@ def registered_assets(root: Path) -> dict[str, Path]:
     return sections
 
 
-def publish_month(destination: Path, month: str, assets: dict[str, bytes]) -> None:
-    month_calendar(month)
-    if not assets or not assets.keys() <= FILES.keys():
-        raise ValueError("Expected one or both monthly mode exports")
+def publish_month(
+    destination: Path,
+    month: str,
+    assets: dict[str, bytes],
+) -> None:
+    publish_months(destination, {month: assets})
+
+
+def publish_months(
+    destination: Path,
+    months: dict[str, dict[str, bytes]],
+    *,
+    independent_runs: dict[str, tuple[str, str]] | None = None,
+) -> None:
+    candidates = {}
+    for month, assets in months.items():
+        month_calendar(month)
+        if not assets or not assets.keys() <= FILES.keys():
+            raise ValueError("Expected one or both monthly mode exports")
+        candidates.update(
+            {f"{FILES[mode]}-{month}.json": payload for mode, payload in assets.items()}
+        )
+    if not candidates:
+        return
     root = destination.absolute()
     if root.is_symlink():
         raise ValueError("Dashboard destination cannot be a symbolic link")
@@ -85,7 +105,11 @@ def publish_month(destination: Path, month: str, assets: dict[str, bytes]) -> No
         fcntl.flock(handle, fcntl.LOCK_EX)
         index = reject_symlinks(root, root / "mobility-months.json")
         registered = registered_assets(root)
-        candidates = {f"{FILES[mode]}-{month}.json": payload for mode, payload in assets.items()}
+        pairs = published_run_pairs(root)
+        for month, pair in (independent_runs or {}).items():
+            if f"subway-{month}.json" not in candidates or pairs.get(month, pair) != pair:
+                raise ValueError(f"Invalid independent run binding for {month}")
+            pairs[month] = pair
         with tempfile.TemporaryDirectory(prefix=".backfill-stage-", dir=root) as tmp:
             stage = Path(tmp)
             for name, source in registered.items():
@@ -96,7 +120,7 @@ def publish_month(destination: Path, month: str, assets: dict[str, bytes]) -> No
                     raise ValueError(f"Refusing to overwrite a different monthly asset: {name}")
                 if name not in registered:
                     (stage / name).write_bytes(payload)
-            updated = catalog(stage)
+            updated = catalog(stage, independent_runs=pairs)
             for name in candidates:
                 target = root / name
                 if not target.exists():

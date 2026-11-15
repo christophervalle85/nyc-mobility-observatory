@@ -1,6 +1,11 @@
 export const hoursPerDay = 24;
 
-export interface MobilityMonth {
+export interface MobilityRunBindings {
+  taxiRunId?: string;
+  subwayRunId?: string;
+}
+
+export interface MobilityMonth extends MobilityRunBindings {
   month: string;
   taxi: boolean;
   subway: boolean;
@@ -17,6 +22,23 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isRunId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
+export function mobilityRunMatches(
+  binding: MobilityRunBindings,
+  mode: 'taxi' | 'subway',
+  runId: string,
+  legacyTaxiRunId?: string,
+): boolean {
+  const { taxiRunId, subwayRunId } = binding;
+  if (taxiRunId === undefined && subwayRunId === undefined) {
+    return mode === 'taxi' || legacyTaxiRunId === undefined || runId === legacyTaxiRunId;
+  }
+  return isRunId(taxiRunId) && isRunId(subwayRunId) && runId === (mode === 'taxi' ? taxiRunId : subwayRunId);
+}
+
 export function parseMobilityMonths(value: unknown): MobilityMonth[] {
   if (!record(value) || value.version !== 1 || !Array.isArray(value.months) || !value.months.length) {
     throw new Error('Invalid mobility month catalog');
@@ -26,7 +48,16 @@ export function parseMobilityMonths(value: unknown): MobilityMonth[] {
     if (!record(entry) || typeof entry.month !== 'string' || !daysInMonth(entry.month)
       || typeof entry.taxi !== 'boolean' || typeof entry.subway !== 'boolean'
       || (!entry.taxi && !entry.subway) || months.has(entry.month)) throw new Error('Invalid mobility month');
-    months.set(entry.month, { month: entry.month, taxi: entry.taxi, subway: entry.subway });
+    const month: MobilityMonth = { month: entry.month, taxi: entry.taxi, subway: entry.subway };
+    if ('taxiRunId' in entry || 'subwayRunId' in entry) {
+      const { taxiRunId, subwayRunId } = entry;
+      if (!entry.taxi || !entry.subway || !isRunId(taxiRunId) || !isRunId(subwayRunId)) {
+        throw new Error('Invalid mobility run bindings');
+      }
+      month.taxiRunId = taxiRunId;
+      month.subwayRunId = subwayRunId;
+    }
+    months.set(entry.month, month);
   }
   return [...months.values()].sort((a, b) => b.month.localeCompare(a.month));
 }

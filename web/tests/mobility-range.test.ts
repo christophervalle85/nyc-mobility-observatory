@@ -81,6 +81,32 @@ test('same-month provenance mismatch excludes only subway; absent taxi permits s
   assert.equal(range('2026-09-01', '2026-09-01', months)!.subway.total, 24);
 });
 
+test('independent archive bindings allow both verified modes across the year boundary', () => {
+  const december = { ...fixture('2024-12', 2), taxiRunId: 'a'.repeat(64), subwayRunId: 'b'.repeat(64) };
+  december.taxi!.runId = december.taxiRunId;
+  december.subway!.runId = december.subwayRunId;
+  const january = fixture('2025-01', 3);
+  const months = new Map([['2024-12', december], ['2025-01', january]]);
+  const result = range('2024-12-31', '2025-01-01', months)!;
+  assert.deepEqual(result.days.map(day => day.taxi.total), [48, 72]);
+  assert.deepEqual(result.days.map(day => day.subway.total), [48, 72]);
+  december.taxi!.runId = december.subwayRunId;
+  assert.deepEqual(range('2024-12-31', '2025-01-01', months)!.days.map(day => day.taxi.total), [null, 72]);
+  assert.equal(range('2024-12-31', '2025-01-01', months)!.subway.total, 120);
+  december.taxi!.runId = december.taxiRunId;
+  december.subway!.runId = december.taxiRunId;
+  assert.equal(range('2024-12-31', '2025-01-01', months)!.taxi.total, 120);
+  assert.deepEqual(range('2024-12-31', '2025-01-01', months)!.days.map(day => day.subway.total), [null, 72]);
+});
+
+test('an incomplete historical binding contributes neither mode', () => {
+  const data = { ...fixture('2024-12'), subwayRunId: 'b'.repeat(64) };
+  data.subway!.runId = data.subwayRunId;
+  const result = range('2024-12-01', '2024-12-01', new Map([['2024-12', data]]))!;
+  assert.equal(result.taxi.total, null);
+  assert.equal(result.subway.total, null);
+});
+
 test('calendar traversal handles year boundaries, leap days and early years', () => {
   assert.deepEqual(range('2026-12-31', '2027-01-01')!.days.map(day => day.date), ['2026-12-31', '2027-01-01']);
   assert.deepEqual(range('2024-02-28', '2024-03-01')!.days.map(day => day.date), ['2024-02-28', '2024-02-29', '2024-03-01']);

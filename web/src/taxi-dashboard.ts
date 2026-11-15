@@ -1,7 +1,8 @@
 import { buildMobilityRange } from './mobility-range.ts';
+import type { MobilityMonthData } from './mobility-range.ts';
 import { dailyTrend } from './daily-trend.ts';
 import { monthRangePicker } from './month-range-picker.ts';
-import { dateLabel, hoursPerDay, monthLabel, parseMobilityMonths } from './mobility-months.ts';
+import { dateLabel, hoursPerDay, mobilityRunMatches, monthLabel, parseMobilityMonths } from './mobility-months.ts';
 import type { MobilityMonth } from './mobility-months.ts';
 import { hourLabel, parseTaxiData, taxiHourLabel } from './taxi-data.ts';
 import type { TaxiData } from './taxi-data.ts';
@@ -205,11 +206,12 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       : catalog.request ? 'Loading available months…' : '';
     if (!catalog.data) return;
     const { start, end } = dateRange.value;
-    const monthData = new Map<string, { taxi?: TaxiData; subway?: SubwayData }>();
+    const monthData = new Map<string, MobilityMonthData>();
     const roster = new Map<number, SubwayStation>();
     let taxiPending = false, subwayPending = false, taxiFailed = false, subwayFailed = false;
     let mismatch: string | undefined;
-    for (const { month, taxi: hasTaxi, subway: hasSubway } of activeMonths) {
+    for (const entry of activeMonths) {
+      const { month, taxi: hasTaxi, subway: hasSubway, taxiRunId, subwayRunId } = entry;
       const taxiMonth = taxi.get(month);
       const subwayMonth = subway.get(month);
       const waitingForTaxi = hasTaxi && !taxiMonth?.data && !taxiMonth?.failed;
@@ -219,13 +221,13 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       subwayFailed ||= Boolean(subwayMonth?.failed);
       const taxiData = taxiMonth?.data;
       let subwayData = subwayMonth?.data;
-      if (taxiData && subwayData && taxiData.runId !== subwayData.runId) {
+      if (subwayData && !mobilityRunMatches(entry, 'subway', subwayData.runId, taxiData?.runId)) {
         mismatch = month;
         subwayData = undefined;
-      } else if (waitingForTaxi) subwayData = undefined;
+      } else if (waitingForTaxi && !subwayRunId) subwayData = undefined;
       // Prefer the newest validated record for each station in the picker.
       for (const item of subwayData?.stations ?? []) if (!roster.has(item.id)) roster.set(item.id, item);
-      monthData.set(month, { taxi: taxiData, subway: subwayData });
+      monthData.set(month, { taxi: taxiData, subway: subwayData, taxiRunId, subwayRunId });
     }
     updateStations([...roster.values()], subwayPending || taxiPending || subwayFailed || Boolean(mismatch));
     station.disabled = !stations.size;
@@ -334,7 +336,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
   }
 
-  function loadMonthly<T>(
+  function loadMonthly<T extends { runId: string }>(
     cache: Map<string, Dataset<T>>, mode: 'taxi' | 'subway', file: string,
     parser: (value: unknown, month: string) => T, retryButton: HTMLElement, message: HTMLElement,
   ) {
@@ -343,7 +345,11 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       const { month } = entry;
       const dataset = cache.get(month) ?? { failed: false };
       cache.set(month, dataset);
-      void load(dataset, request => fetchDataset(`/data/${file}-${month}.json`, value => parser(value, month), request),
+      void load(dataset, request => fetchDataset(`/data/${file}-${month}.json`, value => {
+        const data = parser(value, month);
+        if (!mobilityRunMatches(entry, mode, data.runId)) throw new Error('Unexpected monthly run');
+        return data;
+      }, request),
         retryButton, message, () => cache.get(month) === dataset);
     }
   }
@@ -418,10 +424,11 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   });
   retry.addEventListener('click', () => { void loadTaxi(); });
   subwayRetry.addEventListener('click', () => {
-    for (const { month } of activeMonths) {
+    for (const entry of activeMonths) {
+      const { month } = entry;
       const taxiData = taxi.get(month)?.data;
       const subwayData = subway.get(month)?.data;
-      if (!taxiData || !subwayData || taxiData.runId === subwayData.runId) continue;
+      if (!taxiData || !subwayData || mobilityRunMatches(entry, 'subway', subwayData.runId, taxiData.runId)) continue;
       taxi.delete(month);
       subway.delete(month);
     }

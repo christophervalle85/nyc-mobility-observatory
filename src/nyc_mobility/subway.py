@@ -162,11 +162,13 @@ def _reference(connection: duckdb.DuckDBPyConnection, roster_path: Path | None) 
     )
 
 
-def validate_subway(
+def _validate_subway(
     input_path: Path,
     output_dir: Path,
     month: str,
     roster_path: Path | None = None,
+    *,
+    historical_reference_path: Path | None = None,
 ) -> dict:
     """Write deterministic local-clock tables in an unpublished caller-owned directory.
 
@@ -256,7 +258,14 @@ def validate_subway(
             "FROM typed GROUP BY ALL HAVING count(*)>1)",
         ):
             raise ValueError("MTA contains duplicate compound keys; no deduplication is permitted")
-        _reference(connection, roster_path)
+        historical = None
+        if historical_reference_path is None:
+            _reference(connection, roster_path)
+        else:
+            from .historical_subway import _historical_reference
+
+            historical = _historical_reference(connection, historical_reference_path, month)
+        sum_order = "payment_method, fare_class_category" if historical else "source_row"
         connection.execute(
             "CREATE TABLE clock (hour_local TIMESTAMP, valid BOOLEAN, transition_date BOOLEAN)"
         )
@@ -290,7 +299,7 @@ def validate_subway(
         )
         connection.execute(
             "CREATE TABLE observed AS SELECT ts, station_id, "
-            "fsum(ridership_value ORDER BY source_row) AS ridership, "
+            f"fsum(ridership_value ORDER BY {sum_order}) AS ridership, "
             "min(comparison_quarantine) AS quarantine FROM classified "
             "WHERE row_exclusion IS NULL GROUP BY ts, station_id"
         )
@@ -430,6 +439,21 @@ def validate_subway(
                 ),
             ],
         }
+        if historical is not None:
+            quality["historical_coordinates"] = historical
+            quality["station_reference"] = {
+                "source": "pinned_mta_complex_reference_5f5g-n3cz",
+                "independent_authority": True,
+                "purpose": "display coordinates only; observed-month station universe",
+                "sha256": historical["reference_sha256"],
+            }
+            quality["warnings"] = [
+                "The pinned current MTA reference supplies display points, "
+                "not historical service coverage.",
+                "Missing station-hours remain unknown observations, "
+                "not zero travelers or closures.",
+                "The station universe is inferred from this observed month.",
+            ]
         # Every validation and aggregate check completes before caller-owned staging is written.
         connection.execute(
             "COPY (SELECT * FROM station_hours ORDER BY transit_hour_local, station_complex_id) "
@@ -469,3 +493,13 @@ def validate_subway(
         raise ValueError(f"MTA CSV or local validation query failed: {exc}") from exc
     finally:
         connection.close()
+
+
+def validate_subway(
+    input_path: Path,
+    output_dir: Path,
+    month: str,
+    roster_path: Path | None = None,
+) -> dict:
+    """Validate the existing modern observed-source contract without coordinate normalization."""
+    return _validate_subway(input_path, output_dir, month, roster_path)

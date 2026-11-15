@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from backfill import publish_month, run_batch
+from backfill import publish_month, publish_months, run_batch
 from export_mobility_months import catalog
 
 
@@ -57,6 +57,28 @@ class PublishMonthTests(unittest.TestCase):
 
     def published_files(self) -> dict[str, bytes]:
         return {path.name: path.read_bytes() for path in self.destination.glob("*.json")}
+
+    def test_historical_subway_complements_published_taxi_and_survives_later_append(self) -> None:
+        month = "2024-12"
+        taxi = month_assets(month, 744, run_id="a")["taxi"]
+        subway = month_assets(month, 744, run_id="b")["subway"]
+        publish_month(self.destination, month, {"taxi": taxi})
+        updates = {month: {"subway": subway}}
+        before = self.published_files()
+        with self.assertRaisesRegex(ValueError, "binding"):
+            publish_months(
+                self.destination, updates, independent_runs={month: ("c" * 64, "b" * 64)}
+            )
+        self.assertEqual(self.published_files(), before)
+
+        pairs = {month: ("a" * 64, "b" * 64)}
+        publish_months(self.destination, updates, independent_runs=pairs)
+        after = self.published_files()
+        publish_months(self.destination, updates, independent_runs=pairs)
+        self.assertEqual(self.published_files(), after)
+        publish_month(self.destination, "2026-09", self.september)
+        self.assertEqual((self.destination / f"yellow-taxi-{month}.json").read_bytes(), taxi)
+        self.assertEqual(self.catalog_path.read_bytes(), catalog(self.destination))
 
     def test_incompatible_new_assets_leave_existing_publication_intact(self) -> None:
         subway = json.loads(self.september["subway"])

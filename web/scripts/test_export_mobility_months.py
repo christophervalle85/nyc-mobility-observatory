@@ -103,6 +103,26 @@ class CatalogTests(unittest.TestCase):
             main()
         self.assertEqual(target.read_bytes(), b"old catalog")
 
+    def test_historical_modes_require_explicit_verified_pair(self) -> None:
+        self.asset("2024-12", "yellow-taxi")
+        path = self.asset("2024-12", "subway")
+        data = json.loads(path.read_bytes())
+        data["runId"] = "c" * 64
+        path.write_text(json.dumps(data))
+        pair = {"2024-12": ("a" * 64, "c" * 64)}
+        first = catalog(self.directory, independent_runs=pair)
+        entry = json.loads(first)["months"][0]
+        self.assertEqual((entry["taxiRunId"], entry["subwayRunId"]), pair["2024-12"])
+        (self.directory / "mobility-months.json").write_bytes(first)
+        self.assertEqual(catalog(self.directory), first)
+        data["runId"] = "d" * 64
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError, "binding"):
+            catalog(self.directory)
+        path.unlink()
+        with self.assertRaisesRegex(ValueError, "binding"):
+            catalog(self.directory)
+
     def test_month_mismatch_and_invalid_values(self) -> None:
         path = self.asset("2026-08", "subway")
         original = json.loads(path.read_text())

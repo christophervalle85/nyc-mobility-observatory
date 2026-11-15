@@ -233,7 +233,7 @@ def mta_dataset(month: str) -> str:
     return MTA_DATASETS[0] if month < "2025-01" else MTA_DATASETS[1]
 
 
-def capture_mta(root: Path, month: str) -> tuple[dict, dict]:
+def mta_requests(month: str) -> tuple[str, str, str, dict]:
     dataset = mta_dataset(month)
     resource = f"https://data.ny.gov/resource/{dataset}.csv"
     metadata = f"https://data.ny.gov/api/views/{dataset}.json"
@@ -241,6 +241,11 @@ def capture_mta(root: Path, month: str) -> tuple[dict, dict]:
     where = f"transit_timestamp >= '{start}' AND transit_timestamp < '{end}'"
     count_url = resource + "?" + urlencode({"$select": "count(*) as count", "$where": where})
     query = {"$select": MTA_FIELDS, "$where": where, "$order": ":id", "$limit": MAX_MTA_ROWS + 1}
+    return metadata, count_url, resource + "?" + urlencode(query), query
+
+
+def capture_mta(root: Path, month: str) -> tuple[dict, dict]:
+    metadata, count_url, export_url, query = mta_requests(month)
     assets = {}
     assets["metadata_before"] = download(
         metadata, root, "metadata_before", ".json", max_bytes=5 * 1024 * 1024
@@ -248,9 +253,7 @@ def capture_mta(root: Path, month: str) -> tuple[dict, dict]:
     before = _metadata(assets["metadata_before"], root)
     assets["count_before"] = download(count_url, root, "count_before", ".csv", max_bytes=4096)
     count = _count(assets["count_before"], root)
-    assets["subway"] = download(
-        resource + "?" + urlencode(query), root, "subway", ".csv", max_bytes=1024**3
-    )
+    assets["subway"] = download(export_url, root, "subway", ".csv", max_bytes=1024**3)
     assets["count_after"] = download(count_url, root, "count_after", ".csv", max_bytes=4096)
     after_count = _count(assets["count_after"], root)
     assets["metadata_after"] = download(
