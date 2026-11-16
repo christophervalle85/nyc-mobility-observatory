@@ -1,7 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 const datasetPath = '/data/yellow-taxi-2026-09.json';
+const catalogPath = '**/data/mobility-months.json';
+const publishedCatalog = JSON.parse(readFileSync(new URL('../public/data/mobility-months.json', import.meta.url), 'utf8'));
+const septemberCatalog = {
+  ...publishedCatalog,
+  months: publishedCatalog.months.filter(({ month }: { month: string }) => month <= '2026-09'),
+};
 
 async function openTaxiDashboard(page: Page) {
   await page.getByRole('button', { name: 'Mobility data', exact: true }).click();
@@ -18,6 +25,7 @@ test.beforeEach(async ({ context }) => {
   await context.route('**/*', route => new URL(route.request().url()).origin === 'http://127.0.0.1:5175'
     ? route.continue()
     : route.abort('blockedbyclient'));
+  await context.route(catalogPath, route => route.fulfill({ json: septemberCatalog }));
 });
 
 test('Flatiron shows real September taxi dropoffs for the default range', async ({ page }) => {
@@ -518,14 +526,12 @@ test('subway-only month hides empty charts until a station with data is selected
 });
 
 test('a failed month catalog can be retried without leaving the selected area', async ({ context, page }) => {
-  const catalog = '**/data/mobility-months.json';
-  await context.route(catalog, route => route.fulfill({ status: 503 }));
+  await context.route(catalogPath, route => route.fulfill({ status: 503 }), { times: 1 });
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
   const retry = page.locator('#mobility-month-retry');
   await expect(retry).toBeVisible();
   await expect(page.getByRole('button', { name: /Start date/ })).toBeDisabled();
-  await context.unroute(catalog);
   await retry.click();
   await expect(page.locator('#selection-title')).toHaveText('Flatiron');
   await expect(page.getByRole('button', { name: 'Start date Sep 1, 2026' })).toBeEnabled();
