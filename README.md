@@ -128,8 +128,7 @@ uv run ruff format --check src tests
 
 Only tiny synthetic CSV fixtures belong in Git for M1. The derived official TLC
 GeoJSON and its provenance are intentionally versioned under `web/public/data/`
-for M2. Raw trip/subway data and local credentials remain ignored. No deployment
-or remote publishing is included.
+for M2. Raw trip/subway data and local credentials remain ignored.
 
 ## Backfill published history
 
@@ -183,5 +182,12 @@ Read the taxi and subway outcomes separately. One mode can stage while the
 other is still unavailable or partial. Discovery and validation failures return
 a nonzero exit code even if the other mode stages successfully. The archive
 retains rejected subway captures for inspection. A later run can capture newer
-provider data. Publication and scheduling are separate follow-up work. See the
-[October dry run and dashboard check](docs/reports/automated-data-refresh-pilot.md).
+provider data. See the [October dry run and dashboard check](docs/reports/automated-data-refresh-pilot.md).
+
+## Scheduled data publishing
+
+GitHub Actions is configured to check for new months daily at 10:23 UTC.
+Scheduled runs on the canonical `main` can publish a validated data commit.
+Manual runs prepare and check a candidate only. The workflow publishes
+repository data, and a hosted dashboard needs its own deployment. See the
+[publishing runbook and pilot evidence](docs/reports/scheduled-mobility-publishing-pilot.md).
