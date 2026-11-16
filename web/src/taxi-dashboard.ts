@@ -135,6 +135,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const dayUnavailable = find('#mobility-day-unavailable');
   const statistics = find('.mobility-statistics');
   const trendTaxiLegend = find('#trend-taxi-legend'), trendSubwayLegend = find('#trend-subway-legend');
+  const trendNote = find('.mobility-trend-note'), metrics = find('.transportation-totals');
   const taxiCoverage = find('#taxi-range-coverage');
   const monthStatus = find('#mobility-month-status'), coverage = find('#mobility-coverage');
   const monthRetry = find<HTMLButtonElement>('#mobility-month-retry');
@@ -155,7 +156,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const taxiDayTotal = find('#taxi-day-total'), taxiPeakHour = find('#taxi-peak-hour');
   const subwayDayTotal = find('#subway-day-total'), subwayPeakHour = find('#subway-peak-hour');
   const day = find<HTMLSelectElement>('#taxi-chart-day');
-  const chartHeading = find('.taxi-chart-controls h3');
+  const chartControls = find('.taxi-chart-controls'), chartHeading = find('.taxi-chart-controls h3');
   const typicalToggle = find<HTMLInputElement>('#typical-day');
   const typicalDetails = find('#typical-day-details'), typicalLegend = find('.typical-day-legend');
   const typicalStatus = find('#typical-day-status'), typicalRetry = find<HTMLButtonElement>('#typical-day-retry');
@@ -447,12 +448,26 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       else canvas.removeAttribute('aria-describedby');
     }
     highlightStation(monthData.get(day.value.slice(0, 7))?.subway?.stations.find(item => item.id === selectedStation?.id) ?? null);
-    trend.render(range.days.map(item => ({
-      date: item.date, taxi: item.taxi.total, subway: item.subway.total, subwayPartial: item.subway.partial,
-      excluded: Boolean(item.clockChange),
-    })), day.value);
-    trendTaxiLegend.hidden = !activeMonths.some(entry => entry.taxi);
-    trendSubwayLegend.hidden = !selectedStation;
+    const hasTaxiTrend = range.taxi.total !== null;
+    const hasSubwayTrend = range.subway.total !== null;
+    const hasTrend = hasTaxiTrend || hasSubwayTrend;
+    const hasHourlyData = hasTrend || range.days.some(({ recorded }) =>
+      recorded?.taxi.total != null || recorded?.subway.total != null);
+    trendSection.hidden = !hasTrend;
+    if (hasTrend) {
+      trendTaxiLegend.hidden = !hasTaxiTrend;
+      trendSubwayLegend.hidden = !hasSubwayTrend;
+      trendNote.textContent = [
+        'Select a day for hourly detail.',
+        hasTaxiTrend && hasSubwayTrend ? 'The two series have separate scales.' : '',
+        range.days.some(item => item.subway.total !== null && item.subway.partial) ? 'Dashed bars indicate partial data.' : '',
+      ].filter(Boolean).join(' ');
+      trend.render(range.days.map(item => ({
+        date: item.date, taxi: item.taxi.total, subway: item.subway.total, subwayPartial: item.subway.partial,
+        excluded: Boolean(item.clockChange),
+      })), day.value);
+    }
+    chartControls.hidden = !hasHourlyData;
     shown = { date: day.value, clockChange };
     statisticsDate.textContent = `${dateLabel(day.value)} · ET`;
     statistics.hidden = !taxiShown && !subwayShown;
@@ -461,6 +476,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     subwayDayStat.hidden = subwayPeakStat.hidden = subwayFigure.hidden = !subwayShown;
     taxiMetric.hidden = range.taxi.total === null && !(excluded.length && activeMonths.some(entry => entry.taxi));
     subwayMetric.hidden = !selectedStation;
+    metrics.hidden = taxiMetric.hidden && subwayMetric.hidden;
     total.textContent = range.taxi.total === null
       ? taxiMetric.hidden ? '' : 'Unavailable' : number.format(range.taxi.total);
     taxiCoverage.textContent = `${range.taxi.availableDays} of ${range.days.length - excluded.length} days covered`;
@@ -500,9 +516,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     const clockContext = clockChange?.kind === 'nonexistent' ? 'The 2 AM hour did not occur.'
       : clockChange?.kind === 'repeated' ? 'The sources report one count per mode for the repeated 1 AM hour.' : '';
     const recordedContext = clockChange && (taxiShown || subwayShown) ? 'Recorded counts for this day.' : '';
-    dayUnavailable.hidden = !unavailable && !clockContext;
+    dayUnavailable.hidden = !clockContext && (!hasHourlyData || !unavailable);
     dayUnavailable.textContent = [recordedContext, clockContext, unavailable].filter(Boolean).join(' ');
-    results.hidden = false;
+    results.hidden = !hasHourlyData && metrics.hidden && clockExclusions.hidden;
     renderHour();
   }
 

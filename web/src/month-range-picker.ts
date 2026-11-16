@@ -197,7 +197,7 @@ export function monthRangePicker(panel: HTMLElement, change: () => void) {
       const month = available[0];
       if (!month) return;
       range.start = monthDate(month, 1);
-      range.end = monthDate(month, 7);
+      range.end = monthDate(month, daysInMonth(month));
       updateFields();
       for (const trigger of Object.values(triggers)) trigger.disabled = false;
     },

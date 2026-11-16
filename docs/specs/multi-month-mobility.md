@@ -52,7 +52,7 @@ August has 744 local-clock slots per location, compared with September's
 
 The dashboard reads `/data/mobility-months.json` on first open. Each entry
 provides a month in `YYYY-MM` format and separate taxi and subway availability
-flags. The newest available month opens with the first seven days selected. Calendar
+flags. The newest available month opens with every day selected. Calendar
 arrows browse published months. The dashboard loads a different month when the
 user picks a date in it. The other endpoint keeps its day where possible and
 adjusts to keep the range ordered and within the chosen month. The TLC area

@@ -31,9 +31,9 @@ test('Flatiron shows real September taxi dropoffs for the default range', async 
   expect(dataRequests).toEqual([]);
   await openTaxiDashboard(page);
   await expect(page.getByRole('button', { name: 'Start date Sep 1, 2026' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'End date Sep 7, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End date Sep 30, 2026' })).toBeVisible();
   // Golden values come from the archived M1 taxi/zone_hour.csv for run 0566a3a0.
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
   await expect(page.getByRole('heading', { name: 'Transportation data' })).toBeFocused();
   const panel = page.locator('#taxi-dashboard');
   await expect(panel).toHaveCSS('width', '416px');
@@ -99,7 +99,7 @@ test('the date menu stays anchored to its chart field and Escape closes only the
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
   const day = page.getByLabel('Chart date');
   test.skip(!await day.evaluate(() => CSS.supports('appearance: base-select') && CSS.supports('selector(::picker(select))')),
     'This browser uses the native menu');
@@ -125,12 +125,12 @@ test('separate calendars constrain endpoints, support keyboard, and update a one
   await expect(start).toBeEnabled();
   await start.press('Enter');
   await expect(calendar.getByRole('button', { name: 'September 1', exact: true })).toBeFocused();
-  await expect(calendar.getByRole('button', { name: 'September 8', exact: true })).toBeDisabled();
+  await expect(calendar.getByRole('button', { name: 'September 8', exact: true })).toBeEnabled();
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Escape');
   await expect(calendar).toBeHidden();
   await expect(start).toBeFocused();
-  await expect(total).toHaveText('9,919');
+  await expect(total).toHaveText('54,079');
   await end.click();
   const endBounds = (await end.boundingBox())!;
   const calendarBounds = (await calendar.boundingBox())!;
@@ -164,7 +164,7 @@ test('pending taxi data updates the current area after loading', async ({ contex
     await expect(page.locator('#taxi-total')).not.toHaveText(/\d/);
     await selectArea(page, '79', /East Village/);
     releaseData();
-    await expect(page.locator('#taxi-total')).toHaveText('17,090');
+    await expect(page.locator('#taxi-total')).toHaveText('89,276');
   } finally {
     releaseData();
     await context.unrouteAll({ behavior: 'ignoreErrors' });
@@ -195,7 +195,7 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]]) {
     await page.setViewportSize({ width, height });
     await page.goto('/?mode=mock&zone=90');
     await openTaxiDashboard(page);
-    await expect(page.locator('#taxi-total')).toHaveText('9,919');
+    await expect(page.locator('#taxi-total')).toHaveText('54,079');
     await expect(page.locator('#credits')).toBeInViewport();
     await expect(page.getByRole('button', { name: /Start date/ })).toBeInViewport();
     await expect(page.getByRole('button', { name: /End date/ })).toBeInViewport();
@@ -222,9 +222,9 @@ test('September subway and taxi share the range and day while keeping independen
   await expect(station.locator('option')).toHaveCount(7);
   await expect(station.locator('option').nth(1)).toHaveText('18 St (1) · Manhattan 158 m');
   await station.selectOption('321');
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
-  await expect(page.locator('#subway-total')).toHaveText('33,037');
-  await expect(page.locator('#subway-coverage')).toContainText(/168 (of|\/) 168/);
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
+  await expect(page.locator('#subway-total')).toHaveText('177,242');
+  await expect(page.locator('#subway-coverage')).toContainText(/720 (of|\/) 720/);
   await expect(page.locator('#subway-chart')).toBeVisible();
   const taxiPlot = (await page.locator('#taxi-chart').boundingBox())!;
   const subwayPlot = (await page.locator('#subway-chart').boundingBox())!;
@@ -244,7 +244,7 @@ test('September subway and taxi share the range and day while keeping independen
   await expect(page.locator('#mobility-coverage')).toContainText('September 2026');
   await page.getByText('Data coverage', { exact: true }).click();
   await page.getByLabel('Chart date').selectOption('2026-09-02');
-  await expect(page.locator('#subway-total')).toHaveText('33,037');
+  await expect(page.locator('#subway-total')).toHaveText('177,242');
   await expect(statistics.locator('#mobility-statistics-date')).toHaveText('Sep 2 · ET');
   await expect(statistics.locator('#taxi-day-total')).toHaveText('1,381');
   await expect(statistics.locator('#subway-peak-hour')).toHaveText('5:00 PM · 771');
@@ -267,7 +267,7 @@ test('September subway and taxi share the range and day while keeping independen
   await expect(station).toHaveValue('');
   await expect(station.locator('option[value="321"]')).toHaveCount(0);
   await expect(page.getByLabel('Chart date')).toHaveValue('2026-09-02');
-  await expect(page.locator('#taxi-total')).toHaveText('17,090');
+  await expect(page.locator('#taxi-total')).toHaveText('89,276');
 });
 
 test('flagged subway hours are gaps, and a subway fetch failure leaves taxi usable', async ({ context, page }) => {
@@ -275,7 +275,7 @@ test('flagged subway hours are gaps, and a subway fetch failure leaves taxi usab
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
   await expect(page.locator('#subway-status')).toContainText(/could not|unavailable/i);
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
   await context.unroute('**/data/subway-2026-09.json');
   await page.locator('#subway-retry').click();
   await page.getByLabel('Subway station complex').selectOption('601');
@@ -285,7 +285,7 @@ test('flagged subway hours are gaps, and a subway fetch failure leaves taxi usab
   for (let hour = 0; hour < 3; hour++) await chart.press('ArrowRight');
   await expect(chart).toHaveAttribute('aria-valuetext', /Sep 1, 3:00 AM ET.*Subway entries missing or flagged/);
   await expect(page.locator('#subway-figure figcaption #chart-hour-subway')).toHaveText('Unavailable');
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
 });
 
 
@@ -310,7 +310,7 @@ test('a subway export waits for taxi provenance and rejects a different run', as
     await expect(station.locator('option[value="1"]')).toHaveCount(0);
     await expect(station).toBeDisabled();
     release();
-    await expect(page.locator('#taxi-total')).toHaveText('9,919');
+    await expect(page.locator('#taxi-total')).toHaveText('54,079');
     await expect(page.locator('#subway-status')).toContainText('unavailable for this September run');
     await expect(station).toBeDisabled();
     await expect(page.locator('#subway-chart')).toBeHidden();
@@ -343,15 +343,15 @@ test('calendar spans August and September and the daily trend opens hourly detai
   const end = page.getByRole('button', { name: /End date/ });
   const calendar = page.locator('#taxi-calendar');
   const station = page.locator('#subway-station');
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
   await station.selectOption('601');
   await start.click();
   await calendar.getByRole('button', { name: 'Previous month' }).click();
   await expect(calendar).toHaveAccessibleName('August 2026');
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
   expect(requests).not.toContain('/data/yellow-taxi-2026-08.json');
   await calendar.getByRole('button', { name: 'August 29', exact: true }).click();
-  await expect(end).toHaveAccessibleName('End date Sep 7, 2026');
+  await expect(end).toHaveAccessibleName('End date Sep 30, 2026');
   await end.click();
   await calendar.getByRole('button', { name: 'September 4', exact: true }).click();
   await expect(start).toHaveAccessibleName('Start date Aug 29, 2026');
@@ -393,7 +393,7 @@ test('daily trend keeps the same day width as the range changes', async ({ page 
   await openTaxiDashboard(page);
   const trend = page.getByRole('region', { name: 'Daily trend' });
   const days = trend.getByRole('button');
-  await expect(days).toHaveCount(7);
+  await expect(days).toHaveCount(30);
   const dayWidth = (await days.first().boundingBox())!.width;
   const trendSize = (await trend.boundingBox())!;
   await page.getByRole('button', { name: /End date/ }).click();
@@ -446,6 +446,8 @@ test('a failed taxi month remains a gap and can be retried independently', async
   await context.route(august, route => route.fulfill({ status: 503 }));
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
+  await page.getByRole('button', { name: /End date/ }).click();
+  await page.getByRole('button', { name: 'September 7', exact: true }).click();
   await expect(page.locator('#taxi-total')).toHaveText('9,919');
   await page.getByRole('button', { name: /Start date/ }).click();
   await page.getByRole('button', { name: 'Previous month' }).click();
@@ -478,9 +480,41 @@ test('a catalog entry enables another month with only taxi data', async ({ conte
   await page.goto('/?mode=mock&zone=90');
   await openTaxiDashboard(page);
   await expect(page.getByRole('button', { name: 'Start date Jul 1, 2026' })).toBeEnabled();
-  await expect(page.locator('#taxi-total')).toHaveText('11,005');
+  await expect(page.locator('#taxi-total')).toHaveText('45,364');
   await expect(page.locator('#subway-status')).toHaveText(/unavailable/i);
   expect(requested).not.toContain('/data/subway-2026-07.json');
+});
+
+test('subway-only month hides empty charts until a station with data is selected', async ({ context, page }) => {
+  await context.route('**/data/mobility-months.json', route => route.fulfill({
+    json: { version: 1, months: [{ month: '2026-10', taxi: false, subway: true }] },
+  }));
+  await context.route('**/data/subway-2026-10.json', route => route.fulfill({
+    json: {
+      version: 1, month: '2026-10', timezone: 'America/New_York',
+      runId: 'a'.repeat(64), sourceSha256: 'b'.repeat(64),
+      stations: [{ id: 314, name: '66 St-Lincoln Center', borough: 'Manhattan', latitude: 40.774, longitude: -73.982,
+        counts: Array(744).fill(0) }],
+    },
+  }));
+  await page.goto('/?mode=mock&zone=142');
+  await openTaxiDashboard(page);
+  const station = page.getByRole('combobox', { name: 'Subway station complex' });
+  const trend = page.getByRole('region', { name: 'Daily trend' });
+  const chartDate = page.getByLabel('Chart date');
+  await expect(page.getByRole('button', { name: 'Start date Oct 1, 2026' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'End date Oct 31, 2026' })).toBeVisible();
+  await expect(station).toBeEnabled();
+  await expect(trend).toBeHidden();
+  await expect(chartDate).toBeHidden();
+  await station.selectOption('314');
+  await expect(trend.getByRole('button')).toHaveCount(31);
+  await expect(chartDate).toBeVisible();
+  await expect(page.locator('#subway-total')).toHaveText('0');
+  await expect(page.locator('#trend-taxi-legend')).toBeHidden();
+  await station.selectOption('');
+  await expect(trend).toBeHidden();
+  await expect(chartDate).toBeHidden();
 });
 
 test('a failed month catalog can be retried without leaving the selected area', async ({ context, page }) => {
@@ -495,5 +529,5 @@ test('a failed month catalog can be retried without leaving the selected area', 
   await retry.click();
   await expect(page.locator('#selection-title')).toHaveText('Flatiron');
   await expect(page.getByRole('button', { name: 'Start date Sep 1, 2026' })).toBeEnabled();
-  await expect(page.locator('#taxi-total')).toHaveText('9,919');
+  await expect(page.locator('#taxi-total')).toHaveText('54,079');
 });
