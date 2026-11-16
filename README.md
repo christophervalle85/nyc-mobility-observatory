@@ -157,3 +157,31 @@ months stay in place. Use the [daylight-saving backfill](docs/specs/daylight-sav
 for March and November 2020–2024. The general backfill skips transition
 months. The 2009–2010 taxi files use coordinates and need a validated zone
 assignment. See the [historical backfill specification](docs/specs/historical-backfill.md).
+
+## Stage one monthly refresh
+
+From the repository root, use the locked Python environment to check the latest
+official releases and stage at most one newly available month. The command
+tracks the last published month for taxi and subway separately.
+
+```sh
+PYTHONPATH=src uv run --locked python web/scripts/refresh.py \
+  --stage-dir .data/refresh-preview-next \
+  --data-dir .data/refresh-pilot-archive
+```
+
+Both paths are required. Use a fresh, nonexistent stage directory on every run.
+The stage, archive and read-only published baseline must be separate,
+non-overlapping directories. The baseline defaults to `web/public/data/`.
+Use `--published-dir` to read a different baseline with an existing catalog.
+The command can download source files and stores its captures and validated
+runs in the archive. When it selects a month, it copies the registered baseline
+assets to the stage and writes `refresh-result.json` and a prospective
+`mobility-months.json` there.
+
+Read the taxi and subway outcomes separately. One mode can stage while the
+other is still unavailable or partial. Discovery and validation failures return
+a nonzero exit code even if the other mode stages successfully. The archive
+retains rejected subway captures for inspection. A later run can capture newer
+provider data. Publication and scheduling are separate follow-up work. See the
+[October dry run and dashboard check](docs/reports/automated-data-refresh-pilot.md).
