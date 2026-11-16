@@ -55,7 +55,7 @@ def registered_assets(root: Path) -> dict[str, Path]:
         if not isinstance(entry, dict) or not isinstance(entry.get("month"), str):
             raise ValueError("Invalid published month")
         month = entry["month"]
-        month_calendar(month)
+        month_calendar(month, allow_transition=True)
         if month in seen or any(type(entry.get(mode)) is not bool for mode in FILES):
             raise ValueError("Invalid or duplicate published mode")
         if not any(entry[mode] for mode in FILES):
@@ -87,7 +87,7 @@ def publish_months(
 ) -> None:
     candidates = {}
     for month, assets in months.items():
-        month_calendar(month)
+        month_calendar(month, allow_transition=True)
         if not assets or not assets.keys() <= FILES.keys():
             raise ValueError("Expected one or both monthly mode exports")
         candidates.update(

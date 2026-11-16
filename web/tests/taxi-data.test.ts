@@ -73,6 +73,21 @@ test('taxi parser matches the requested month and its full calendar', () => {
   assert.throws(() => parseTaxiData(data, '2026-09'));
 });
 
+test('version two taxi parser preserves the source total and its invalid spring clock label', () => {
+  const month = '2024-03';
+  const clockChange = { date: '2024-03-10', hour: 2, kind: 'nonexistent' };
+  const source = { ...fixture(), month, version: 2, clockChange };
+  for (const series of Object.values(source.zones)) series.push(...Array<number>(24).fill(0));
+  const springSlot = 9 * 24 + 2;
+  source.zones[90][springSlot] = 3;
+  source.totalDropoffs += 3;
+  const parsed = parseTaxiData(source, month);
+  assert.deepEqual(parsed.clockChange, clockChange);
+  assert.equal(parsed.totalDropoffs, 92);
+  assert.equal(parsed.zones.get(90)?.[springSlot], 3);
+  assert.throws(() => parseTaxiData({ ...source, totalDropoffs: 89 }, month));
+});
+
 test('published pilot reconciles to the archived eligibility total and has real Flatiron hours', () => {
   const raw: unknown = JSON.parse(readFileSync(
     new URL('../public/data/yellow-taxi-2026-09.json', import.meta.url), 'utf8',

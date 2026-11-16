@@ -116,6 +116,62 @@ test('calendar traversal handles year boundaries, leap days and early years', ()
   assert.equal(range('0099-12-31', '0100-01-01')!.days.length, 2);
 });
 
+test('spring transition uses recorded taxi hours and excludes a whole day from both comparisons', () => {
+  const data = fixture('2024-03');
+  const clockChange = { date: '2024-03-10', hour: 2, kind: 'nonexistent' } as const;
+  data.taxi = { ...data.taxi!, clockChange };
+  data.subway = null;
+  const result = range('2024-03-09', '2024-03-11', new Map([['2024-03', data]]))!;
+  const day = result.days[1];
+  assert.deepEqual(day.clockChange, clockChange);
+  assert.deepEqual(result.days.map(day => day.taxi.total), [24, null, 24]);
+  assert.equal(result.subway.expectedHours, 48);
+  assert.equal(result.taxi.expectedHours, 48);
+  assert.equal(result.taxi.completeDays, 2);
+  assert.equal(day.recorded?.taxi.counts[2], null);
+  assert.equal(day.recorded?.taxi.total, 23);
+  assert.equal(day.recorded?.taxi.expectedHours, 23);
+  assert.equal(day.recorded?.subway.total, null);
+});
+
+test('fall repeats one recorded label and a transition-only range has no comparable hours', () => {
+  const data = fixture('2024-11');
+  const clockChange = { date: '2024-11-03', hour: 1, kind: 'repeated' } as const;
+  const recordedCounts = Array<number | null>(24).fill(0);
+  recordedCounts[1] = 75.5;
+  recordedCounts[3] = null;
+  data.taxi = null;
+  data.subway = { ...data.subway!, clockChange, stations: [{ ...data.subway!.stations[0], recordedCounts }] };
+  const result = range(clockChange.date, clockChange.date, new Map([['2024-11', data]]))!;
+  const day = result.days[0];
+  assert.equal(result.taxi.expectedHours, 0);
+  assert.equal(result.subway.expectedHours, 0);
+  assert.equal(result.subway.total, null);
+  assert.equal(result.subway.completeDays, 0);
+  assert.equal(day.recorded?.subway.total, 75.5);
+  assert.equal(day.recorded?.subway.counts[0], 0);
+  assert.equal(day.recorded?.subway.counts[1], 75.5);
+  assert.equal(day.recorded?.subway.counts[3], null);
+  assert.equal(day.recorded?.subway.expectedHours, 24);
+});
+
+test('a catalog-bound transition stays excluded while both mode files are unavailable', () => {
+  const months = new Map<string, MobilityMonthData>([
+    ['2024-03', { taxiRunId: 'a'.repeat(64), subwayRunId: 'b'.repeat(64) }],
+    ['2024-04', fixture('2024-04')],
+  ]);
+  const published = range('2024-03-09', '2024-04-01', months)!;
+  assert.equal(published.days[1].clockChange?.date, '2024-03-10');
+  assert.equal(published.days[1].recorded?.taxi.total, null);
+  assert.equal(published.taxi.total, 24);
+  assert.equal(published.taxi.expectedHours, (published.days.length - 1) * 24);
+  assert.equal(published.subway.expectedHours, published.taxi.expectedHours);
+  months.delete('2024-03');
+  const unlisted = range('2024-03-09', '2024-04-01', months)!;
+  assert.equal(unlisted.days[1].clockChange, undefined);
+  assert.equal(unlisted.taxi.expectedHours, unlisted.days.length * 24);
+});
+
 test('invalid and reversed dates return no model', () => {
   for (const [start, end] of [['', '2026-09-01'], ['2026-09-02', '2026-09-01'],
     ['2026-02-29', '2026-03-01'], ['0000-01-01', '2026-01-01'],

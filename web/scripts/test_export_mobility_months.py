@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from export_mobility_months import catalog, main
-from export_yellow_taxi_dashboard import month_calendar
+from export_yellow_taxi_dashboard import clock_change, month_calendar
 
 
 class CatalogTests(unittest.TestCase):
@@ -51,6 +51,59 @@ class CatalogTests(unittest.TestCase):
         for month in ("2026-13", "2026-1", "../2026-09", None):
             with self.assertRaises(ValueError):
                 month_calendar(month)
+
+    def test_all_five_years_clock_changes(self) -> None:
+        for year, spring, fall in (
+            (2020, 8, 1),
+            (2021, 14, 7),
+            (2022, 13, 6),
+            (2023, 12, 5),
+            (2024, 10, 3),
+        ):
+            for number, day, hour, kind in (
+                (3, spring, 2, "nonexistent"),
+                (11, fall, 1, "repeated"),
+            ):
+                month = f"{year}-{number:02}"
+                args = month_calendar(month, allow_transition=True)
+                self.assertEqual(
+                    clock_change(*args), {"date": f"{month}-{day:02}", "hour": hour, "kind": kind}
+                )
+
+    def test_v2_catalog_metadata_recorded_counts_and_mask(self) -> None:
+        path = self.asset("2026-09", "subway")
+        data = json.loads(path.read_text())
+        path.unlink()
+        path = self.directory / "subway-2024-03.json"
+        data.update(
+            version=2,
+            month="2024-03",
+            clockChange={"date": "2024-03-10", "hour": 2, "kind": "nonexistent"},
+        )
+        station = data["stations"][0]
+        station["counts"] = [0] * 744
+        station["counts"][216:240] = [None] * 24
+        station["recordedCounts"] = [0] * 24
+        station["recordedCounts"][2] = None
+        path.write_text(json.dumps(data))
+        self.assertEqual(json.loads(catalog(self.directory))["months"][0]["month"], "2024-03")
+        for mutation in ("date", "hour", "extra", "recorded", "mask", "version"):
+            bad = json.loads(json.dumps(data))
+            if mutation == "date":
+                bad["clockChange"]["date"] = "2024-03-09"
+            elif mutation == "hour":
+                bad["clockChange"]["hour"] = True
+            elif mutation == "extra":
+                bad["clockChange"]["extra"] = 1
+            elif mutation == "recorded":
+                bad["stations"][0]["recordedCounts"][2] = 0
+            elif mutation == "mask":
+                bad["stations"][0]["counts"][216] = 0
+            else:
+                bad["version"] = 1
+            path.write_text(json.dumps(bad))
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                catalog(self.directory)
 
     def test_independent_modes_order_and_determinism(self) -> None:
         self.asset("2026-08", "yellow-taxi")

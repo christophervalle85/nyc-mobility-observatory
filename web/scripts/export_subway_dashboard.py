@@ -12,7 +12,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from export_yellow_taxi_dashboard import WEB, integer, month_calendar, object_value, verified_bytes
+from export_yellow_taxi_dashboard import (
+    WEB,
+    clock_change,
+    integer,
+    month_calendar,
+    object_value,
+    verified_bytes,
+)
 
 HEADER = [
     "transit_hour_local",
@@ -34,7 +41,11 @@ def export(run: Path, *, require_month_edges: bool = False) -> bytes:
     identity = object_value(manifest.get("identity"), "identity")
     if manifest.get("status") != "completed":
         raise ValueError("A completed run is required")
-    month, start, hours = month_calendar(identity.get("month"))
+    month, start, hours = month_calendar(identity.get("month"), allow_transition=True)
+    change = clock_change(month, start, hours)
+    transition_start = (int(change["date"][-2:]) - 1) * 24 if change else -24
+    nonexistent = transition_start + 2 if change and change["kind"] == "nonexistent" else None
+    valid_hours = hours - (nonexistent is not None)
     run_id = manifest.get("run_id")
     if not isinstance(run_id, str) or not re.fullmatch(r"[0-9a-f]{64}", run_id):
         raise ValueError("Invalid portable run ID")
@@ -57,6 +68,9 @@ def export(run: Path, *, require_month_edges: bool = False) -> bytes:
         value: {"id": value, "name": "", "borough": "", "counts": [None] * hours}
         for value in sorted(ids)
     }
+    if change:
+        for station in stations.values():
+            station["recordedCounts"] = [None] * 24
     identities = {}
     seen = set()
     observed = comparable = 0
@@ -88,6 +102,11 @@ def export(run: Path, *, require_month_edges: bool = False) -> bytes:
         hour = int((stamp - start).total_seconds() // 3600)
         if label != stamp.strftime("%Y-%m-%d %H:00:00") or not 0 <= hour < hours:
             raise ValueError("Invalid hour for manifest month")
+        if hour == nonexistent:
+            raise ValueError("Archive must omit the nonexistent subway clock label")
+        on_transition = change is not None and transition_start <= hour < transition_start + 24
+        if on_transition and (comparison != "false" or model != "false"):
+            raise ValueError("Transition-date subway hours must remain comparison-ineligible")
         key = (station_id, hour)
         if key in seen:
             raise ValueError("Duplicate station/hour")
@@ -106,6 +125,8 @@ def export(run: Path, *, require_month_edges: bool = False) -> bytes:
             count = float(value)
             if not math.isfinite(count) or not 0 <= count <= 9007199254740991:
                 raise ValueError("Ridership must be finite and nonnegative")
+        if on_transition:
+            stations[station_id]["recordedCounts"][hour - transition_start] = count
         if comparison == "true":
             comparable += 1
             stations[station_id]["counts"][hour] = count
@@ -114,24 +135,26 @@ def export(run: Path, *, require_month_edges: bool = False) -> bytes:
     if require_month_edges and not (observed_first_day and observed_last_day):
         raise ValueError("Subway archive has no observations on one or both month edges")
     expected = {
-        "station_hour_denominator": len(stations) * hours,
+        "station_hour_denominator": len(stations) * valid_hours,
         "observed_station_hours": observed,
         "eligible_station_hours": comparable,
-        "missing_station_hours": len(stations) * hours - observed,
+        "missing_station_hours": len(stations) * valid_hours - observed,
     }
-    if len(seen) != len(stations) * hours:
+    if len(seen) != len(stations) * valid_hours:
         raise ValueError("Archive must explicitly account for every station/hour")
     for field, actual in expected.items():
         if integer(quality.get(field), field) != actual:
             raise ValueError(f"Quality reconciliation failed: {field}")
     result = {
-        "version": 1,
+        "version": 2 if change else 1,
         "month": month,
         "timezone": "America/New_York",
         "runId": run_id,
         "sourceSha256": hashlib.sha256(source).hexdigest(),
         "stations": list(stations.values()),
     }
+    if change:
+        result["clockChange"] = change
     return (json.dumps(result, separators=(",", ":"), allow_nan=False) + "\n").encode()
 
 

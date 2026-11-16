@@ -14,10 +14,11 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 import duckdb
-from backfill import atomic_write, publish_months, registered_assets
+from backfill import atomic_write, publish_months, registered_assets, resolved_run
 from export_mobility_months import catalog, published_run_pairs
 from export_subway_dashboard import export
 from export_yellow_taxi_dashboard import WEB, month_calendar
+from export_yellow_taxi_dashboard import export as export_taxi
 
 from nyc_mobility.acquisition import (
     _count,
@@ -46,6 +47,9 @@ MONTHS = tuple(
     for year in range(2020, 2025)
     for month in range(1, 13)
     if month not in {3, 11}
+)
+CLOCK_CHANGE_MONTHS = tuple(
+    f"{year}-{month:02d}" for year in range(2020, 2025) for month in (3, 11)
 )
 
 
@@ -122,8 +126,8 @@ def verify_capture(root: Path, month: str, document: dict) -> Path:
 
 
 def run_month(root: Path, month: str, reference: dict) -> Path:
-    if month not in MONTHS:
-        raise ValueError("Expected a historical subway month outside DST transitions")
+    if month not in MONTHS + CLOCK_CHANGE_MONTHS:
+        raise ValueError("Expected a historical subway month from 2020–2024")
     if (
         reference.get("requested_url") != REFERENCE_URL
         or reference.get("final_url") != REFERENCE_URL
@@ -195,8 +199,13 @@ def validate_job(job: tuple[Path, str, dict]) -> dict:
     root, month, reference = job
     try:
         run = run_month(root, month, reference)
+        result = {"month": month, "run": run.name, "status": "validated"}
+        if month in CLOCK_CHANGE_MONTHS:
+            taxi = resolved_run(root, {"month": month, "subway": False})
+            export_taxi(taxi, WEB / "public/data/taxi-zones.geojson")
+            result["taxi_run"] = taxi.name
         print(f"{month} validated {run.name}", flush=True)
-        return {"month": month, "run": run.name, "status": "validated"}
+        return result
     except (
         OSError,
         ValueError,
@@ -218,11 +227,18 @@ def publish_results(dashboard: Path, root: Path, results: list[dict]) -> None:
             continue
         month, run_id = result["month"], result["run"]
         taxi = prior.get(f"yellow-taxi-{month}.json")
-        if taxi is None:
-            raise ValueError(f"Expected a registered taxi export for {month}")
         payload = export(root / "historical-subway-runs" / run_id, require_month_edges=True)
         updates[month] = {"subway": payload}
-        pairs[month] = (json.loads(taxi.read_bytes())["runId"], run_id)
+        if taxi is None:
+            taxi_id = result.get("taxi_run")
+            if month not in CLOCK_CHANGE_MONTHS or not taxi_id:
+                raise ValueError(f"Expected a validated taxi export for {month}")
+            updates[month]["taxi"] = export_taxi(
+                root / "runs" / taxi_id, WEB / "public/data/taxi-zones.geojson"
+            )
+        else:
+            taxi_id = json.loads(taxi.read_bytes())["runId"]
+        pairs[month] = (taxi_id, run_id)
     publish_months(dashboard, updates, independent_runs=pairs)
 
 
@@ -238,12 +254,17 @@ def main() -> int:
         help="Archive the official station reference if no pin exists",
     )
     parser.add_argument("--publish", action="store_true")
+    parser.add_argument(
+        "--clock-change-months",
+        action="store_true",
+        help="Default to all ten March and November months when no months are listed",
+    )
     args = parser.parse_args()
-    months = args.months or list(MONTHS)
-    if len(set(months)) != len(months) or not set(months) <= set(MONTHS):
-        parser.error("Use distinct YYYY-MM months from 2020–2024 outside March and November")
+    months = args.months or list(CLOCK_CHANGE_MONTHS if args.clock_change_months else MONTHS)
+    if len(set(months)) != len(months) or not set(months) <= set(MONTHS + CLOCK_CHANGE_MONTHS):
+        parser.error("Use distinct YYYY-MM months from 2020–2024")
     for month in months:
-        month_calendar(month)
+        month_calendar(month, allow_transition=True)
     root = args.data_dir.resolve()
     pin = reject_symlinks(root, root / "historical-subway-reference.json")
     if args.pin_reference:

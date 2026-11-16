@@ -153,8 +153,7 @@ captures. Other months continue after a per-month capture or validation
 failure, and the command exits nonzero if any attempted month fails.
 
 The catalog advertises files only after validation. Existing published
-months stay in place. The current export format omits daylight-saving
-transition months. The 2009–2010 taxi files use coordinates and need a
-validated zone assignment before they can be used. The current backfill
-requires a taxi file and adds subway data when the same month is available. See the
-[historical backfill specification](docs/specs/historical-backfill.md).
+months stay in place. Use the [daylight-saving backfill](docs/specs/daylight-saving-backfill.md)
+for March and November 2020–2024. The general backfill skips transition
+months. The 2009–2010 taxi files use coordinates and need a validated zone
+assignment. See the [historical backfill specification](docs/specs/historical-backfill.md).

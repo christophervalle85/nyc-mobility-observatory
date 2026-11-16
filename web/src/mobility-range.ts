@@ -1,5 +1,5 @@
-import { daysInMonth, hoursPerDay, mobilityRunMatches, monthDate } from './mobility-months.ts';
-import type { MobilityRunBindings } from './mobility-months.ts';
+import { daysInMonth, hoursPerDay, mobilityRunMatches, monthDate, publishedClockChange } from './mobility-months.ts';
+import type { ClockChange, MobilityRunBindings } from './mobility-months.ts';
 import type { TaxiData } from './taxi-data.ts';
 import type { SubwayData } from './subway-data.ts';
 
@@ -29,6 +29,8 @@ export interface MobilityDay {
   date: string;
   taxi: ModeDay;
   subway: ModeDay;
+  clockChange?: ClockChange;
+  recorded?: { taxi: ModeDay; subway: ModeDay };
 }
 
 export interface MobilityRange {
@@ -42,7 +44,7 @@ export interface MobilityRangeInput {
   end: string;
   zoneId: number;
   stationId: number | null;
-  /** Only successfully validated, published month payloads belong in this map. */
+  /** Published months may await either mode. Supplied payloads have passed asset validation. */
   months: ReadonlyMap<string, MobilityMonthData>;
 }
 
@@ -61,9 +63,11 @@ function nextDate(date: string): string {
     : `${month.slice(0, 4)}-${String(monthNumber + 1).padStart(2, '0')}-01`;
 }
 
-function modeDay(series: readonly (number | null)[] | undefined, firstHour: number): ModeDay {
+function modeDay(series: readonly (number | null)[] | undefined, firstHour: number, nonexistentHour?: number): ModeDay {
   // Missing payloads/stations are gaps; an observed zero remains an observed hour.
-  const counts = Array.from({ length: hoursPerDay }, (_, hour) => series?.[firstHour + hour] ?? null);
+  const counts = Array.from({ length: hoursPerDay }, (_, hour) =>
+    hour === nonexistentHour ? null : series?.[firstHour + hour] ?? null);
+  const expectedHours = nonexistentHour === undefined ? hoursPerDay : hoursPerDay - 1;
   let observedHours = 0, sum = 0;
   for (const value of counts) {
     if (value !== null) {
@@ -72,20 +76,22 @@ function modeDay(series: readonly (number | null)[] | undefined, firstHour: numb
     }
   }
   return {
-    counts, total: observedHours ? sum : null, observedHours, expectedHours: hoursPerDay,
-    partial: observedHours < hoursPerDay,
+    counts, total: observedHours ? sum : null, observedHours, expectedHours,
+    partial: observedHours < expectedHours,
   };
 }
 
+const excludedDay: ModeDay = { ...modeDay(undefined, 0), expectedHours: 0, partial: false };
+
 function coverage(days: readonly ModeDay[]): ModeCoverage {
-  let sum = 0, observedHours = 0, availableDays = 0, completeDays = 0;
+  let sum = 0, observedHours = 0, expectedHours = 0, availableDays = 0, completeDays = 0;
   for (const day of days) {
     sum += day.total ?? 0;
     observedHours += day.observedHours;
+    expectedHours += day.expectedHours;
     if (day.observedHours) availableDays++;
-    if (!day.partial) completeDays++;
+    if (day.expectedHours && !day.partial) completeDays++;
   }
-  const expectedHours = days.length * hoursPerDay;
   return {
     total: observedHours ? sum : null, observedHours, expectedHours, availableDays, completeDays,
     partial: observedHours < expectedHours,
@@ -94,6 +100,7 @@ function coverage(days: readonly ModeDay[]): ModeCoverage {
 
 /** Inclusive local-clock days, including months absent from the published catalog.
  * Partial totals sum only comparable observed hours; null means no comparable hours.
+ * Transition days stay in calendar order and carry recorded detail separately.
  * Bound exports are checked separately. Legacy pairs compare subway against the taxi run.
  */
 export function buildMobilityRange(input: MobilityRangeInput): MobilityRange | null {
@@ -101,18 +108,27 @@ export function buildMobilityRange(input: MobilityRangeInput): MobilityRange | n
   if (!validDate(start) || !validDate(end) || start > end) return null;
   const days: MobilityDay[] = [];
   for (let date = start; ; date = nextDate(date)) {
-    const data = months.get(date.slice(0, 7));
+    const month = date.slice(0, 7);
+    const data = months.get(month);
     const firstHour = (Number(date.slice(8)) - 1) * hoursPerDay;
-    const taxi = data?.taxi;
-    const subway = data?.subway;
-    const taxiSeries = taxi && mobilityRunMatches(data, 'taxi', taxi.runId) ? taxi.zones.get(zoneId) : undefined;
-    const station = subway && mobilityRunMatches(data, 'subway', subway.runId, taxi?.runId)
-      ? subway.stations.find(item => item.id === stationId) : undefined;
-    days.push({
-      date,
-      taxi: modeDay(taxiSeries, firstHour),
-      subway: modeDay(station?.counts, firstHour),
-    });
+    const taxi = data?.taxi && mobilityRunMatches(data, 'taxi', data.taxi.runId) ? data.taxi : undefined;
+    const subway = data?.subway && mobilityRunMatches(data, 'subway', data.subway.runId, taxi?.runId)
+      ? data.subway : undefined;
+    const taxiSeries = taxi?.zones.get(zoneId);
+    const station = subway?.stations.find(item => item.id === stationId);
+    const clockChange = taxi?.clockChange ?? subway?.clockChange ?? (data && publishedClockChange(month, data));
+    if (clockChange?.date === date) {
+      const nonexistentHour = clockChange.kind === 'nonexistent' ? clockChange.hour : undefined;
+      days.push({
+        date, clockChange, taxi: excludedDay, subway: excludedDay,
+        recorded: {
+          taxi: modeDay(taxiSeries, firstHour, nonexistentHour),
+          subway: modeDay(station?.recordedCounts, 0, nonexistentHour),
+        },
+      });
+    } else {
+      days.push({ date, taxi: modeDay(taxiSeries, firstHour), subway: modeDay(station?.counts, firstHour) });
+    }
     if (date === end) break;
   }
   return { days, taxi: coverage(days.map(day => day.taxi)), subway: coverage(days.map(day => day.subway)) };

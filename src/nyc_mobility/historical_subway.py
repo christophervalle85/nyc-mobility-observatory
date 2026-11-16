@@ -95,11 +95,9 @@ def _distance(first: tuple[float, float], second: tuple[float, float]) -> float:
 
 
 def _historical_month(month: str) -> None:
-    _, _, grid = _month_grid(month)
+    _month_grid(month)
     if not "2020-01" <= month <= "2024-12":
         raise ValueError("Historical subway validation only supports 2020–2024")
-    if any(transition for _, _, transition in grid):
-        raise ValueError("Historical subway export does not support DST-transition months")
 
 
 def _historical_reference(

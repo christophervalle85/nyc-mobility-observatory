@@ -1,4 +1,5 @@
-import { daysInMonth, hoursPerDay } from './mobility-months.ts';
+import { daysInMonth, hoursPerDay, parseAssetClockChange } from './mobility-months.ts';
+import type { ClockChange } from './mobility-months.ts';
 
 export interface SubwayStation {
   id: number;
@@ -7,11 +8,13 @@ export interface SubwayStation {
   latitude: number;
   longitude: number;
   counts: (number | null)[];
+  recordedCounts?: (number | null)[];
 }
 
 export interface SubwayData {
   runId: string;
   stations: SubwayStation[];
+  clockChange?: ClockChange;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -22,26 +25,36 @@ function isDigest(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 }
 
-function isStation(value: unknown, monthHours: number): value is SubwayStation {
-  return isRecord(value) && typeof value.id === 'number' && Number.isSafeInteger(value.id) && value.id > 0
-    && typeof value.name === 'string' && value.name.trim().length > 0
-    && typeof value.borough === 'string' && value.borough.trim().length > 0
-    && typeof value.latitude === 'number' && Math.abs(value.latitude) <= 90
-    && typeof value.longitude === 'number' && Math.abs(value.longitude) <= 180
-    && Array.isArray(value.counts) && value.counts.length === monthHours
-    && Array.from(value.counts).every(count => count === null ||
-      (typeof count === 'number' && Number.isFinite(count) && count >= 0 && count <= Number.MAX_SAFE_INTEGER));
+function isCountSeries(value: unknown, length: number): value is (number | null)[] {
+  return Array.isArray(value) && value.length === length && Array.from(value).every(count => count === null ||
+    (typeof count === 'number' && Number.isFinite(count) && count >= 0 && count <= Number.MAX_SAFE_INTEGER));
+}
+
+function isStation(value: unknown, monthHours: number, clockChange?: ClockChange): value is SubwayStation {
+  if (!isRecord(value) || typeof value.id !== 'number' || !Number.isSafeInteger(value.id) || value.id < 1
+    || typeof value.name !== 'string' || !value.name.trim()
+    || typeof value.borough !== 'string' || !value.borough.trim()
+    || typeof value.latitude !== 'number' || !(Math.abs(value.latitude) <= 90)
+    || typeof value.longitude !== 'number' || !(Math.abs(value.longitude) <= 180)
+    || !isCountSeries(value.counts, monthHours)) return false;
+  if (!clockChange) return !('recordedCounts' in value);
+  const firstHour = (Number(clockChange.date.slice(-2)) - 1) * hoursPerDay;
+  return isCountSeries(value.recordedCounts, hoursPerDay)
+    && (clockChange.kind !== 'nonexistent' || value.recordedCounts[clockChange.hour] === null)
+    && value.counts.slice(firstHour, firstHour + hoursPerDay).every(count => count === null);
 }
 
 export function parseSubwayData(value: unknown, month: string): SubwayData {
   const monthHours = daysInMonth(month) * hoursPerDay;
-  if (!monthHours || !isRecord(value) || value.version !== 1 || value.month !== month
+  if (!monthHours || !isRecord(value) || value.month !== month
     || value.timezone !== 'America/New_York' || !isDigest(value.runId) || !isDigest(value.sourceSha256)
-    || !Array.isArray(value.stations) || value.stations.length === 0 || !Array.from(value.stations).every(station => isStation(station, monthHours))
+    || !Array.isArray(value.stations) || value.stations.length === 0) throw new Error('Invalid monthly subway data');
+  const clockChange = parseAssetClockChange(value, month);
+  if (!Array.from(value.stations).every(station => isStation(station, monthHours, clockChange))
     || new Set(value.stations.map(station => station.id)).size !== value.stations.length) {
     throw new Error('Invalid monthly subway data');
   }
-  return { runId: value.runId, stations: value.stations };
+  return { runId: value.runId, stations: value.stations, ...(clockChange && { clockChange }) };
 }
 
 export function nearbyStations(stations: readonly SubwayStation[], center: { longitude: number; latitude: number }) {

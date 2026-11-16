@@ -5,6 +5,7 @@ export interface TrendDay {
   taxi: number | null;
   subway: number | null;
   subwayPartial: boolean;
+  excluded?: boolean;
 }
 
 const number = new Intl.NumberFormat('en-US');
@@ -47,7 +48,10 @@ export function dailyTrend(section: HTMLElement, selectDay: (date: string) => vo
     const taxi = describe(day.taxi, 'taxi dropoffs');
     const subway = describe(day.subway, 'estimated subway entries');
     const partial = day.subway !== null && day.subwayPartial ? ' (partial)' : '';
-    button.setAttribute('aria-label', `${dateLabel(day.date, 'full')}, ${taxi}, ${subway}${partial}`);
+    const date = dateLabel(day.date, 'full');
+    button.setAttribute('aria-label', day.excluded
+      ? `${date}, excluded from comparison`
+      : `${date}, ${taxi}, ${subway}${partial}`);
     button.title = button.getAttribute('aria-label')!;
     const bars = document.createElement('span');
     bars.className = 'trend-bars';
@@ -94,7 +98,7 @@ export function dailyTrend(section: HTMLElement, selectDay: (date: string) => vo
       const changed = days.length !== lastDays.length || days.some((day, index) => {
         const previous = lastDays[index];
         return day.date !== previous.date || day.taxi !== previous.taxi || day.subway !== previous.subway
-          || day.subwayPartial !== previous.subwayPartial;
+          || day.subwayPartial !== previous.subwayPartial || day.excluded !== previous.excluded;
       });
       if (changed) {
         let taxiScale = 0, subwayScale = 0;

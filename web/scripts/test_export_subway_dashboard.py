@@ -134,6 +134,71 @@ class SubwayExportTests(unittest.TestCase):
         self.assertEqual(len(data["stations"][0]["counts"]), 744)
         self.assertEqual(data["stations"][0]["counts"][:4], [2.5, None, None, 0])
 
+    def transition_archive(self, month: str, day: int, nonexistent: bool) -> None:
+        from export_yellow_taxi_dashboard import month_calendar
+
+        _, start, hours = month_calendar(month, allow_transition=True)
+        self.rows = []
+        for hour in range(hours):
+            stamp = start + timedelta(hours=hour)
+            if nonexistent and stamp.day == day and stamp.hour == 2:
+                continue
+            transition = stamp.day == day
+            self.rows.append(
+                [
+                    stamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "1",
+                    "Station",
+                    "Queens",
+                    "40.7",
+                    "-73.9",
+                    "2.5",
+                    "true",
+                    "false" if transition else "true",
+                    "false" if transition else "true",
+                    "dst_transition_date" if transition else "",
+                ]
+            )
+        valid = hours - int(nonexistent)
+        self.quality.update(
+            month=month,
+            station_hour_denominator=valid,
+            observed_station_hours=valid,
+            eligible_station_hours=hours - 24,
+            missing_station_hours=0,
+        )
+        self.write_archive()
+        path = self.run / "manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["identity"]["month"] = month
+        path.write_text(json.dumps(manifest))
+
+    def test_transition_recorded_counts_and_eligible_mask(self) -> None:
+        for month, day, spring in (("2024-03", 10, True), ("2024-11", 3, False)):
+            self.transition_archive(month, day, spring)
+            result = json.loads(export(self.run))
+            self.assertEqual(result["version"], 2)
+            station = result["stations"][0]
+            self.assertEqual(station["counts"][(day - 1) * 24 : day * 24], [None] * 24)
+            recorded = station["recordedCounts"]
+            self.assertEqual(len(recorded), 24)
+            self.assertEqual(recorded[2], None if spring else 2.5)
+            self.assertEqual(sum(v or 0 for v in recorded), (23 if spring else 24) * 2.5)
+            self.assertEqual(
+                sum(v is not None for v in station["counts"]), len(station["counts"]) - 24
+            )
+
+    def test_transition_cannot_be_comparison_eligible(self) -> None:
+        self.transition_archive("2024-11", 3, False)
+        self.rows[48][8:11] = ["true", "true", ""]
+        self.write_archive()
+        path = self.run / "manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["identity"]["month"] = "2024-11"
+        path.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "comparison-ineligible"):
+            export(self.run)
+
     def test_hash_and_byte_mismatch(self) -> None:
         for name in ("subway/station_hour.csv", "subway/quality.json"):
             path = self.run / name

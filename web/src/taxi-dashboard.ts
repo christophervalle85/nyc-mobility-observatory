@@ -2,8 +2,8 @@ import { buildMobilityRange } from './mobility-range.ts';
 import type { MobilityMonthData } from './mobility-range.ts';
 import { dailyTrend } from './daily-trend.ts';
 import { monthRangePicker } from './month-range-picker.ts';
-import { dateLabel, hoursPerDay, mobilityRunMatches, monthLabel, parseMobilityMonths } from './mobility-months.ts';
-import type { MobilityMonth } from './mobility-months.ts';
+import { dateLabel, hoursPerDay, mobilityRunMatches, monthLabel, parseMobilityMonths, publishedClockChange } from './mobility-months.ts';
+import type { ClockChange, MobilityMonth } from './mobility-months.ts';
 import { hourLabel, parseTaxiData, taxiHourLabel } from './taxi-data.ts';
 import type { TaxiData } from './taxi-data.ts';
 import { nearbyStations, parseSubwayData } from './subway-data.ts';
@@ -12,6 +12,7 @@ import type { SubwayData, SubwayStation } from './subway-data.ts';
 const requestTimeout = 10_000;
 const number = new Intl.NumberFormat('en-US');
 const hourlyNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20 });
+const dateList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
 
 interface TaxiArea {
   id: number;
@@ -84,7 +85,13 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const heading = find('#taxi-heading'), area = find('#taxi-area'), status = find('#taxi-status');
   const closer = find<HTMLButtonElement>('#taxi-close'), retry = find<HTMLButtonElement>('#taxi-retry');
   const dateRange = monthRangePicker(panel, loadRange);
-  const trend = dailyTrend(find('#mobility-trend'), date => {
+  const trendSection = find('#mobility-trend');
+  const clockExclusions = document.createElement('p');
+  clockExclusions.id = 'mobility-clock-exclusions';
+  clockExclusions.className = 'chart-coverage-note';
+  clockExclusions.hidden = true;
+  trendSection.before(clockExclusions);
+  const trend = dailyTrend(trendSection, date => {
     day.value = date;
     selectedHour = 0;
     render();
@@ -108,9 +115,11 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const statisticsDate = find('#mobility-statistics-date');
   const taxiDayStat = find('#taxi-day-stat'), taxiPeakStat = find('#taxi-peak-stat');
   const subwayDayStat = find('#subway-day-stat'), subwayPeakStat = find('#subway-peak-stat');
+  const taxiPeakLabel = find('#taxi-peak-stat dt'), subwayPeakLabel = find('#subway-peak-stat dt');
   const taxiDayTotal = find('#taxi-day-total'), taxiPeakHour = find('#taxi-peak-hour');
   const subwayDayTotal = find('#subway-day-total'), subwayPeakHour = find('#subway-peak-hour');
   const day = find<HTMLSelectElement>('#taxi-chart-day');
+  const chartHeading = find('.taxi-chart-controls h3');
   const currentHourLabel = find('#chart-hour-label');
   const hourTaxi = find('#chart-hour-taxi'), hourSubway = find('#chart-hour-subway');
   let selection: TaxiArea | null = null;
@@ -154,6 +163,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   let selectedHour = 0;
   let shown: {
     date: string;
+    clockChange?: ClockChange;
     taxi?: { counts: readonly (number | null)[]; scale: number };
     subway?: { counts: readonly (number | null)[]; scale: number };
   } | undefined;
@@ -170,13 +180,18 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     const time = taxiHourLabel(shown.date.slice(0, 7), firstHour + selectedHour);
     const dropoffs = shown.taxi?.counts[selectedHour];
     const entries = shown.subway?.counts[selectedHour];
-    currentHourLabel.textContent = `${hourLabel(selectedHour)} ET`;
+    const change = shown.clockChange?.hour === selectedHour ? shown.clockChange : undefined;
+    const clockNote = change?.kind === 'nonexistent' ? 'Hour did not occur'
+      : change?.kind === 'repeated' ? 'Repeated hour · source reports one count' : '';
+    currentHourLabel.textContent = clockNote ? `${hourLabel(selectedHour)} ET · ${clockNote}` : `${hourLabel(selectedHour)} ET`;
     hourTaxi.textContent = dropoffs == null ? '' : hourlyNumber.format(dropoffs);
-    hourSubway.textContent = entries === undefined ? '' : entries === null ? 'Unavailable' : hourlyNumber.format(entries);
-    hourSubway.toggleAttribute('data-unavailable', entries === null);
+    hourSubway.textContent = entries === undefined || change?.kind === 'nonexistent' ? ''
+      : entries === null ? 'Unavailable' : hourlyNumber.format(entries);
+    hourSubway.toggleAttribute('data-unavailable', entries === null && change?.kind !== 'nonexistent');
     const details = [`${time} ET`];
+    if (clockNote) details.push(clockNote);
     if (dropoffs != null) details.push(`Taxi dropoffs ${hourTaxi.textContent}`);
-    if (entries !== undefined) details.push(entries === null
+    if (entries !== undefined && change?.kind !== 'nonexistent') details.push(entries === null
       ? 'Subway entries missing or flagged' : `Estimated subway entries ${hourSubway.textContent}`);
     const value = details.join('. ');
     for (const canvas of [chart, subwayChart]) {
@@ -242,7 +257,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       : !activeMonths.some(entry => entry.subway) ? 'Subway data is unavailable for this range.' : '';
     const selectedStation = stations.get(Number(selectedStationId));
     const range = buildMobilityRange({ start, end, zoneId: selection.id, stationId: selectedStation?.id ?? null, months: monthData });
-    if (!range || (range.taxi.total === null && !selectedStation && ![...monthData.values()].some(value => value.subway))) {
+    const excluded = range?.days.filter(item => item.clockChange).map(item => dateLabel(item.date, 'full')) ?? [];
+    if (!range || (range.taxi.total === null && !excluded.length && !selectedStation
+      && ![...monthData.values()].some(value => value.subway))) {
       shown = undefined;
       results.hidden = true;
       for (const field of [total, subwayTotal, taxiCoverage, subwayCoverage]) field.textContent = '';
@@ -257,28 +274,43 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       chartDateRange = nextChartDateRange;
     }
     const current = range.days.find(item => item.date === day.value)!;
-    const taxiDay = current.taxi;
-    const subwayDay = current.subway;
+    const { clockChange } = current;
+    const taxiDay = current.recorded?.taxi ?? current.taxi;
+    const subwayDay = current.recorded?.subway ?? current.subway;
     const taxiShown = taxiDay.total !== null;
     const subwayShown = subwayDay.total !== null;
+    chartHeading.textContent = clockChange ? 'Recorded hourly counts' : 'Hourly comparison';
+    taxiPeakLabel.textContent = clockChange ? 'Peak recorded taxi slot' : 'Busiest taxi hour';
+    subwayPeakLabel.textContent = clockChange ? 'Peak recorded subway slot' : 'Busiest subway hour';
+    for (const canvas of [chart, subwayChart]) {
+      if (clockChange) canvas.setAttribute('aria-describedby', dayUnavailable.id);
+      else canvas.removeAttribute('aria-describedby');
+    }
     highlightStation(monthData.get(day.value.slice(0, 7))?.subway?.stations.find(item => item.id === selectedStation?.id) ?? null);
     trend.render(range.days.map(item => ({
       date: item.date, taxi: item.taxi.total, subway: item.subway.total, subwayPartial: item.subway.partial,
+      excluded: Boolean(item.clockChange),
     })), day.value);
     trendTaxiLegend.hidden = !activeMonths.some(entry => entry.taxi);
     trendSubwayLegend.hidden = !selectedStation;
-    shown = { date: day.value };
+    shown = { date: day.value, clockChange };
     statisticsDate.textContent = `${dateLabel(day.value)} · ET`;
     statistics.hidden = !taxiShown && !subwayShown;
     currentHourLabel.hidden = !taxiShown && !subwayShown;
     taxiDayStat.hidden = taxiPeakStat.hidden = taxiFigure.hidden = !taxiShown;
     subwayDayStat.hidden = subwayPeakStat.hidden = subwayFigure.hidden = !subwayShown;
-    taxiMetric.hidden = range.taxi.total === null;
+    taxiMetric.hidden = range.taxi.total === null && !(excluded.length && activeMonths.some(entry => entry.taxi));
     subwayMetric.hidden = !selectedStation;
-    total.textContent = range.taxi.total === null ? '' : number.format(range.taxi.total);
-    taxiCoverage.textContent = `${range.taxi.availableDays} of ${range.days.length} days covered`;
+    total.textContent = range.taxi.total === null
+      ? taxiMetric.hidden ? '' : 'Unavailable' : number.format(range.taxi.total);
+    taxiCoverage.textContent = `${range.taxi.availableDays} of ${range.days.length - excluded.length} days covered`;
     subwayTotal.textContent = range.subway.total === null ? 'Unavailable' : number.format(range.subway.total);
-    subwayCoverage.textContent = `${number.format(range.subway.observedHours)} of ${number.format(range.subway.expectedHours)} comparable hours`;
+    const subwayCoverageUnit = excluded.length ? 'comparable clock slots' : 'comparable hours';
+    subwayCoverage.textContent = `${number.format(range.subway.observedHours)} of ${number.format(range.subway.expectedHours)} ${subwayCoverageUnit}`;
+    clockExclusions.hidden = !excluded.length;
+    clockExclusions.textContent = excluded.length
+      ? `${dateList.format(excluded)} ${excluded.length === 1 ? 'is' : 'are'} excluded from comparison totals and coverage.`
+      : '';
     if (taxiShown) {
       const peak = Math.max(0, ...taxiDay.counts.map(value => value ?? 0));
       const scale = chartScale(peak);
@@ -303,8 +335,11 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     const unavailable = !taxiShown && !subwayShown ? 'No hourly data for this day.'
       : !subwayShown && selectedStation ? 'Subway data is unavailable for this day.'
       : !taxiShown && activeMonths.some(entry => entry.taxi) ? 'Taxi data is unavailable for this day.' : '';
-    dayUnavailable.hidden = !unavailable;
-    dayUnavailable.textContent = unavailable;
+    const clockContext = clockChange?.kind === 'nonexistent' ? 'The 2 AM hour did not occur.'
+      : clockChange?.kind === 'repeated' ? 'The sources report one count per mode for the repeated 1 AM hour.' : '';
+    const recordedContext = clockChange && (taxiShown || subwayShown) ? 'Recorded counts for this day.' : '';
+    dayUnavailable.hidden = !unavailable && !clockContext;
+    dayUnavailable.textContent = [recordedContext, clockContext, unavailable].filter(Boolean).join(' ');
     results.hidden = false;
     renderHour();
   }
@@ -336,7 +371,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
   }
 
-  function loadMonthly<T extends { runId: string }>(
+  function loadMonthly<T extends { runId: string; clockChange?: ClockChange }>(
     cache: Map<string, Dataset<T>>, mode: 'taxi' | 'subway', file: string,
     parser: (value: unknown, month: string) => T, retryButton: HTMLElement, message: HTMLElement,
   ) {
@@ -348,6 +383,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       void load(dataset, request => fetchDataset(`/data/${file}-${month}.json`, value => {
         const data = parser(value, month);
         if (!mobilityRunMatches(entry, mode, data.runId)) throw new Error('Unexpected monthly run');
+        if (publishedClockChange(month, entry) && !data.clockChange) throw new Error('Missing monthly clock change');
         return data;
       }, request),
         retryButton, message, () => cache.get(month) === dataset);

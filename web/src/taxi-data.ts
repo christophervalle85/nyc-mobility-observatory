@@ -1,4 +1,5 @@
-import { dateLabel, daysInMonth, hoursPerDay, monthDate } from './mobility-months.ts';
+import { dateLabel, daysInMonth, hoursPerDay, monthDate, parseAssetClockChange } from './mobility-months.ts';
+import type { ClockChange } from './mobility-months.ts';
 
 const ZONE_COUNT = 263;
 
@@ -7,6 +8,7 @@ export interface TaxiData {
   sourceSha256: string;
   totalDropoffs: number;
   zones: ReadonlyMap<number, readonly number[]>;
+  clockChange?: ClockChange;
 }
 
 interface TaxiRange {
@@ -24,11 +26,12 @@ function sha256(value: unknown): value is string {
 
 export function parseTaxiData(value: unknown, month: string): TaxiData {
   const monthHours = daysInMonth(month) * hoursPerDay;
-  if (!monthHours || !record(value) || value.version !== 1 || value.month !== month
+  if (!monthHours || !record(value) || value.month !== month
     || value.timezone !== 'America/New_York' || !sha256(value.runId) || !sha256(value.sourceSha256)
     || !record(value.zones) || Object.keys(value.zones).length !== ZONE_COUNT) {
     throw new Error('Invalid monthly taxi data');
   }
+  const clockChange = parseAssetClockChange(value, month);
   const zones = new Map<number, readonly number[]>();
   let totalDropoffs = 0;
   for (let id = 1; id <= ZONE_COUNT; id++) {
@@ -45,7 +48,7 @@ export function parseTaxiData(value: unknown, month: string): TaxiData {
   if (!Number.isSafeInteger(totalDropoffs) || value.totalDropoffs !== totalDropoffs) {
     throw new Error('Inconsistent monthly taxi total');
   }
-  return { runId: value.runId, sourceSha256: value.sourceSha256, totalDropoffs, zones };
+  return { runId: value.runId, sourceSha256: value.sourceSha256, totalDropoffs, zones, ...(clockChange && { clockChange }) };
 }
 
 export function taxiDateRange(start: string, end: string): TaxiRange | null {

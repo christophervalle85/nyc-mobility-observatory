@@ -48,6 +48,30 @@ test('subway parsing validates the requested calendar and preserves the last Aug
   assert.throws(() => parseSubwayData(data, '2026-09'));
 });
 
+test('version two subway parsing separates recorded transition slots from comparison counts', () => {
+  const month = '2024-03';
+  const clockChange = { date: '2024-03-10', hour: 2, kind: 'nonexistent' };
+  const baseline = archive();
+  const stations = baseline.stations.map(station => ({
+    ...station, counts: [...station.counts, ...Array<null>(24).fill(null)],
+    recordedCounts: Array<number | null>(24).fill(null),
+  }));
+  stations[0].recordedCounts[0] = 0;
+  stations[0].recordedCounts[1] = 2.5;
+  const data = { ...baseline, month, version: 2, clockChange, stations };
+  const parsed = parseSubwayData(data, month);
+  assert.deepEqual(parsed.clockChange, clockChange);
+  assert.deepEqual(parsed.stations[0].recordedCounts?.slice(0, 3), [0, 2.5, null]);
+  stations[0].counts[9 * 24] = 0;
+  assert.throws(() => parseSubwayData(data, month));
+  stations[0].counts[9 * 24] = null;
+  stations[0].recordedCounts[2] = 0;
+  assert.throws(() => parseSubwayData(data, month));
+  stations[0].recordedCounts[2] = null;
+  stations[0].recordedCounts.pop();
+  assert.throws(() => parseSubwayData(data, month));
+});
+
 
 test('nearby stations are distance ordered, bounded, and empty when too far away', () => {
   const center = { latitude: 40.75, longitude: -73.99 };

@@ -175,8 +175,8 @@ def test_explicit_reviewed_name_pair_is_id_scoped(tmp_path):
     assert quality["historical_coordinates"]["complexes"][0]["reviewed_name_alias"] is True
 
 
-@pytest.mark.parametrize("month", ["2025-01", "2019-12", "2024-03", "2024-11"])
-def test_only_ordinary_historical_months_are_supported(tmp_path, month):
+@pytest.mark.parametrize("month", ["2025-01", "2019-12"])
+def test_only_historical_years_are_supported(tmp_path, month):
     with pytest.raises(ValueError):
         validate_historical_subway(source(tmp_path), output(tmp_path), month, reference(tmp_path))
 
@@ -200,3 +200,21 @@ def test_cluster_spread_requires_review_even_when_each_point_is_near_reference(t
         validate_historical_subway(
             source(tmp_path, rows), output(tmp_path), "2024-12", reference(tmp_path)
         )
+
+
+@pytest.mark.parametrize(
+    "month,date,invalid", [("2024-03", "2024-03-10", True), ("2024-11", "2024-11-03", False)]
+)
+def test_transition_month_retains_existing_quarantine(tmp_path, month, date, invalid):
+    rows = [
+        dict(BASE, transit_timestamp=f"{date}T01:00:00.000"),
+        dict(BASE, transit_timestamp=f"{date}T02:00:00.000"),
+    ]
+    dest = output(tmp_path)
+    quality = validate_historical_subway(source(tmp_path, rows), dest, month, reference(tmp_path))
+    assert quality["observed_station_hours"] == (1 if invalid else 2)
+    assert quality["eligible_station_hours"] == 0
+    observed = [
+        r for r in csv.DictReader((dest / "station_hour.csv").open()) if r["observation"] == "true"
+    ]
+    assert all(r["comparison_eligible"] == "false" for r in observed)

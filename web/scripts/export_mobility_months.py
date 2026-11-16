@@ -9,7 +9,7 @@ import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 
-from export_yellow_taxi_dashboard import WEB, integer, month_calendar, object_value
+from export_yellow_taxi_dashboard import WEB, clock_change, integer, month_calendar, object_value
 
 
 def published_run_pairs(data_dir: Path) -> dict[str, tuple[str, str]]:
@@ -31,7 +31,7 @@ def published_run_pairs(data_dir: Path) -> dict[str, tuple[str, str]]:
         entry = object_value(entry, "month entry")
         if not {"taxiRunId", "subwayRunId"} & entry.keys():
             continue
-        month, _, _ = month_calendar(entry.get("month"))
+        month, _, _ = month_calendar(entry.get("month"), allow_transition=True)
         if month in pairs or entry.get("taxi") is not True or entry.get("subway") is not True:
             raise ValueError("Invalid independent run binding")
         pairs[month] = (entry.get("taxiRunId"), entry.get("subwayRunId"))
@@ -52,15 +52,24 @@ def catalog(
         if match is None:
             continue
         mode = "taxi" if match[1] == "yellow-taxi" else "subway"
-        month, _, hours = month_calendar(match[2])
+        month, start, hours = month_calendar(match[2], allow_transition=True)
+        change = clock_change(month, start, hours)
         asset = object_value(json.loads(path.read_bytes()), path.name)
         if (
             type(asset.get("version")) is not int
-            or asset["version"] != 1
+            or asset["version"] != (2 if change else 1)
             or asset.get("month") != month
             or asset.get("timezone") != "America/New_York"
         ):
             raise ValueError(f"Invalid asset contract: {path.name}")
+        if change:
+            if (
+                asset.get("clockChange") != change
+                or type(asset["clockChange"].get("hour")) is not int
+            ):
+                raise ValueError("Invalid clockChange metadata")
+        elif "clockChange" in asset:
+            raise ValueError("Ordinary month cannot have clockChange metadata")
         for field in ("runId", "sourceSha256"):
             if not isinstance(asset.get(field), str) or not re.fullmatch(
                 r"[0-9a-f]{64}", asset[field]
@@ -95,7 +104,30 @@ def catalog(
                         or not -limit <= coordinate <= limit
                     ):
                         raise ValueError(f"Invalid station {field}")
-                counts.append(station.get("counts"))
+                values = station.get("counts")
+                if change:
+                    recorded = station.get("recordedCounts")
+                    offset = (int(change["date"][-2:]) - 1) * 24
+                    if (
+                        not isinstance(values, list)
+                        or len(values) != hours
+                        or any(value is not None for value in values[offset : offset + 24])
+                    ):
+                        raise ValueError("Transition subway comparison counts must be null")
+                    if not isinstance(recorded, list) or len(recorded) != 24:
+                        raise ValueError("Invalid transition recordedCounts length")
+                    for value in recorded:
+                        if value is not None and (
+                            type(value) not in (int, float)
+                            or not math.isfinite(value)
+                            or not 0 <= value <= 9007199254740991
+                        ):
+                            raise ValueError("Invalid recorded subway count")
+                    if change["kind"] == "nonexistent" and recorded[2] is not None:
+                        raise ValueError("Nonexistent subway hour must be null")
+                elif "recordedCounts" in station:
+                    raise ValueError("Ordinary stations cannot have transition recordedCounts")
+                counts.append(values)
         total = 0
         for values in counts:
             if not isinstance(values, list) or len(values) != hours:

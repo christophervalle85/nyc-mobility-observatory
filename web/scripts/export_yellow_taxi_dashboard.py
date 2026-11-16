@@ -9,7 +9,7 @@ import json
 import os
 import re
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -38,22 +38,35 @@ def verified_bytes(run: Path, outputs: dict, name: str) -> bytes:
     return data
 
 
-def month_calendar(value: object) -> tuple[str, datetime, int]:
-    """The dense local-clock format cannot represent DST gaps or repeated hours."""
+def clock_change(month: str, start: datetime, hours: int) -> dict | None:
+    """Identify the one New York clock-label change without inventing UTC observations."""
+    timezone = ZoneInfo("America/New_York")
+    changes = []
+    for hour in range(hours):
+        stamp = start + timedelta(hours=hour)
+        early = stamp.replace(tzinfo=timezone, fold=0)
+        late = stamp.replace(tzinfo=timezone, fold=1)
+        if early.utcoffset() != late.utcoffset():
+            valid = early.astimezone(UTC).astimezone(timezone).replace(tzinfo=None) == stamp
+            changes.append(
+                {
+                    "date": stamp.strftime("%Y-%m-%d"),
+                    "hour": stamp.hour,
+                    "kind": "repeated" if valid else "nonexistent",
+                }
+            )
+    if len(changes) > 1:
+        raise ValueError("Unsupported multiple clock changes")
+    return changes[0] if changes else None
+
+
+def month_calendar(value: object, *, allow_transition: bool = False) -> tuple[str, datetime, int]:
     if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}", value):
         raise ValueError("Month must use YYYY-MM")
     start = datetime.strptime(value, "%Y-%m")
     hours = calendar.monthrange(start.year, start.month)[1] * 24
-    timezone = ZoneInfo("America/New_York")
-    for hour in range(hours):
-        stamp = start + timedelta(hours=hour)
-        if (
-            stamp.replace(tzinfo=timezone, fold=0).utcoffset()
-            != stamp.replace(tzinfo=timezone, fold=1).utcoffset()
-        ):
-            raise ValueError(
-                "DST-transition months are unsupported by the local-clock asset format"
-            )
+    if not allow_transition and clock_change(value, start, hours):
+        raise ValueError("DST-transition months are unsupported by the local-clock asset format")
     return value, start, hours
 
 
@@ -62,7 +75,8 @@ def export(run: Path, geography: Path) -> bytes:
     identity = object_value(manifest.get("identity"), "identity")
     if manifest.get("status") != "completed":
         raise ValueError("A completed run is required")
-    month, start, hours = month_calendar(identity.get("month"))
+    month, start, hours = month_calendar(identity.get("month"), allow_transition=True)
+    change = clock_change(month, start, hours)
     run_id = manifest.get("run_id")
     if not isinstance(run_id, str) or not re.fullmatch(r"[0-9a-f]{64}", run_id):
         raise ValueError("Invalid portable run ID")
@@ -114,7 +128,7 @@ def export(run: Path, geography: Path) -> bytes:
     if len(seen) != integer(quality.get("aggregate_rows"), "aggregate_rows"):
         raise ValueError("Aggregate row count does not reconcile to quality report")
     result = {
-        "version": 1,
+        "version": 2 if change else 1,
         "month": month,
         "timezone": "America/New_York",
         "runId": run_id,
@@ -122,6 +136,8 @@ def export(run: Path, geography: Path) -> bytes:
         "totalDropoffs": total,
         "zones": zones,
     }
+    if change:
+        result["clockChange"] = change
     return (json.dumps(result, separators=(",", ":")) + "\n").encode("utf-8")
 
 

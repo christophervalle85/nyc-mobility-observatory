@@ -11,6 +11,10 @@ export interface MobilityMonth extends MobilityRunBindings {
   subway: boolean;
 }
 
+export type ClockChange =
+  | { date: string; hour: 2; kind: 'nonexistent' }
+  | { date: string; hour: 1; kind: 'repeated' };
+
 export function daysInMonth(month: unknown): number {
   if (typeof month !== 'string' || !/^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) return 0;
   const year = Number(month.slice(0, 4)), index = Number(month.slice(5));
@@ -64,6 +68,34 @@ export function parseMobilityMonths(value: unknown): MobilityMonth[] {
 
 export function monthDate(month: string, day: number): string {
   return `${month}-${String(day).padStart(2, '0')}`;
+}
+
+/** New York's calendar rule in effect since 2007. */
+function expectedClockChange(month: string): ClockChange | undefined {
+  const spring = month.endsWith('-03');
+  if (!daysInMonth(month) || Number(month.slice(0, 4)) < 2007 || (!spring && !month.endsWith('-11'))) return undefined;
+  const firstWeekday = new Date(`${monthDate(month, 1)}T00:00:00Z`).getUTCDay();
+  const date = monthDate(month, (spring ? 8 : 1) + (7 - firstWeekday) % 7);
+  return spring ? { date, hour: 2, kind: 'nonexistent' } : { date, hour: 1, kind: 'repeated' };
+}
+
+/** The 2020–24 clock-change backfill publishes each verified run pair in the catalog. */
+export function publishedClockChange(month: string, binding: MobilityRunBindings): ClockChange | undefined {
+  const year = Number(month.slice(0, 4));
+  if (year >= 2020 && year <= 2024 && isRunId(binding.taxiRunId) && isRunId(binding.subwayRunId)) {
+    return expectedClockChange(month);
+  }
+}
+
+export function parseAssetClockChange(asset: Record<string, unknown>, month: string): ClockChange | undefined {
+  if (asset.version === 1 && !('clockChange' in asset)) return undefined;
+  const change = asset.clockChange;
+  const expected = expectedClockChange(month);
+  if (asset.version !== 2 || !expected || !record(change) || Object.keys(change).length !== 3
+    || change.date !== expected.date || change.hour !== expected.hour || change.kind !== expected.kind) {
+    throw new Error('Invalid monthly clock change');
+  }
+  return expected;
 }
 
 const monthFormat = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });

@@ -105,6 +105,19 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(all(len(values) == 744 for values in data["zones"].values()))
         self.assertEqual(data["zones"]["263"][-1], 3)
 
+    def test_transition_assets_preserve_taxi_source_counts(self) -> None:
+        for month, date, hour, kind in (
+            ("2024-03", "2024-03-10", 2, "nonexistent"),
+            ("2024-11", "2024-11-03", 1, "repeated"),
+        ):
+            self.manifest["identity"]["month"] = month
+            self.archive(f"{date} {hour:02}:00:00,1,5\n", total=5, row_count=1)
+            result = json.loads(export(self.run, self.geo))
+            self.assertEqual(result["version"], 2)
+            self.assertEqual(result["clockChange"], {"date": date, "hour": hour, "kind": kind})
+            self.assertEqual(result["totalDropoffs"], 5)
+            self.assertEqual(sum(map(sum, result["zones"].values())), 5)
+
     def test_corruption_and_size_mismatches(self) -> None:
         for name in ("taxi/zone_hour.csv", "taxi/quality.json"):
             with self.subTest(name=name):
