@@ -18,10 +18,10 @@ npm run dev:live
 ```
 
 Open [the local preview](http://127.0.0.1:5173) while the server is running.
-The live preview disables hot reload and file watching. Local search and selection work
-without a token. With a configured public Cesium ion client token, the stage makes
-one automatic startup attempt after local geography validates and the page is visible.
-This makes external requests that can consume quota. Close or leave the page to unload 3D.
+The live preview disables hot reload and file watching. The opening 2D map and local
+search work without a token. With a configured public Cesium ion client token, use
+**3D** beside the bottom-right overview control to load live imagery. This can consume
+quota. Use **2D** to release the live scene and return to the previous map view.
 Follow the [web setup and safety notes](web/README.md).
 
 To try the dashboard without a token, run `npm run dev:verify` from `web/` and

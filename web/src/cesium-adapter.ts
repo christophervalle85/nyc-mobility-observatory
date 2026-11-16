@@ -32,7 +32,7 @@ class Resource<T> implements OwnedResource {
   constructor(public value: T, private release: () => void) {}
   destroy() { this.release(); }
 }
-export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, cutout: CutoutMode = 'none', onImagery?: (stage: ImageryStage) => void, onSelectionAnchor?: (point: SelectionAnchor | null) => void) {
+export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement, token: string, geography: ZoneCollection, choose: (id: number | null) => void, diagnostics?: Diagnostics, land?: LandFootprint, cutout: CutoutMode = 'none', onImagery?: (stage: ImageryStage) => void, onSelectionAnchor?: (point: SelectionAnchor | null) => void, onRenderFailure?: () => void) {
   const profile = diagnostics?.enabled ? diagnostics : undefined;
   return managedAdapter((): SceneRuntime => {
     const constructed = profile?.span('scene.construct');
@@ -326,7 +326,10 @@ export function createCesiumAdapter(container: HTMLElement, credits: HTMLElement
       } finally { picked?.(); }
       choose(id);
     },ScreenSpaceEventType.LEFT_CLICK);
-    cleanup.push(viewer.scene.renderError.addEventListener(reportPartial));
+    cleanup.push(viewer.scene.renderError.addEventListener(() => {
+      if (!onRenderFailure) reportPartial();
+      else queueMicrotask(() => { if (!disposed) onRenderFailure(); });
+    }));
     cleanup.push(viewer.camera.moveStart.addEventListener(()=>{cameraMoving=true;waitForDetail();}));
     cleanup.push(viewer.camera.moveEnd.addEventListener(()=>{cameraMoving=false;viewer.scene.requestRender();}));
     constructed?.();

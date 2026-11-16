@@ -41,6 +41,25 @@ test('stop disposes immediately and late results cannot resurrect the scene', as
   assert.equal(f.controller.state.phase, 'stopped'); f.update('ready');
   assert.equal(f.controller.state.phase, 'stopped');
 });
+test('leaving a ready 3D scene permits future opens while fatal renders fall back', async () => {
+  const f = fixture();
+  f.resolve();
+  for (let index = 0; index < 3; index += 1) {
+    await f.controller.load();
+    await flush();
+    assert.equal(f.controller.state.phase, 'ready');
+    f.controller.stop({ returningTo2D: true });
+  }
+  await f.controller.load();
+  await flush();
+  f.controller.fail('webgl');
+  assert.equal(f.calls.create, 4);
+  assert.equal(f.calls.dispose, 4);
+  assert.equal(f.controller.state.phase, 'error');
+  assert.equal(f.controller.state.failure, 'webgl');
+  f.update('ready');
+  assert.equal(f.controller.state.phase, 'error');
+});
 test('timeout disposes pending scene and late completion stays stopped', async () => {
   const f = fixture(true, 5); const work = f.controller.load(); await work;
   assert.equal(f.controller.state.failure, 'timeout'); assert.equal(f.calls.dispose, 1);

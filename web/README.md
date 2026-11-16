@@ -12,7 +12,7 @@ npm ci --ignore-scripts
 npm run dev:live
 ```
 
-Open <http://127.0.0.1:5173>. You can search for and select TLC areas without a token. The unloaded viewport shows setup or status guidance. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, close the preview tab, restart `npm run dev:live`, then reopen the page.
+Open <http://127.0.0.1:5173>. The 2D map opens on Manhattan and includes streets and parks across all five boroughs and on the New Jersey side of the harbor. You can pan, zoom, and select TLC areas without a token. The server accepts loopback connections only and requires port 5173 to be free. The live preview disables file watching and hot reload. After a code update, close the preview tab, restart `npm run dev:live`, then reopen the page.
 
 For 3D, edit the ignored `web/.env.local` file locally:
 
@@ -22,11 +22,17 @@ VITE_CESIUM_ION_TOKEN=
 
 Place your public Cesium ion client token after `=` and restart the server. Do not paste it into chat, commit it or include it in screenshots/logs. Vite exposes this value to the browser; it is not a secret store. Use only a read-only `assets:read` token restricted to the necessary asset, Google Photorealistic 3D Tiles (ion asset 2275207), and the local URL where supported. Never use an administrative, secret or write-enabled token. Check asset enablement and your current ion plan and usage in your account. This app cannot verify those account settings.
 
-The stage makes one automatic startup attempt per page session. Leaving or closing the page cancels pending startup and unloads the viewer and listeners. Requests already in flight may finish. **Retry once** shares the two-attempt session budget and waits for pending resource creation to settle after a timeout. Errors never retry automatically. If you hit a request limit, stop and check your usage. Reloading starts a new session, so avoid repeated reloads or loads.
+Select **3D** beside the overview control to start streaming. Select **2D** to unload the live scene and restore the map view and dashboard selections. Requests already in flight may finish. The app allows one retry after a failed load, once pending work has settled. Errors never retry automatically. A request limit or unsupported renderer leaves the 2D map available.
 
 The app skips Cesium's default imagery, terrain and geocoding services. Request-render mode reduces idle rendering. Camera movement can still request more tiles and count toward ion usage and billing. Rendering starts at CSS-pixel resolution and applies device pixel ratio once, clamped between 1 and 1.5, with no fixed frame-rate cap. The tile settings use screen-space error 16, a 512 MiB cache target and 256 MiB overflow allowance. The cache settings can increase bandwidth and memory use and apply to tile cache only.
 
 Keep the on-screen Cesium and imagery provider credits visible during live 3D. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
+
+## 2D map sources and use
+
+The local 2D map uses NYC Open Data for [borough land](public/data/city-land.provenance.json), [street centerlines and park properties](public/data/manhattan-streets-parks.provenance.json), and [taxi-zone geometry](public/data/taxi-zones.provenance.json). NYC makes public datasets available for reuse and may require identification of the source, version, and modifications. The provenance files record each of these. [NYC Open Data public policies](https://cityofnewyork.github.io/opendatatsm/publicpolicies.html)
+
+The [New Jersey map layers](public/data/harbor-context.provenance.json) use U.S. Census Bureau 2025 TIGER/Line® state and water polygons, road centerlines, and selected park boundaries. The federal source data may be reused under 17 U.S.C. § 105. TIGER/Line® is a registered trademark of the U.S. Census Bureau. The clipped and simplified result is approximate and carries no positional warranty. The water texture is decorative. [Census use and citation terms](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf) · [17 U.S.C. § 105](https://uscode.house.gov/us/usc/t17/s105/)
 
 ## Try the transportation dashboard
 
@@ -79,11 +85,11 @@ Use **Search areas** to filter by name, borough or exact TLC ID. Results open wh
 
 Use the Up and Down arrow keys to move through the results. With the list open, Enter chooses the active row or the first match if no row is active. Escape closes the list and keeps the query and selection.
 
-Choosing a result closes the list, keeps the query and opens the area details. When 3D is ready, the map highlights the selection and the camera flies to it. If the initial startup is still pending, the flight waits for it to finish. Choosing a result leaves a stopped scene unloaded.
+Choosing a result closes the list, keeps the query, opens the area details and focuses the active map on the selection. You can use **Zoom to area** or **Return to previous view** in either mode. In 2D, drag to pan and scroll or pinch to zoom. With the 2D map focused, use arrow keys to pan and + or − to zoom.
 
 Picking a point in the live scene or opening `?zone=ID` selects an area without moving the camera. Editing or clearing the query keeps the selected area, even if it falls outside the results. Close the details to clear the selection and return to search.
 
-Use **Zoom to area** to center on the selection once 3D is ready. After the flight, **Return to previous view** flies back to the camera position, angle and zoom while keeping the area selected. The return action is also available after a search flight. Both automatic and manual flights use local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current heading. Area flights tilt down if you were looking toward or above the horizon. The flight takes 1.2 seconds, or moves immediately with reduced motion. The app ignores duplicate requests and cancels obsolete flights when selection changes or the scene stops. Flying can request more tiles.
+In 3D, **Return to previous view** restores the camera position, angle and zoom. Area flights use local zone geometry and an 800 to 20,000 metre range. Cesium chooses the flight height and keeps the current heading. Flights take 1.2 seconds, or move immediately with reduced motion. Flying can request more tiles.
 
 **Show all NYC** flies to a north-up, overhead view of all five boroughs. Use the same button again to return to the camera view you had before the overview. Drag to interrupt either flight. Starting the return uses the saved view, so interrupting that flight leaves you in control at the current position. With reduced motion, the map moves there immediately. The opening view uses source-derived Midtown bounds. Click and drag to move across the city. Swipe with two fingers over the map to look around in place. Pinch or hold Option (Alt) while scrolling to zoom. With the map focused, use the arrow keys to move, Shift with the arrow keys to look around, and + or − to zoom. Resizing keeps the current camera. Newark Airport is searchable and can be selected and flown to in any mode. In either cutout mode, flying to Newark adds its 61-vertex hull to an active cutout (311 vertices total in borough mode). **Show all NYC** removes the added hull.
 

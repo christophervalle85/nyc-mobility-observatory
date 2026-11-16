@@ -86,17 +86,27 @@ export class SessionController {
         this.publish(this.state.phase === 'partial' ? 'partial' : 'ready');
       }
     }).catch((error: unknown) => {
-      if (generation !== this.generation) return;
-      ++this.generation; this.cancelMovement();
-      this.adapter?.dispose(); this.adapter = undefined;
-      this.publish('error', failureCategory(error));
+      if (generation === this.generation) this.fail(failureCategory(error));
     }).finally(() => {
       clearTimeout(timer); this.cancel = undefined; this.pending = undefined;
     });
     return this.pending;
   }
-  stop(): void {
+  stop({ returningTo2D = false }: { returningTo2D?: boolean } = {}): void {
+    if (returningTo2D) {
+      if (this.state.phase === 'ready' || this.state.phase === 'partial') this.state = { ...this.state, attempts: 0 };
+      else if (this.state.phase === 'loading') this.state = { ...this.state, attempts: Math.max(0, this.state.attempts - 1) };
+    }
     ++this.generation; this.cancelMovement(); this.cancel?.(); this.adapter?.dispose(); this.adapter = undefined; this.publish('stopped');
+  }
+  fail(failure: Failure): void {
+    if (!this.adapter && this.state.phase !== 'loading') return;
+    ++this.generation;
+    this.cancelMovement();
+    this.cancel?.();
+    this.adapter?.dispose();
+    this.adapter = undefined;
+    this.publish('error', failure);
   }
   async focus(reducedMotion = false): Promise<boolean> {
     if (this.state.phase !== 'ready' || this.state.draining || this.state.focusing || this.selected === null || !this.adapter) return false;
@@ -134,7 +144,8 @@ export class SessionController {
   }
   footprint(): FootprintState | undefined { return this.adapter?.footprint?.(); }
   selectStation(station: StationMarker | null): void {
-    if (station?.id === this.station?.id) return;
+    if (station?.id === this.station?.id && station?.name === this.station?.name
+      && station?.longitude === this.station?.longitude && station?.latitude === this.station?.latitude) return;
     this.station = station;
     this.adapter?.selectStation?.(station);
   }

@@ -1,5 +1,5 @@
 import { SceneFailure, SessionController } from './session.ts';
-import type { Failure, SceneAdapter, SessionState } from './session.ts';
+import type { Failure, SceneAdapter, SessionState, StationMarker } from './session.ts';
 import { areaTarget, filterZones, parseZones, resolveZone } from './zones.ts';
 import type { ZoneCollection } from './zones.ts';
 import { areaFocus } from './area-focus.ts';
@@ -14,6 +14,7 @@ import { cutoutMode } from './cutout-mode.ts';
 import { areaCardPosition } from './area-card-position.ts';
 import type { SelectionAnchor } from './selection-anchor.ts';
 import { taxiDashboard } from './taxi-dashboard.ts';
+import { createMap2D } from './map-2d.ts';
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const picker = element('zone-picker'), search = element<HTMLInputElement>('area-search');
 const areaControls = element('area-controls'), resultsPanel = element('area-results'), searchCount = element('search-count');
@@ -22,10 +23,22 @@ const load = element<HTMLButtonElement>('load'), focusButton = element<HTMLButto
 const focusLabel = focusButton.querySelector('span')!;
 const clearSearch = element<HTMLButtonElement>('clear-search'), clearSelection = element<HTMLButtonElement>('clear-selection');
 const query = new URLSearchParams(location.search), mock = query.get('mode') === 'mock';
+const verification = import.meta.env.MODE === 'verify';
+const simulated3D = verification && query.get('mode') === 'map-preview';
+const canvas2D = element<HTMLCanvasElement>('map-2d');
+const mapMode = element<HTMLButtonElement>('map-mode');
+const cesiumView = element('cesium-view');
+let map2D: ReturnType<typeof createMap2D> | undefined;
+let useMap2D = false, showSetupStatus = false;
 const diagnostics = createDiagnostics(query.get('diagnostics') === '1');
 const inspector = element('inspector');
 const taxiPanel = element('taxi-dashboard');
-const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search, station => controller.selectStation(station));
+let selectedStation: StationMarker | null = null;
+const dashboard = taxiDashboard(taxiPanel, element<HTMLButtonElement>('taxi-open'), search, station => {
+  selectedStation = station;
+  controller.selectStation(station);
+  map2D?.selectStation(station);
+});
 const cityViewport = element('city-viewport');
 const cardObstacles = [areaControls, document.querySelector<HTMLElement>('.session-info')!, document.querySelector<HTMLElement>('.stage-tools')!];
 const attribution = document.querySelector<HTMLElement>('.map-attribution')!;
@@ -84,17 +97,15 @@ let landChecked = false;
 element('hull-source').hidden = mode !== 'boroughs';
 element('land-source').hidden = mode !== 'land';
 element('land-provenance').hidden = mode !== 'land';
-const verification = import.meta.env.MODE === 'verify';
-const configured = mock || (!verification && Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN));
+const configured = mock || simulated3D || (!verification && Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN));
 const engine = engineLoader(async () => {
   const imported = diagnostics.span('cesium.import');
   try { return await import('./cesium-adapter.ts'); } finally { imported(); }
 });
 let imageryStage: ImageryStage = 'waiting-first-frame', imageryAttempt = 0;
+const imageryTimeout = 30_000;
+let firstFrameTimeout: ReturnType<typeof setTimeout> | undefined;
 let startup: ReturnType<typeof startupGate> | undefined;
-function warmEngine() {
-  engine.warm({configured, visible: document.visibilityState === 'visible', live: !mock && !verification, pending: startup?.pending ?? false});
-}
 let geographyReady = false, geographyFailed = false;
 let zones: ZoneCollection = { type: 'FeatureCollection', features: [] }, selected: number | null = null;
 let pendingSearchFocus = false;
@@ -107,11 +118,16 @@ const messages: Record<Failure, string> = {
 };
 function render(state: SessionState) {
   if (!mock && imageryAttempt !== state.attempts) { imageryAttempt = state.attempts; imageryStage = 'waiting-first-frame'; }
-  const imageryStatus = startupStatus(state.phase, imageryStage, mock);
+  const imageryStatus = startupStatus(state.phase, imageryStage, mock || simulated3D);
   const active = ['loading', 'ready', 'partial'].includes(state.phase);
+  const liveActive = active && !mock && !simulated3D;
+  const liveVisible = liveActive && imageryStage !== 'waiting-first-frame';
+  if (!liveActive || liveVisible) clearTimeout(firstFrameTimeout);
+  const simulatedVisible = simulated3D && state.phase === 'ready';
+  useMap2D = Boolean(map2D) && !liveVisible && !simulatedVisible;
   const stateMessages = {
     setup: '3D needs a public Cesium ion token.',
-    idle: mock ? 'Preparing the mock stage…' : startup?.pending ? (document.visibilityState === 'visible' ? 'Opening NYC when the local footprint is ready…' : 'NYC will open when this page becomes visible.') : 'The city is stopped.',
+    idle: mock ? 'Preparing the mock stage…' : '2D map ready.',
     loading: mock ? 'Loading mock scene…' : 'Loading NYC 3D…',
     ready: mock ? 'Mock stage ready. No imagery loaded.' : '',
     partial: 'Some tiles failed to stream.',
@@ -122,21 +138,37 @@ function render(state: SessionState) {
   const cutoutPending = mode === 'land' && !landChecked;
   const waiting = state.draining && !active ? ' Waiting for previous requests to finish before retry.'
     : state.phase === 'stopped' && cutoutPending && geographyReady ? ' Waiting for the land cutout file.' : '';
-  const statusText = (imageryStatus ?? stateMessages[state.phase]) + waiting;
-  status.classList.toggle('visually-hidden', state.phase !== 'partial' && state.phase !== 'error');
+  const statusText = (simulated3D && state.phase === 'ready' ? '3D controls preview. Live imagery is off.'
+    : imageryStatus ?? stateMessages[state.phase]) + waiting;
+  status.classList.toggle('visually-hidden', !showSetupStatus && state.phase !== 'partial' && state.phase !== 'error'
+    && !simulatedVisible);
   if (status.textContent !== statusText) status.textContent = statusText;
   const focusedAction = document.activeElement;
   load.textContent = state.phase === 'error' ? 'Retry once' : 'Open 3D';
-  load.hidden = active || !configured || Boolean(startup?.pending);
+  load.hidden = !mock || active || !configured || Boolean(startup?.pending);
   load.disabled = !geographyReady || !configured || cutoutPending || state.draining || active || state.attempts >= 2 || state.failure === 'rate' || state.failure === 'webgl';
   load.setAttribute('aria-busy', String(state.phase === 'loading'));
   const fallbackFocus = geographyReady ? search : element('main');
   if (focusedAction === load && load.hidden) fallbackFocus.focus();
   element('session-limit').hidden = state.attempts < 2 || active;
-  const liveActive = active && !mock;
-  element('cesium-view').hidden = !liveActive;
-  element('viewport-state').hidden = !mock && configured && !geographyFailed && state.phase !== 'error';
-  element('credits-placeholder').hidden = liveActive;
+  canvas2D.hidden = !useMap2D;
+  cesiumView.hidden = !liveActive && !simulatedVisible;
+  cesiumView.inert = !liveVisible;
+  cesiumView.toggleAttribute('data-preparing', liveActive && !liveVisible);
+  element('viewport-state').hidden = !mock && !geographyFailed;
+  const credits = element('credits-placeholder');
+  credits.hidden = liveVisible;
+  credits.textContent = mock ? 'City imagery is not loaded.' : 'NYC Open Data · U.S. Census Bureau';
+  mapMode.hidden = mock;
+  mapMode.textContent = active ? '2D' : '3D';
+  const modeLabel = active ? 'Return to 2D map' : 'Open 3D map';
+  mapMode.title = modeLabel;
+  mapMode.setAttribute('aria-label', modeLabel);
+  mapMode.setAttribute('aria-busy', String(state.phase === 'loading' || (liveActive && !liveVisible && state.phase === 'ready')));
+  mapMode.disabled = !geographyReady || (!active && (state.draining || cutoutPending || state.attempts >= 2
+    || state.failure === 'rate' || state.failure === 'webgl'));
+  if (focusedAction === canvas2D && !useMap2D) mapMode.focus({ preventScroll: true });
+  if (focusedAction === mapMode && mapMode.disabled && useMap2D) canvas2D.focus({ preventScroll: true });
   element('setup').hidden = configured || geographyFailed;
   element('cesium-view').setAttribute('aria-busy', String(state.phase === 'loading'));
   element('viewport-title').textContent = geographyFailed ? 'Local footprint unavailable' : state.phase === 'error' ? 'The city could not open' : mock ? 'Mock city stage' : 'City configuration needed';
@@ -153,24 +185,26 @@ function render(state: SessionState) {
   }
   element('outside-city').hidden = selected !== 1;
   const overview = element<HTMLButtonElement>('city-overview');
-  overview.disabled = state.phase !== 'ready' || state.draining;
-  const overviewReturning = !overview.disabled && controller.hasOverviewReturn();
+  overview.disabled = !useMap2D && (state.phase !== 'ready' || state.draining);
+  const overviewReturning = !overview.disabled && (useMap2D ? map2D?.hasOverviewReturn() : controller.hasOverviewReturn());
   const overviewLabel = overviewReturning ? 'Return to previous map view' : 'Show all NYC';
   overview.title = overviewLabel;
   overview.setAttribute('aria-label', overviewLabel);
   overview.toggleAttribute('data-return', overviewReturning);
   const known = resolveZone(zones, selected);
   const target = known && areaTarget(zones, selected);
-  focusButton.disabled = !target || state.phase !== 'ready' || state.draining;
+  focusButton.disabled = !target || (!useMap2D && (state.phase !== 'ready' || state.draining));
+  if (!mock && !mapMode.disabled && ((focusedAction === overview && overview.disabled)
+    || (focusedAction === focusButton && focusButton.disabled))) mapMode.focus({ preventScroll: true });
   focusButton.setAttribute('aria-busy', String(state.focusing));
-  const returning = controller.canReturnToView();
+  const returning = useMap2D ? map2D?.canReturnToView() : controller.canReturnToView();
   focusButton.toggleAttribute('data-return', returning);
   const label = returning ? 'Return to previous view' : 'Zoom to area';
   if (focusLabel.textContent !== label) focusLabel.textContent = label;
   clearSelection.disabled = !known;
   const focusStatus = element('focus-status');
   const focusText = known && !target ? 'Camera target unavailable.'
-    : known && focusButton.disabled ? 'Available when 3D is ready.' : '';
+    : known && focusButton.disabled ? 'Available when the map is ready.' : '';
   if (focusStatus.textContent !== focusText) focusStatus.textContent = focusText;
   if (state.phase === 'stopped' || state.phase === 'partial' || state.phase === 'error') pendingSearchFocus = false;
   if (pendingSearchFocus && !focusButton.disabled) {
@@ -243,6 +277,8 @@ function liveAdapter(): SceneAdapter {
         imageryStage = stage; render(controller.state);
       }, point => {
         if (!disposed) setSelectionAnchor(point);
+      }, () => {
+        if (!disposed) controller.fail('webgl');
       });
       await delegate.load(change);
       if (!disposed) diagnostics.event('scene.resourcesAttached');
@@ -255,14 +291,20 @@ function liveAdapter(): SceneAdapter {
     returnToView() { return delegate?.returnToView?.() ?? false; },
     focus(id, reducedMotion) { return delegate?.focus(id, reducedMotion) ?? Promise.resolve(false); },
     cancelFocus() { delegate?.cancelFocus(); },
-    dispose() { disposed = true; delegate?.dispose(); setSelectionAnchor(null); }, whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
+    dispose() {
+      disposed = true;
+      if (cesiumView.contains(document.activeElement)) mapMode.focus({ preventScroll: true });
+      delegate?.dispose();
+      setSelectionAnchor(null);
+    },
+    whenSettled() { return delegate?.whenSettled() ?? Promise.resolve(); },
   };
 }
-const controller = new SessionController(configured, mock ? mockAdapter : liveAdapter, render, 30_000, id => Boolean(resolveZone(zones, id)));
-startup = startupGate({configured, visible: document.visibilityState === 'visible', enabled: mock || !verification, start() { void controller.load(); }});
-warmEngine();
+const controller = new SessionController(configured, mock || simulated3D ? mockAdapter : liveAdapter, render, imageryTimeout, id => Boolean(resolveZone(zones, id)));
+if (mock) startup = startupGate({configured, visible: document.visibilityState === 'visible', enabled: true, start() { void controller.load(); }});
 render(controller.state);
-if (mock) element('cost-note').textContent = 'Mock mode runs locally. No imagery requests or ion quota use.';
+element('map-2d-sources').hidden = mock;
+if (mock || simulated3D) element('cost-note').textContent = 'Preview mode runs locally without live imagery.';
 let resultQuery: string | undefined;
 let resultRows: HTMLLIElement[] = [];
 let selectedRow: HTMLElement | null = null;
@@ -334,6 +376,7 @@ function selectZone(id: number | null, interaction = true) {
   element('selection-title').textContent = zone?.properties.zone ?? 'TLC area';
   element('zone-id').textContent = zone ? String(zone.properties.location_id) : '';
   element('zone-borough').textContent = zone?.properties.borough ?? '';
+  map2D?.select(selected);
   controller.select(selected); updateSelectedResult(); render(controller.state);
   const url = new URL(location.href);
   selected === null ? url.searchParams.delete('zone') : url.searchParams.set('zone', String(selected)); history.replaceState(null, '', url);
@@ -360,7 +403,7 @@ function chooseResult(row: HTMLElement | undefined) {
   selectZone(zone.id);
   search.focus({ preventScroll: true });
   searchAnnouncement.textContent = `Selected ${zone.properties.zone}.`;
-  if (controller.canReturnToView()) return;
+  if (useMap2D ? map2D?.canReturnToView() : controller.canReturnToView()) return;
   const { phase, draining } = controller.state;
   if (!focusButton.disabled) void focusSelectedArea();
   else pendingSearchFocus = phase === 'loading' || (phase === 'ready' && draining) || Boolean(startup?.pending);
@@ -468,25 +511,46 @@ clearSearch.addEventListener('click', event => {
   showAreaResults(false);
 });
 clearSelection.addEventListener('click', () => { selectZone(null); search.focus(); });
-load.addEventListener('click', () => {
-  if (load.disabled) return;
+function start3D() {
   startup?.stop();
   engine.retry();
+  if (!mock && !simulated3D) firstFrameTimeout = setTimeout(() => controller.fail('timeout'), imageryTimeout);
   void controller.load();
+}
+load.addEventListener('click', () => { if (!load.disabled) start3D(); });
+mapMode.addEventListener('click', () => {
+  if (!configured) {
+    showSetupStatus = true;
+    render(controller.state);
+    return;
+  }
+  const { phase } = controller.state;
+  if (phase === 'loading' || phase === 'ready' || phase === 'partial') controller.stop({ returningTo2D: true });
+  else start3D();
 });
 async function focusSelectedArea() {
   const focused = diagnostics.span('focus.duration');
-  const moved = await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const moved = useMap2D && selected !== null ? map2D?.focus(selected)
+    : await controller.focus(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if (useMap2D) render(controller.state);
   if (moved) focused();
 }
 focusButton.addEventListener('click', () => {
   diagnostics.interaction();
-  if (controller.canReturnToView()) controller.returnToView();
+  if (useMap2D && map2D?.canReturnToView()) { map2D.returnToView(); render(controller.state); }
+  else if (!useMap2D && controller.canReturnToView()) controller.returnToView();
   else void focusSelectedArea();
 });
-element('city-overview').addEventListener('click', () => { diagnostics.interaction(); controller.overview(); });
-document.addEventListener('visibilitychange', () => { warmEngine(); startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
-window.addEventListener('pagehide', () => { startup?.stop(); controller.stop(); diagnostics.dispose(); }, { once: true });
+element('city-overview').addEventListener('click', () => {
+  diagnostics.interaction();
+  if (useMap2D) { map2D?.overview(); render(controller.state); }
+  else controller.overview();
+});
+document.addEventListener('visibilitychange', () => { startup?.visibility(document.visibilityState === 'visible'); render(controller.state); });
+window.addEventListener('pagehide', event => {
+  if (event.persisted) return;
+  startup?.stop(); controller.stop(); map2D?.dispose(); diagnostics.dispose();
+});
 window.addEventListener('popstate', () => { if (geographyReady) selectZone(resolveZone(zones, new URLSearchParams(location.search).get('zone'))?.id ?? null); });
 async function loadZones() {
   try {
@@ -511,6 +575,10 @@ async function loadZones() {
     try { zones = parseZones(input); } finally { validated(); }
     if (!zones.features.length) throw new Error('No local zones');
     geographyReady = true;
+    if (!mock) {
+      map2D = createMap2D(canvas2D, zones, selectZone);
+      map2D.selectStation(selectedStation);
+    }
     search.disabled = false;
     // A thin space separates the empty-field caret from the placeholder.
     search.placeholder = '\u2009Search areas';

@@ -175,7 +175,17 @@ test('the map keeps a named overview action and removes the camera menu', async 
   await previous.press('Enter');
   await expect(overview).toBeFocused();
 });
-test('verification startup cannot open live imagery and retains a truthful full-window stage',async({page})=>{const external:string[]=[];page.on('request',request=>{if(new URL(request.url()).hostname!=='127.0.0.1')external.push('external')});await page.goto('/');await expect(page.locator('#city-viewport')).toHaveCount(1);await expect(page.locator('svg:not(button svg, summary svg, #area-controls svg[aria-hidden="true"]),#zone-map')).toHaveCount(0);await expect(page.getByText('Add your public Cesium ion token')).toBeVisible();await expect(page.locator('#load')).toBeDisabled();expect(external).toEqual([])});
+test('verification startup shows 2D and keeps the map available without 3D configuration', async ({ page }) => {
+  const external: string[] = [];
+  page.on('request', request => { if (new URL(request.url()).hostname !== '127.0.0.1') external.push(request.url()); });
+  await page.goto('/');
+  await expect(page.locator('#map-2d')).toBeVisible();
+  await expect(page.locator('#cesium-view')).toBeHidden();
+  await page.getByRole('button', { name: 'Open 3D map' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '3D needs a public Cesium ion token.' })).toBeVisible();
+  await expect(page.locator('#map-2d')).toBeVisible();
+  expect(external).toEqual([]);
+});
 test('mock stage opens automatically without a visible session button', async ({ page }) => {
   await page.goto('/?mode=mock');
   await expect(page.locator('#status')).toContainText('Mock stage ready');
@@ -451,8 +461,8 @@ test('exact land cutout flag requests its local asset once',async({page})=>{
  await expect(page.locator('#status')).toContainText('Mock stage ready');
  expect(assetRequests).toEqual(['land']);expect(external).toEqual([]);
  await page.locator('#sources>summary').click();
- await expect(page.locator('#sources a[href="/data/city-land.provenance.json"]')).toBeVisible({timeout:1000});
- await expect(page.locator('#sources a[href*="gthc-hcne"]')).toBeVisible({timeout:1000});
+ await expect(page.getByRole('link', { name: 'Read DCP cutout provenance' })).toBeVisible({timeout:1000});
+  await expect(page.locator('#land-source a[href*="gthc-hcne"]')).toBeVisible({timeout:1000});
 });
 
 for(const failure of ['missing','invalid'])test(`${failure} optional land asset preserves local area selection and isolated startup`,async({context,page})=>{

@@ -11,6 +11,7 @@
   <a class="skip-link" href="#main">Skip to city controls</a>
   <main id="main" class="city-stage" tabindex="-1">
     <div id="city-viewport" class="city-viewport">
+      <canvas id="map-2d" tabindex="0" aria-label="2D map of New York City. Use arrow keys to pan and plus or minus to zoom." hidden></canvas>
       <div id="cesium-view" hidden></div>
       <div class="floating-rail">
         <h1 class="visually-hidden">NYC Mobility Observatory</h1>
@@ -225,6 +226,7 @@
           </details>
         </section>
         <section class="stage-tools" aria-label="Map controls">
+          <button type="button" id="map-mode" class="map-icon" aria-label="Open 3D map" title="Open 3D map" hidden>3D</button>
           <button type="button" id="city-overview" class="map-icon" aria-label="Show all NYC" title="Show all NYC" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M9 4.5H6A1.5 1.5 0 0 0 4.5 6v3m10.5-4.5h3A1.5 1.5 0 0 1 19.5 6v3M4.5 15v3A1.5 1.5 0 0 0 6 19.5h3m10.5-4.5v3a1.5 1.5 0 0 1-1.5 1.5h-3"/>
@@ -245,8 +247,10 @@
             <p id="hull-source" hidden>The TLC-derived borough hulls include water and approximate the study area.</p>
             <p id="land-source" hidden>The land cutout uses generalized <a href="https://data.cityofnewyork.us/api/views/gthc-hcne.json" target="_blank" rel="noreferrer">NYC DCP water-excluded borough land (26c)</a>. These simplified administrative boundaries approximate the shoreline.</p>
             <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
-            <p id="cost-note">Opening the page and moving the camera can request tiles and use your ion quota.</p>
-            <p>The opening view looks over Midtown Manhattan. Show all NYC frames the five boroughs. Open Mobility data from a selected area to compare monthly yellow taxi dropoffs and subway entries.</p>
+            <p id="cost-note">Opening 3D and moving its camera can request imagery and use your ion quota.</p>
+            <div id="map-2d-sources">
+              <p>The 2D map uses NYC Open Data for <a href="/data/city-land.provenance.json" target="_blank" rel="noreferrer">NYC land</a>, <a href="/data/manhattan-streets-parks.provenance.json" target="_blank" rel="noreferrer">streets and parks</a>. The New Jersey side uses <a href="/data/harbor-context.provenance.json" target="_blank" rel="noreferrer">U.S. Census Bureau TIGER/Line® 2025</a>. The files list the sources and how the geometry was simplified. The map is approximate and does not establish legal boundaries.</p>
+            </div>
             <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
             <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
           </div>

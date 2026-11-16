@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "sources": {
+    "streets": {
+      "dataset": "inkn-q76z",
+      "url": "https://data.cityofnewyork.us/resource/inkn-q76z.json?%24select=the_geom%2Cphysicalid%2Cfull_street_name%2Crw_type%2Cstreetwidth%2Cboroughcode&%24where=within_box%28the_geom%2C40.93%2C-74.26%2C40.49%2C-73.69%29+AND+rw_type+in+%281%2C2%2C3%29&%24order=physicalid&%24limit=150001",
+      "metadataUrl": "https://data.cityofnewyork.us/api/views/inkn-q76z.json",
+      "rowLimit": 150001,
+      "byteLimit": 60000000,
+      "rows": 106844,
+      "bytes": 28558538,
+      "sha256": "2db710bc6cb8b498e80e5fcaa0b0e8891e108b5261765e88c8d8c3b82ef28582",
+      "metadataSha256": "9b567ae3ab4e8776689192b0f73a82e9db710fe395a66539061f36093b696dae",
+      "rowsUpdatedAt": 1794706635,
+      "boroughRows": {
+        "1": 11078,
+        "2": 15670,
+        "3": 24685,
+        "4": 40273,
+        "5": 15138
+      }
+    },
+    "parks": {
+      "dataset": "enfh-gkve",
+      "url": "https://data.cityofnewyork.us/resource/enfh-gkve.json?%24select=multipolygon%2Cobjectid%2Csignname%2Cborough%2Cacres%2Ctypecategory&%24where=within_box%28multipolygon%2C40.93%2C-74.26%2C40.49%2C-73.69%29+AND+retired+%3D+false&%24order=objectid&%24limit=10001",
+      "metadataUrl": "https://data.cityofnewyork.us/api/views/enfh-gkve.json",
+      "rowLimit": 10001,
+      "byteLimit": 30000000,
+      "rows": 2061,
+      "bytes": 6560354,
+      "sha256": "a9ae323f63f6ea0fe073b3762d1a3cb51245e5860bb66d4b85b98ceb9ba0102e",
+      "metadataSha256": "818e6ca2f35f7d024d7df36dba3da99f8228b3a183fb01700ba7f62e36074395",
+      "rowsUpdatedAt": 1792155908,
+      "boroughRows": {
+        "B": 628,
+        "M": 396,
+        "Q": 478,
+        "R": 160,
+        "X": 399
+      }
+    }
+  },
+  "bounds": [
+    -74.26,
+    40.49,
+    -73.69,
+    40.93
+  ],
+  "projection": "EPSG:32118",
+  "streetToleranceMeters": 5,
+  "parkToleranceMeters": 8,
+  "coordinateDecimals": 6,
+  "processing": "Clip; merge streets by name/class; simplify; repair invalid source parks; snap polygons to 0.000001 degree grid preserving topology; retain polygon holes.",
+  "majorStreetRule": "Source streetwidth >= 80 or named Broadway/FDR/Henry Hudson/West St/Park/Madison/Lexington/Amsterdam/Columbus.",
+  "dependencies": {
+    "shapely": "2.2.0",
+    "pyproj": "3.7.2"
+  },
+  "centralParkIncluded": true,
+  "legalPolicy": "https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-130572",
+  "features": {
+    "streets": 21994,
+    "majorStreets": 196,
+    "parks": 4051
+  },
+  "totalVertices": 95107,
+  "actualBounds": [
+    -74.256094,
+    40.494495,
+    -73.700021,
+    40.915111
+  ],
+  "publicUseReferences": [
+    "https://www.nyc.gov/opendata/get-started/FAQs",
+    "https://cityofnewyork.github.io/opendatatsm/publicpolicies.html"
+  ],
+  "output": {
+    "filename": "manhattan-streets-parks.json",
+    "bytes": 2227108,
+    "sha256": "3b1f17ff3de16b92595c6867d32d7682077020df754acb610c03df7e255d1db3"
+  }
+}

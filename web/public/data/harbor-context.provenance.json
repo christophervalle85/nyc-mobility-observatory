@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "source": "U.S. Census Bureau, 2025 TIGER/Line Shapefiles, State, Area Hydrography, Roads and Area Landmarks",
+  "release": "2025",
+  "sourcePage": "https://www.census.gov/geographies/mapping-files/2025/geo/tiger-line-file.html",
+  "usage": "U.S. Government work (17 U.S.C. \u00a7 105). Credit the U.S. Census Bureau. Approximate positions are supplied without warranty and must not be used as legal boundaries.",
+  "usageDocumentation": "https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf",
+  "processing": "Clip New Jersey and water polygons to map extent, subtract water polygons of at least 2,500 square meters, simplify at 10 meters, and round WGS84 coordinates to six decimal places.",
+  "bounds": [
+    -74.42,
+    40.43,
+    -73.57,
+    41.0
+  ],
+  "sources": [
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip",
+      "sha256": "59a220888a8d9be8117c4fcd38f542bd02d81abf0d198c78113595ad540dd957"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34003_areawater.zip",
+      "sha256": "6a763a1609d3c59b9513eaa114c978388edb10ecf023177d24e22192229c2a2a"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34013_areawater.zip",
+      "sha256": "90c033b2556dbc0cd421bd005f0a19d4185d052a776c440b2be6571fcda0252f"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34017_areawater.zip",
+      "sha256": "58e3a89b8be16f3c2598f1839774e5661bb4ac405cb2595663ba597e917982ce"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34023_areawater.zip",
+      "sha256": "af5db4f77562e172a11dc2a163c7fef23215e1951512ce65de0acfe5bc33142b"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34025_areawater.zip",
+      "sha256": "717589e5a438f971944fc75f990b286c12afd9face45906e9a0fc6e0ae26d127"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34027_areawater.zip",
+      "sha256": "21e2d22885f08132807b361bcd532287493092f77ff8782d54d9ff36ea150e0e"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34031_areawater.zip",
+      "sha256": "0c983effea0dd6d456b012671351df156b11fa9de124167a18759d88685508ec"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34035_areawater.zip",
+      "sha256": "a2448c51fc18fb8c62776df1a3206a04918c16bd7ef878530b853cacb105794f"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_34039_areawater.zip",
+      "sha256": "6fa87fdf278ec6d7aae68959e91fd26e6f117ec2ebd78f25c4865b23a86f678d"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34003_roads.zip",
+      "sha256": "5e97ac2cd12771e4abcd944f9a0aec2273a63e328b87ca71791444858453f237"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34013_roads.zip",
+      "sha256": "cd657bd8a0545051bc3463781bcf389a249a4a005da6757ae16a87c150d673d1"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34017_roads.zip",
+      "sha256": "ca77834664e095c078b0e34a78daef1a667570a0ba063aea291a3bd13d1ebdf2"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34023_roads.zip",
+      "sha256": "e9c77484de43a417991ae591f3508dbf82d09ac6a8c2963491d33aeab294d02c"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34025_roads.zip",
+      "sha256": "8e466661c330db3e7210ca86234622bcf05ade6f8e2346b19b0c9329dc0baf32"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34027_roads.zip",
+      "sha256": "a01034811a5d514cc70801678fb286c7c0c0f4f05a9b0d7ccf125eea87f62108"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34031_roads.zip",
+      "sha256": "094d94ae040b940cbfbcce5fb12a5e896a4d3c81ca333c0a58ac14bc42975052"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34035_roads.zip",
+      "sha256": "64649ebb59027aed1dcce517d6eba44c89a7304a0586270a2f19762cb5ca16f2"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_34039_roads.zip",
+      "sha256": "63bacd2d066ff9309008057129740ec24f3f90c1536a4df2abcce7f9582df84a"
+    },
+    {
+      "url": "https://www2.census.gov/geo/tiger/TIGER2025/AREALM/tl_2025_34_arealm.zip",
+      "sha256": "1d60e66d1dbae98c958610b4ae29d3e4971b539d0894cc3a7e1c1439ce592c28"
+    }
+  ],
+  "totalVertices": 152572,
+  "roadVertices": 132186,
+  "parkVertices": 2283,
+  "roadCoverage": {
+    "34003": {
+      "S1400": 9462,
+      "S1200": 101,
+      "S1100": 84
+    },
+    "34013": {
+      "S1400": 6982,
+      "S1100": 87,
+      "S1200": 187
+    },
+    "34017": {
+      "S1100": 59,
+      "S1400": 2556,
+      "S1200": 82
+    },
+    "34023": {
+      "S1400": 6347,
+      "S1200": 144,
+      "S1100": 23
+    },
+    "34025": {
+      "S1400": 1060,
+      "S1200": 5,
+      "S1100": 4
+    },
+    "34027": {
+      "S1400": 3155,
+      "S1200": 29,
+      "S1100": 10
+    },
+    "34031": {
+      "S1400": 4052,
+      "S1200": 69,
+      "S1100": 15
+    },
+    "34035": {
+      "S1400": 63,
+      "S1200": 3
+    },
+    "34039": {
+      "S1400": 5976,
+      "S1200": 139,
+      "S1100": 43
+    }
+  },
+  "parkNames": [
+    "",
+    "1600 Park",
+    "Alfonzo F Bonsal Wildlife Preserve",
+    "Anderson Park",
+    "Audobon Park",
+    "Bayshore Waterfront Park",
+    "Bayside Park",
+    "Bayview Park",
+    "Boynton Park",
+    "Branch Brook Park",
+    "Brookdale Park",
+    "Canterbury Park",
+    "Charles Kurzius Memorial Pk",
+    "City Park",
+    "Columbia Park",
+    "Columbus Park",
+    "Columbus Square Park",
+    "De Muro Park",
+    "Donaldson Park",
+    "Eagle Rock Reservation",
+    "Edgemont Memorial Pk",
+    "Edison State Park",
+    "Ellsworth Park",
+    "English Neighborhood Park",
+    "Essex Park",
+    "Firemans Circle Park",
+    "Garret Mountain Park",
+    "Gateway Natl Rec Area",
+    "Glenfield Park",
+    "Graz Park",
+    "Harbor View Park",
+    "Joseph Medwick Park",
+    "Kearny Park",
+    "Laurel Hill Park",
+    "Leonard Gordon Park",
+    "Liberty State Park",
+    "Lincoln Park",
+    "Mattano Park",
+    "Mayor Frank G Pelzman Memorial Pk",
+    "Memorial Park",
+    "Merrill Co Park",
+    "Monsignor Owens Park",
+    "Morris Canal Peninsula Park",
+    "Mountain Side Park",
+    "Municipal Park",
+    "Nash Park",
+    "Nishuane Park",
+    "Nomahegan Park",
+    "Orange Park",
+    "Palisades Interstate Park",
+    "Passaic River Park",
+    "Port Reading Park",
+    "Porter Park",
+    "Pulaski Park",
+    "Rand Park",
+    "Raritan Bay Waterfront Co Park",
+    "Reinheimer Park",
+    "River Bank Park",
+    "Roosevelt Co Park",
+    "Rudyk Park",
+    "Rutkowski Park",
+    "Shadyside Park",
+    "South Mountain Reservation",
+    "Southside Burough Park",
+    "Spring Lake Park",
+    "Statue of Liberty Natl Mnmt",
+    "Stephen R Gregg Hudson Co Park",
+    "Terhune Memorial Pk",
+    "Thomas Edison Co Park",
+    "Thomas Edison Natl Hist Pk",
+    "Thomas M Gerrity Athletic Complx",
+    "Tuers Park",
+    "Van Vorst Park",
+    "Veterans Park",
+    "Victor Kilken Fld",
+    "Warianco Park",
+    "Washington Park",
+    "Watchung Park",
+    "Watchung Reservation",
+    "West Hudson Park",
+    "William Warren Co Park",
+    "Wright's Fld",
+    "Yantacaw Brook Park",
+    "Yantacaw Park"
+  ],
+  "detailProcessing": "Roads S1100/S1200 major, S1400 local; simplify 8m. Parks K2180-K2190 excluding K2189; intersect generated land, simplify 8m. Round six decimals.",
+  "classificationDocumentation": "https://www2.census.gov/geo/pdfs/reference/mtfccs2025.pdf",
+  "outputSha256": "7e39832d997c63b9fc95dcd2fb3e2fef4d12b2708bde759cbee4ec00f2b113d7"
+}
