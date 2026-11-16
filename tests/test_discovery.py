@@ -1,5 +1,6 @@
 import csv
 import io
+from http.client import IncompleteRead
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 
@@ -123,6 +124,21 @@ def test_discovery_independent_empty_errors_and_rejections(tmp_path, monkeypatch
     legacy = next(item for item in result["rejected"] if item["month"] == "2010-12")
     assert legacy["source"] == "tlc"
     assert legacy["reason"] == "legacy taxi coordinates require a verified zone-ID adapter"
+
+
+def test_refresh_discovery_continues_after_truncated_tlc_response(tmp_path, monkeypatch):
+    def fake_download(url, root, name, suffix, **kwargs):
+        if name == "discovery-tlc":
+            raise IncompleteRead(b"truncated archive index")
+        assert name == "discovery-mta-5wq4-mkjj"
+        data = coverage(("2025-02-01", "2025-02-01", "2025-02-28T23:00:00", 10))
+        return acquisition.store_bytes(data, root, name, suffix, url)
+
+    monkeypatch.setattr(discovery, "download", fake_download)
+    result = discovery.discover(tmp_path, include_historical=False)
+    assert [source["status"] for source in result["sources"]] == ["error", "ok"]
+    assert result["months"][0]["month"] == "2025-02"
+    assert result["months"][0]["subway"]
 
 
 def test_current_and_partial_mta_months_are_rejected(tmp_path, monkeypatch):

@@ -151,8 +151,7 @@ def catalog(
     for month, pair in pairs.items():
         observed = run_ids.get(month, {})
         if (
-            not "2020-01" <= month < "2025-01"
-            or set(observed) != {"taxi", "subway"}
+            set(observed) != {"taxi", "subway"}
             or pair != (observed["taxi"], observed["subway"])
             or pair[0] == pair[1]
         ):

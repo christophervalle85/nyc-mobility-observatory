@@ -6,6 +6,7 @@ import io
 import re
 from datetime import datetime
 from html.parser import HTMLParser
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -181,12 +182,13 @@ def provider_timeout(exc: BaseException) -> bool:
     )
 
 
-def discover(root: Path) -> dict:
+def discover(root: Path, *, include_historical: bool = True) -> dict:
     current = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m")
     months: dict[str, dict] = {}
     sources, rejected = [], []
     requests = [("tlc", TLC_INDEX, ".html", 5 * 1024**2)] + [
-        (f"mta-{dataset}", coverage_url(dataset), ".csv", 1024**2) for dataset in MTA_DATASETS
+        (f"mta-{dataset}", coverage_url(dataset), ".csv", 1024**2)
+        for dataset in (MTA_DATASETS if include_historical else MTA_DATASETS[1:])
     ]
     for source, url, suffix, limit in requests:
         asset = None
@@ -247,7 +249,7 @@ def discover(root: Path) -> dict:
                     candidate.update(
                         subway=True, subway_dataset=source[4:], subway_coverage=coverage
                     )
-        except (OSError, URLError, ValueError, csv.Error) as exc:
+        except (OSError, URLError, ValueError, csv.Error, IncompleteRead) as exc:
             sources.append(
                 {
                     "source": source,
