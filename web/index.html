@@ -166,13 +166,26 @@
                 <h3>Hourly comparison</h3>
                 <p id="chart-hour-label" class="chart-hour-label"></p>
               </div>
-              <select id="taxi-chart-day" aria-label="Chart date"></select>
+              <div class="taxi-chart-options">
+                <select id="taxi-chart-day" aria-label="Chart date"></select>
+                <label class="typical-day-toggle">
+                  <input id="typical-day" class="visually-hidden" type="checkbox" autocomplete="off">
+                  <span class="typical-day-indicator" aria-hidden="true"></span>
+                  <span>Typical day</span>
+                </label>
+              </div>
+              <div id="typical-day-details" data-inactive>
+                <p class="typical-day-legend" hidden></p>
+                <p id="typical-day-status" role="status"></p>
+                <button id="typical-day-retry" type="button" hidden>Retry typical day data</button>
+              </div>
             </div>
             <figure id="taxi-figure" class="taxi-chart taxi-figure" hidden>
               <figcaption id="taxi-chart-caption">
                 <span class="chart-series-label">Yellow taxi dropoffs</span>
                 <strong id="chart-hour-taxi" class="chart-hour-value"></strong>
               </figcaption>
+              <p id="taxi-typical-values" class="typical-day-values" hidden></p>
               <div class="taxi-plot">
                 <div class="taxi-scale" aria-hidden="true"><span id="taxi-y-top"></span><span id="taxi-y-middle"></span><span>0</span></div>
                 <canvas id="taxi-chart" tabindex="0" role="slider" aria-label="Hourly taxi dropoffs" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0"></canvas>
@@ -184,6 +197,7 @@
                 <span class="chart-series-label">Estimated subway entries</span>
                 <strong id="chart-hour-subway" class="chart-hour-value"></strong>
               </figcaption>
+              <p id="subway-typical-values" class="typical-day-values" hidden></p>
               <div class="taxi-plot">
                 <div class="taxi-scale" aria-hidden="true"><span id="subway-y-top"></span><span id="subway-y-middle"></span><span>0</span></div>
                 <canvas id="subway-chart" tabindex="0" role="slider" aria-label="Hourly subway entries" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0"></canvas>

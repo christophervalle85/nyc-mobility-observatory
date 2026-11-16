@@ -8,11 +8,28 @@ import { hourLabel, parseTaxiData, taxiHourLabel } from './taxi-data.ts';
 import type { TaxiData } from './taxi-data.ts';
 import { nearbyStations, parseSubwayData } from './subway-data.ts';
 import type { SubwayData, SubwayStation } from './subway-data.ts';
+import { buildTypicalDay, typicalDayDates, typicalDayMinimum, typicalDayWeeks } from './typical-day.ts';
+import type { TypicalDay } from './typical-day.ts';
 
 const requestTimeout = 10_000;
 const number = new Intl.NumberFormat('en-US');
 const hourlyNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20 });
 const dateList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
+const typicalNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+function formatTypicalCount(count: number) {
+  return count > 0 && count < 0.005 ? 'less than 0.01' : typicalNumber.format(count);
+}
+
+const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' });
+
+type Mode = 'taxi' | 'subway';
+type HourlyBaseline = TypicalDay[Mode];
+
+interface ChartSeries {
+  counts: readonly (number | null)[];
+  scale: number;
+  typical?: HourlyBaseline;
+}
 
 interface TaxiArea {
   id: number;
@@ -49,7 +66,7 @@ function busiestHour(counts: readonly (number | null)[], peak: number): string {
   return `${hourLabel(counts.indexOf(peak))} · ${hourlyNumber.format(peak)}`;
 }
 
-function drawChart(chart: HTMLCanvasElement, counts: readonly (number | null)[], scale: number, activeHour: number) {
+function drawChart(chart: HTMLCanvasElement, series: ChartSeries, activeHour: number) {
   const ctx = chart.getContext('2d');
   const { clientWidth: width, clientHeight: height } = chart;
   if (!ctx || !width || !height) return;
@@ -57,7 +74,9 @@ function drawChart(chart: HTMLCanvasElement, counts: readonly (number | null)[],
   chart.width = Math.round(width * dpr);
   chart.height = Math.round(height * dpr);
   ctx.scale(dpr, dpr);
-  const chartColor = getComputedStyle(chart).color;
+  const { counts, scale, typical } = series;
+  const style = getComputedStyle(chart);
+  const chartColor = style.color;
   ctx.strokeStyle = chartColor;
   ctx.globalAlpha = .24;
   ctx.beginPath();
@@ -78,6 +97,23 @@ function drawChart(chart: HTMLCanvasElement, counts: readonly (number | null)[],
     const barHeight = Math.max(1, value / scale * (height - 2));
     ctx.fillRect(index * slot + 1, height - barHeight, Math.max(1, slot - 2), barHeight);
   });
+  if (!typical) return;
+  ctx.beginPath();
+  typical.counts.forEach((value, index) => {
+    if (value === null) return;
+    const x = (index + .5) * slot;
+    const y = height - 1 - value / scale * (height - 2);
+    if (typical.counts[index - 1] == null) ctx.moveTo(x - slot / 4, y);
+    ctx.lineTo(x, y);
+    if (typical.counts[index + 1] == null) ctx.lineTo(x + slot / 4, y);
+  });
+  ctx.setLineDash([4, 3]);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = style.getPropertyValue('--color-city-idle');
+  ctx.stroke();
+  ctx.lineWidth = 1.75;
+  ctx.strokeStyle = style.getPropertyValue('--color-city-ink');
+  ctx.stroke();
 }
 
 export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fallback: HTMLElement, highlightStation: (station: SubwayStation | null) => void) {
@@ -120,6 +156,10 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const subwayDayTotal = find('#subway-day-total'), subwayPeakHour = find('#subway-peak-hour');
   const day = find<HTMLSelectElement>('#taxi-chart-day');
   const chartHeading = find('.taxi-chart-controls h3');
+  const typicalToggle = find<HTMLInputElement>('#typical-day');
+  const typicalDetails = find('#typical-day-details'), typicalLegend = find('.typical-day-legend');
+  const typicalStatus = find('#typical-day-status'), typicalRetry = find<HTMLButtonElement>('#typical-day-retry');
+  const taxiTypicalValues = find('#taxi-typical-values'), subwayTypicalValues = find('#subway-typical-values');
   const currentHourLabel = find('#chart-hour-label');
   const hourTaxi = find('#chart-hour-taxi'), hourSubway = find('#chart-hour-subway');
   let selection: TaxiArea | null = null;
@@ -127,6 +167,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   const taxi = new Map<string, Dataset<TaxiData>>();
   const subway = new Map<string, Dataset<SubwayData>>();
   let activeMonths: MobilityMonth[] = [];
+  let typicalMonths: Record<Mode, MobilityMonth[]> = { taxi: [], subway: [] };
   let selectedStationId = '';
   let stationOptionsKey = '';
   const stations = new Map<number, SubwayStation>();
@@ -164,14 +205,41 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   let shown: {
     date: string;
     clockChange?: ClockChange;
-    taxi?: { counts: readonly (number | null)[]; scale: number };
-    subway?: { counts: readonly (number | null)[]; scale: number };
+    taxi?: ChartSeries;
+    subway?: ChartSeries;
   } | undefined;
 
   function paint() {
     if (panel.hidden || !shown) return;
-    if (shown.taxi) drawChart(chart, shown.taxi.counts, shown.taxi.scale, selectedHour);
-    if (shown.subway) drawChart(subwayChart, shown.subway.counts, shown.subway.scale, selectedHour);
+    if (shown.taxi) drawChart(chart, shown.taxi, selectedHour);
+    if (shown.subway) drawChart(subwayChart, shown.subway, selectedHour);
+  }
+
+  function renderTypicalHour(field: HTMLElement, series?: ChartSeries) {
+    const baseline = series?.typical;
+    field.hidden = !baseline;
+    if (!series || !baseline) {
+      field.textContent = '';
+      return '';
+    }
+    const typical = baseline.counts[selectedHour];
+    const actual = series.counts[selectedHour];
+    const samples = baseline.samples[selectedHour];
+    if (typical === null) {
+      field.textContent = 'Typical count unavailable';
+      return field.textContent;
+    }
+    const typicalText = formatTypicalCount(typical);
+    const difference = actual === null ? null : actual - typical;
+    let differenceText = `${typicalText} typical`;
+    if (difference === 0) {
+      differenceText = `Matches typical (${typicalText})`;
+    } else if (difference !== null) {
+      const amount = formatTypicalCount(Math.abs(difference));
+      differenceText = `${amount} ${difference > 0 ? 'above' : 'below'} typical (${typicalText})`;
+    }
+    field.textContent = differenceText;
+    return `${differenceText}, based on ${samples} matching days`;
   }
 
   function renderHour() {
@@ -193,6 +261,10 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     if (dropoffs != null) details.push(`Taxi dropoffs ${hourTaxi.textContent}`);
     if (entries !== undefined && change?.kind !== 'nonexistent') details.push(entries === null
       ? 'Subway entries missing or flagged' : `Estimated subway entries ${hourSubway.textContent}`);
+    const taxiComparison = renderTypicalHour(taxiTypicalValues, shown.taxi);
+    const subwayComparison = renderTypicalHour(subwayTypicalValues, shown.subway);
+    if (taxiComparison) details.push(`Taxi ${taxiComparison}`);
+    if (subwayComparison) details.push(`Subway ${subwayComparison}`);
     const value = details.join('. ');
     for (const canvas of [chart, subwayChart]) {
       canvas.setAttribute('aria-valuenow', String(selectedHour));
@@ -213,6 +285,94 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     if (bounds.width) selectHour(Math.floor((event.clientX - bounds.left) * hoursPerDay / bounds.width));
   }
 
+  function resolvedMonth(entry: MobilityMonth) {
+    const { month, taxiRunId, subwayRunId } = entry;
+    const taxiMonth = taxi.get(month), subwayMonth = subway.get(month);
+    const waitingForTaxi = entry.taxi && !taxiMonth?.data && !taxiMonth?.failed;
+    const taxiData = taxiMonth?.data;
+    const subwayData = subwayMonth?.data;
+    const mismatch = Boolean(subwayData && !mobilityRunMatches(entry, 'subway', subwayData.runId, taxiData?.runId));
+    const data = {
+      taxi: taxiData, subway: mismatch || (waitingForTaxi && !subwayRunId) ? undefined : subwayData,
+      taxiRunId, subwayRunId,
+    };
+    return { data, waitingForTaxi, mismatch };
+  }
+
+  function cancelUnusedRequests() {
+    const active = new Set(activeMonths.map(entry => entry.month));
+    for (const mode of ['taxi', 'subway'] as const) {
+      const extra = new Set(typicalMonths[mode].map(entry => entry.month));
+      const cache = mode === 'taxi' ? taxi : subway;
+      for (const [month, dataset] of cache) {
+        if (!dataset.request || active.has(month) || extra.has(month)) continue;
+        dataset.request.abort();
+        cache.delete(month);
+      }
+    }
+  }
+
+  function syncTypical(
+    date: string, zoneId: number, stationId: number | null, hasTaxiPlot: boolean, hasSubwayPlot: boolean,
+    dayIsTransition: boolean, monthData: ReadonlyMap<string, MobilityMonthData>,
+  ): Partial<TypicalDay> | undefined {
+    const enabled = typicalToggle.checked;
+    const canCompare = enabled && !dayIsTransition && (hasTaxiPlot || hasSubwayPlot);
+    const candidateMonths = canCompare ? new Set(typicalDayDates(date).map(candidate => candidate.slice(0, 7))) : new Set();
+    const entries = catalog.data?.filter(entry => candidateMonths.has(entry.month)) ?? [];
+    typicalMonths = {
+      // Unbound subway needs the legacy same-run taxi check where both files are published.
+      taxi: entries.filter(entry => entry.taxi && (hasTaxiPlot || (hasSubwayPlot && entry.subway && !entry.subwayRunId))),
+      subway: entries.filter(entry => entry.subway && hasSubwayPlot),
+    };
+    cancelUnusedRequests();
+    typicalDetails.toggleAttribute('data-inactive', !enabled);
+    typicalLegend.hidden = !canCompare;
+    if (!canCompare) {
+      typicalRetry.hidden = true;
+      typicalStatus.textContent = !enabled ? '' : dayIsTransition
+        ? 'Typical day is unavailable on dates when the clock changes.'
+        : 'No hourly plot is available for this comparison.';
+      return;
+    }
+
+    const weekday = weekdayName.format(new Date(`${date}T00:00:00Z`));
+    typicalLegend.textContent = `Median of up to ${typicalDayWeeks} prior ${weekday}s`;
+    typicalLegend.title = `Each hour needs data from at least ${typicalDayMinimum} of those days.`;
+
+    loadTaxi(typicalMonths.taxi.filter(entry => !monthData.has(entry.month) && !taxi.get(entry.month)?.failed), true);
+    loadSubway(typicalMonths.subway.filter(entry => !monthData.has(entry.month) && !subway.get(entry.month)?.failed), true);
+    const taxiFailures = typicalMonths.taxi.filter(entry => taxi.get(entry.month)?.failed);
+    const subwayFailures = typicalMonths.subway.filter(entry => subway.get(entry.month)?.failed);
+    const hasFailure = taxiFailures.length > 0 || subwayFailures.length > 0;
+    typicalRetry.hidden = ![...taxiFailures, ...subwayFailures].some(entry => !monthData.has(entry.month));
+    const taxiPending = hasTaxiPlot && typicalMonths.taxi.some(entry => !taxi.get(entry.month)?.data && !taxi.get(entry.month)?.failed);
+    const subwayPending = typicalMonths.subway.some(entry => {
+      const dataset = subway.get(entry.month);
+      return (!dataset?.data && !dataset?.failed) || (!entry.subwayRunId && resolvedMonth(entry).waitingForTaxi);
+    });
+    const hasPending = taxiPending || subwayPending;
+    const history = new Map<string, MobilityMonthData>();
+    const targetMonth = date.slice(0, 7);
+    const target = monthData.get(targetMonth);
+    if (target) history.set(targetMonth, target);
+    let hasMismatch = false;
+    for (const entry of entries) {
+      const { data, mismatch } = resolvedMonth(entry);
+      const needsLegacyPair = entry.taxi && entry.subway && !entry.subwayRunId;
+      if (needsLegacyPair && !data.taxi) data.subway = undefined;
+      hasMismatch ||= hasSubwayPlot && mismatch;
+      history.set(entry.month, data);
+    }
+    const baseline = buildTypicalDay({ date, zoneId, stationId, months: history });
+    const hasHistory = (hasTaxiPlot && baseline.taxi.counts.some(value => value !== null))
+      || (hasSubwayPlot && baseline.subway.counts.some(value => value !== null));
+    typicalStatus.textContent = hasPending ? 'Loading typical day data…' : hasFailure ? 'Some typical day data could not load.'
+      : hasMismatch ? 'Some typical day data could not be verified.'
+      : hasHistory ? '' : `Typical day needs at least ${typicalDayMinimum} matching days per hour.`;
+    return { taxi: taxiPending ? undefined : baseline.taxi, subway: subwayPending ? undefined : baseline.subway };
+  }
+
   function render() {
     if (panel.hidden || !selection) return;
     area.textContent = `${selection.name} · TLC ID ${selection.id}`;
@@ -226,23 +386,19 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     let taxiPending = false, subwayPending = false, taxiFailed = false, subwayFailed = false;
     let mismatch: string | undefined;
     for (const entry of activeMonths) {
-      const { month, taxi: hasTaxi, subway: hasSubway, taxiRunId, subwayRunId } = entry;
+      const { month, subway: hasSubway } = entry;
       const taxiMonth = taxi.get(month);
       const subwayMonth = subway.get(month);
-      const waitingForTaxi = hasTaxi && !taxiMonth?.data && !taxiMonth?.failed;
+      const monthly = resolvedMonth(entry);
+      const { data, waitingForTaxi } = monthly;
       taxiPending ||= waitingForTaxi;
       subwayPending ||= hasSubway && !subwayMonth?.data && !subwayMonth?.failed;
       taxiFailed ||= Boolean(taxiMonth?.failed);
       subwayFailed ||= Boolean(subwayMonth?.failed);
-      const taxiData = taxiMonth?.data;
-      let subwayData = subwayMonth?.data;
-      if (subwayData && !mobilityRunMatches(entry, 'subway', subwayData.runId, taxiData?.runId)) {
-        mismatch = month;
-        subwayData = undefined;
-      } else if (waitingForTaxi && !subwayRunId) subwayData = undefined;
+      if (monthly.mismatch) mismatch = month;
       // Prefer the newest validated record for each station in the picker.
-      for (const item of subwayData?.stations ?? []) if (!roster.has(item.id)) roster.set(item.id, item);
-      monthData.set(month, { taxi: taxiData, subway: subwayData, taxiRunId, subwayRunId });
+      for (const item of data.subway?.stations ?? []) if (!roster.has(item.id)) roster.set(item.id, item);
+      monthData.set(month, data);
     }
     updateStations([...roster.values()], subwayPending || taxiPending || subwayFailed || Boolean(mismatch));
     station.disabled = !stations.size;
@@ -260,6 +416,8 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     const excluded = range?.days.filter(item => item.clockChange).map(item => dateLabel(item.date, 'full')) ?? [];
     if (!range || (range.taxi.total === null && !excluded.length && !selectedStation
       && ![...monthData.values()].some(value => value.subway))) {
+      typicalMonths = { taxi: [], subway: [] };
+      cancelUnusedRequests();
       shown = undefined;
       results.hidden = true;
       for (const field of [total, subwayTotal, taxiCoverage, subwayCoverage]) field.textContent = '';
@@ -279,6 +437,8 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     const subwayDay = current.recorded?.subway ?? current.subway;
     const taxiShown = taxiDay.total !== null;
     const subwayShown = subwayDay.total !== null;
+    const typical = syncTypical(day.value, selection.id, selectedStation?.id ?? null, taxiShown, subwayShown,
+      Boolean(clockChange), monthData);
     chartHeading.textContent = clockChange ? 'Recorded hourly counts' : 'Hourly comparison';
     taxiPeakLabel.textContent = clockChange ? 'Peak recorded taxi slot' : 'Busiest taxi hour';
     subwayPeakLabel.textContent = clockChange ? 'Peak recorded subway slot' : 'Busiest subway hour';
@@ -313,8 +473,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       : '';
     if (taxiShown) {
       const peak = Math.max(0, ...taxiDay.counts.map(value => value ?? 0));
-      const scale = chartScale(peak);
-      shown.taxi = { counts: taxiDay.counts, scale };
+      const baseline = typical?.taxi;
+      const scale = chartScale(Math.max(peak, ...(baseline?.counts.map(value => value ?? 0) ?? [])));
+      shown.taxi = { counts: taxiDay.counts, scale, typical: baseline };
       scaleTop.textContent = number.format(scale);
       scaleMiddle.textContent = number.format(scale / 2);
       taxiDayTotal.textContent = number.format(taxiDay.total!);
@@ -322,8 +483,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     }
     if (subwayShown) {
       const peak = Math.max(0, ...subwayDay.counts.map(value => value ?? 0));
-      const scale = chartScale(peak);
-      shown.subway = { counts: subwayDay.counts, scale };
+      const baseline = typical?.subway;
+      const scale = chartScale(Math.max(peak, ...(baseline?.counts.map(value => value ?? 0) ?? [])));
+      shown.subway = { counts: subwayDay.counts, scale, typical: baseline };
       subwayScaleTop.textContent = number.format(scale);
       subwayScaleMiddle.textContent = number.format(scale / 2);
       const gaps = subwayDay.expectedHours - subwayDay.observedHours;
@@ -348,6 +510,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     dataset: Dataset<T>, fetchData: (request: AbortController) => Promise<T>,
     retryButton: HTMLElement, message: HTMLElement, isCurrent: () => boolean,
     ready?: (data: T) => void,
+    background = false,
   ) {
     if (dataset.request || dataset.data) return;
     const request = new AbortController();
@@ -355,8 +518,10 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     dataset.failed = false;
     const active = document.activeElement;
     const restoreStation = retryButton === retry && active === station;
-    render();
-    if (active === retryButton || restoreStation) message.focus({ preventScroll: true });
+    if (!background) {
+      render();
+      if (active === retryButton || restoreStation) message.focus({ preventScroll: true });
+    }
     const data = await fetchData(request).catch(() => undefined);
     dataset.request = undefined;
     if (!isCurrent()) return;
@@ -364,7 +529,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     dataset.failed = data === undefined;
     if (data !== undefined) ready?.(data);
     render();
-    if (document.activeElement === message && !panel.hidden && (dataset === catalog || !activeMonths.some(({ month }) =>
+    if (!background && document.activeElement === message && !panel.hidden && (dataset === catalog || !activeMonths.some(({ month }) =>
       (retryButton === retry ? taxi.get(month) : subway.get(month))?.request))) {
       const next = restoreStation && !station.disabled ? station : dataset.failed ? retryButton : heading;
       next.focus({ preventScroll: true });
@@ -372,10 +537,11 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   }
 
   function loadMonthly<T extends { runId: string; clockChange?: ClockChange }>(
-    cache: Map<string, Dataset<T>>, mode: 'taxi' | 'subway', file: string,
+    cache: Map<string, Dataset<T>>, mode: Mode, file: string,
     parser: (value: unknown, month: string) => T, retryButton: HTMLElement, message: HTMLElement,
+    entries: readonly MobilityMonth[], background: boolean,
   ) {
-    for (const entry of activeMonths) {
+    for (const entry of entries) {
       if (!entry[mode]) continue;
       const { month } = entry;
       const dataset = cache.get(month) ?? { failed: false };
@@ -386,30 +552,22 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
         if (publishedClockChange(month, entry) && !data.clockChange) throw new Error('Missing monthly clock change');
         return data;
       }, request),
-        retryButton, message, () => cache.get(month) === dataset);
+        retryButton, message, () => cache.get(month) === dataset, undefined, background);
     }
   }
 
-  function loadTaxi() {
-    loadMonthly(taxi, 'taxi', 'yellow-taxi', parseTaxiData, retry, status);
+  function loadTaxi(entries = activeMonths, background = false) {
+    loadMonthly(taxi, 'taxi', 'yellow-taxi', parseTaxiData, retry, status, entries, background);
   }
 
-  function loadSubway() {
-    loadMonthly(subway, 'subway', 'subway', parseSubwayData, subwayRetry, subwayStatus);
+  function loadSubway(entries = activeMonths, background = false) {
+    loadMonthly(subway, 'subway', 'subway', parseSubwayData, subwayRetry, subwayStatus, entries, background);
   }
 
   function loadRange() {
     if (!catalog.data) return;
     const { start, end } = dateRange.value;
     activeMonths = catalog.data.filter(entry => entry.month >= start.slice(0, 7) && entry.month <= end.slice(0, 7));
-    const needed = new Set(activeMonths.map(entry => entry.month));
-    for (const cache of [taxi, subway]) {
-      for (const [month, value] of cache) {
-        if (needed.has(month) || !value.request) continue;
-        value.request.abort();
-        cache.delete(month);
-      }
-    }
     const taxiMonths = activeMonths.filter(entry => entry.taxi);
     coverage.hidden = !taxiMonths.length;
     const files = taxiMonths.length === 1 ? `the ${monthLabel(taxiMonths[0].month)} pickup file` : 'each month’s pickup file';
@@ -418,6 +576,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     loadTaxi();
     loadSubway();
     render();
+    cancelUnusedRequests();
   }
 
   function loadMonths() {
@@ -435,6 +594,9 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     highlightStation(null);
     opener.setAttribute('aria-expanded', 'false');
     selectedHour = 0;
+    typicalToggle.checked = false;
+    typicalMonths = { taxi: [], subway: [] };
+    cancelUnusedRequests();
     if (restoreFocus) (selection ? opener : fallback).focus();
   }
 
@@ -477,6 +639,18 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     render();
   });
   station.addEventListener('change', () => { selectedStationId = station.value; render(); });
+  typicalToggle.addEventListener('change', render);
+  typicalRetry.addEventListener('click', () => {
+    const active = new Set(activeMonths.map(entry => entry.month));
+    for (const mode of ['taxi', 'subway'] as const) {
+      const cache = mode === 'taxi' ? taxi : subway;
+      for (const { month } of typicalMonths[mode]) {
+        if (!active.has(month) && cache.get(month)?.failed) cache.delete(month);
+      }
+    }
+    typicalToggle.focus({ preventScroll: true });
+    render();
+  });
   for (const canvas of [chart, subwayChart]) {
     canvas.addEventListener('pointermove', event => {
       if (event.pointerType !== 'touch') selectPointerHour(event, canvas);

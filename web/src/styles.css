@@ -384,6 +384,71 @@ button[aria-busy=true] { cursor: progress; }
 }
 .taxi-chart { margin: 0; min-inline-size: 0; }
 .taxi-chart-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); }
+.taxi-chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); min-inline-size: 0; }
+#taxi-chart-day, .typical-day-toggle {
+  min-block-size: 27px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+}
+@media (pointer: coarse) {
+  #taxi-chart-day, .typical-day-toggle { min-block-size: 34px; }
+}
+.typical-day-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding-inline: var(--space-xs);
+  border: 1px solid var(--color-map-capsule-edge);
+  background: var(--color-map-capsule-action);
+  cursor: pointer;
+}
+.typical-day-toggle input { min-block-size: 0; }
+.typical-day-indicator {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 11px;
+  block-size: 11px;
+  border: 1px solid var(--color-city-ink);
+  border-radius: 50%;
+}
+.typical-day-toggle input:checked + .typical-day-indicator {
+  border-color: var(--color-accent-2);
+  background: var(--color-accent-2);
+  color: #252018;
+}
+.typical-day-toggle input:checked + .typical-day-indicator::after {
+  content: '';
+  box-sizing: border-box;
+  inline-size: 4.5px;
+  block-size: 7px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-1.25px) rotate(45deg);
+}
+@media (forced-colors: active) {
+  .typical-day-indicator,
+  .typical-day-toggle input:checked + .typical-day-indicator { border-color: ButtonText; color: ButtonText; }
+}
+.typical-day-toggle input:focus-visible { outline: none; box-shadow: none; }
+.typical-day-toggle:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (hover: hover) {
+  .typical-day-toggle:hover { background: var(--color-map-capsule-action-hover); }
+}
+#typical-day-details, .typical-day-values { color: var(--color-city-ink); font-size: var(--text-xs); }
+#typical-day-details { flex-basis: 100%; }
+#typical-day-details[data-inactive], #typical-day-status:empty { position: absolute; }
+#typical-day-retry { min-block-size: 27px; margin-block-start: var(--space-2xs); border-color: var(--color-map-capsule-edge); background: var(--color-map-capsule-action); color: inherit; font-size: inherit; }
+.typical-day-legend::before {
+  display: inline-block;
+  inline-size: 1.35em;
+  margin-inline-end: var(--space-2xs);
+  border-block-start: 2px dashed currentColor;
+  vertical-align: middle;
+  content: '';
+}
+.typical-day-values { margin-block-end: var(--space-2xs); font-variant-numeric: tabular-nums; }
 .chart-hour-label { color: var(--color-city-ink); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .taxi-chart figcaption {
   display: flex;
@@ -403,16 +468,9 @@ button[aria-busy=true] { cursor: progress; }
 .subway-figure { --series-color: oklch(84% 0.095 220); }
 #taxi-chart-day {
   inline-size: auto;
-  min-block-size: 27px;
   padding-block: 2px;
   padding-inline-start: var(--space-xs);
-  border-radius: var(--radius-pill);
   align-items: center;
-  font-size: var(--text-xs);
-  line-height: 1.2;
-}
-@media (pointer: coarse) {
-  #taxi-chart-day { min-block-size: 34px; }
 }
 .taxi-plot { display: grid; grid-template-columns: 7ch minmax(0, 1fr); gap: var(--space-2xs) var(--space-xs); direction: ltr; }
 .taxi-scale { display: flex; flex-direction: column; justify-content: space-between; text-align: end; }
