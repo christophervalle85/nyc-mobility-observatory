@@ -407,7 +407,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
     subwayRetry.hidden = !subwayFailed && !mismatch;
     status.textContent = taxiPending ? 'Loading taxi dropoffs…'
       : taxiFailed ? 'Some taxi data could not load. Retry to try again.'
-      : !activeMonths.some(entry => entry.taxi) ? 'Taxi data is unavailable for this range.' : '';
+      : !activeMonths.some(entry => entry.taxi) ? 'Taxi data unavailable' : '';
     subwayStatus.textContent = subwayPending ? 'Loading subway stations…'
       : mismatch ? `Subway data is unavailable for this ${monthLabel(mismatch, false)} run.`
       : subwayFailed ? 'Some subway data could not load. Retry to try again.'
