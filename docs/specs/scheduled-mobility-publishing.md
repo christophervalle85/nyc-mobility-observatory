@@ -2,9 +2,10 @@
 
 ## Release flow
 
-Run a daily GitHub Actions job on the default main branch. The job discovers
-one newly available calendar month and uses the existing refresh and archive
-validators. An available and validated mode can advance independently. A mode
+Run a weekly GitHub Actions job on the default main branch. A Friday check
+follows the weekly MTA update cadence and also checks for monthly TLC releases.
+The job discovers one newly available calendar month and uses the existing
+refresh and archive validators. An available and validated mode can advance independently. A mode
 whose source is missing or fails validation retains its existing published
 coverage. A run with nothing new makes no data commit. No approval or dashboard
 account is needed for successful runs.

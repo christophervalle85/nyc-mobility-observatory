@@ -186,7 +186,7 @@ provider data. See the [October dry run and dashboard check](docs/reports/automa
 
 ## Scheduled data publishing
 
-GitHub Actions is configured to check for new months daily at 10:23 UTC.
+GitHub Actions is configured to check for new months on Fridays at 10:23 UTC.
 Scheduled runs on the canonical `main` can publish a validated data commit.
 Manual runs prepare and check a candidate only. The workflow publishes
 repository data, and a hosted dashboard needs its own deployment. See the

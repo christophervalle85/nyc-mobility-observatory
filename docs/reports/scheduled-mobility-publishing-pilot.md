@@ -1,7 +1,12 @@
 # Scheduled mobility publishing
 
-**Mobility data refresh** is configured to run daily at 10:23 UTC (`23 10 * * *`)
-once the workflow is on the default branch.
+**Mobility data refresh** is configured to run on Fridays at 10:23 UTC
+(`23 10 * * 5`) once the workflow is on the default branch. The MTA dataset
+lists a weekly posting frequency. The pilot recorded a Thursday MTA update,
+so Friday is a reasonable time to check. TLC normally publishes monthly trip
+files after about two months. A release that arrives after a check can wait
+until the following Friday. [MTA hourly ridership](https://data.ny.gov/d/5wq4-mkjj) ·
+[TLC trip records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
 Only scheduled runs on the default `main` of
 `christophervalle85/nyc-mobility-observatory` can publish. A successful release
 uses an ordinary fast-forward data commit with no separate approval or pull

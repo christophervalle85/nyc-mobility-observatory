@@ -2,7 +2,7 @@ name: Mobility data refresh
 
 on:
   schedule:
-    - cron: '23 10 * * *'
+    - cron: '23 10 * * 5'
   workflow_dispatch:
 
 permissions: {}
