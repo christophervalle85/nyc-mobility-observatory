@@ -1,0 +1,164 @@
+name: Mobility data refresh
+
+on:
+  schedule:
+    - cron: '23 10 * * *'
+  workflow_dispatch:
+
+permissions: {}
+concurrency:
+  group: mobility-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'christophervalle85/nyc-mobility-observatory' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      bundle-id: ${{ steps.bundle.outputs.artifact-id }}
+      degraded: ${{ steps.refresh.outputs.degraded }}
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.12.21'
+          python-version: '3.12.14'
+          enable-cache: false
+      - name: Refresh and validate available modes
+        id: refresh
+        run: |
+          status=0
+          uv run --locked python web/scripts/refresh.py \
+            --stage-dir "$RUNNER_TEMP/mobility-stage" \
+            --data-dir "$RUNNER_TEMP/mobility-archive" \
+            --published-dir web/public/data > "$RUNNER_TEMP/mobility-refresh-result.json" || status=$?
+          uv run --locked python - "$status" <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "mobility-refresh-result.json").read_bytes())
+          modes = report.get("modes")
+          if report.get("version") != 1 or not isinstance(modes, dict) or set(modes) != {"taxi", "subway"}:
+              raise SystemExit("Refresh did not produce a usable result. See the refresh report artifact.")
+          states = {mode: modes[mode]["status"] for mode in ("taxi", "subway")}
+          if any(state not in {"staged", "already-published", "outside-refresh-window", "unavailable",
+                               "partial", "up-to-date", "failed", "discovery-failed"} for state in states.values()):
+              raise SystemExit("Refresh reported an unexpected mode status")
+          degraded = any(state in {"failed", "discovery-failed"} for state in states.values())
+          changes = "staged" in states.values()
+          if report.get("changesStaged") is not changes or int(sys.argv[1]) != int(degraded):
+              raise SystemExit("Refresh report and exit status disagree")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"changes={str(changes).lower()}", file=output)
+              print(f"degraded={str(degraded).lower()}", file=output)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              print("### Mobility refresh", file=summary)
+              for mode, state in states.items():
+                  print(f"- {mode}: `{state}`", file=summary)
+          PY
+
+      - name: Save refresh report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mobility-refresh-report-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/mobility-refresh-result.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Validate release bundle against the checkout
+        if: steps.refresh.outputs.changes == 'true'
+        run: |
+          uv run --locked python web/scripts/mobility_release.py prepare \
+            --stage-dir "$RUNNER_TEMP/mobility-stage" \
+            --bundle-dir "$RUNNER_TEMP/mobility-bundle" \
+            --published-dir web/public/data \
+            --base-sha "$GITHUB_SHA"
+          uv run --locked python web/scripts/mobility_release.py apply \
+            --bundle-dir "$RUNNER_TEMP/mobility-bundle" \
+            --published-dir web/public/data \
+            --base-sha "$GITHUB_SHA"
+
+      - name: Set up Node for release checks
+        if: steps.refresh.outputs.changes == 'true'
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.22.3'
+          package-manager-cache: false
+      - name: Check dashboard with candidate assets
+        if: steps.refresh.outputs.changes == 'true'
+        working-directory: web
+        run: |
+          npm ci --ignore-scripts
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Save verified release bundle
+        id: bundle
+        if: steps.refresh.outputs.changes == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mobility-release-bundle-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/mobility-bundle/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Flag provider failures without a pending automatic release
+        if: steps.refresh.outputs.degraded == 'true' && (steps.refresh.outputs.changes != 'true' || github.event_name != 'schedule' || vars.MOBILITY_AUTO_PUBLISH_PAUSED == 'true')
+        run: |
+          echo '::error::A mobility provider failed. See the refresh report for individual mode outcomes.'
+          exit 1
+
+  publish:
+    if: github.repository == 'christophervalle85/nyc-mobility-observatory' && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && vars.MOBILITY_AUTO_PUBLISH_PAUSED != 'true' && needs.prepare.outputs.bundle-id != ''
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.12.21'
+          python-version: '3.12.14'
+          enable-cache: false
+      - name: Download verified bundle from this run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.bundle-id }}
+          path: ${{ runner.temp }}/mobility-bundle
+      - name: Revalidate and apply the release
+        run: |
+          uv run --locked python web/scripts/mobility_release.py apply \
+            --bundle-dir "$RUNNER_TEMP/mobility-bundle" \
+            --published-dir web/public/data \
+            --base-sha "$GITHUB_SHA" > "$RUNNER_TEMP/mobility-apply-result.json"
+      - name: Publish data commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash web/scripts/push_mobility_release.sh "$GITHUB_SHA" \
+            "$RUNNER_TEMP/mobility-apply-result.json" \
+            https://github.com/christophervalle85/nyc-mobility-observatory.git
+      - name: Flag a provider failure after publishing the verified mode
+        if: needs.prepare.outputs.degraded == 'true'
+        run: |
+          echo '::error::Published the verified mode. A separate provider failed. See the refresh report.'
+          exit 1

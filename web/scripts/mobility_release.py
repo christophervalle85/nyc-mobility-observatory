@@ -8,7 +8,9 @@ import re
 import shutil
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from backfill import FILES, registered_assets
 from export_mobility_months import catalog, published_run_pairs
@@ -63,6 +65,13 @@ def _digest(data: bytes) -> dict:
 def _base_sha(value: str) -> None:
     if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
         raise ValueError("Expected an exact lowercase 40-hex baseline commit")
+
+
+def _require_completed_month(month: str) -> None:
+    month_calendar(month, allow_transition=True)
+    current = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m")
+    if month >= current:
+        raise ValueError("Release requires a completed New York calendar month")
 
 
 def _directories(*paths: Path) -> list[Path]:
@@ -138,6 +147,7 @@ def _result(manifest: dict, status: str) -> dict:
         "month": manifest["month"],
         "baseSha": manifest["baseSha"],
         "paths": sorted(manifest["files"]),
+        "files": manifest["files"],
         "modes": manifest["modes"],
         "sources": manifest["sources"],
         "changes": True,
@@ -159,7 +169,7 @@ def prepare(stage_dir: Path, bundle_dir: Path, published_dir: Path, base_sha: st
     ):
         raise ValueError("Refresh stage has no verified changes")
     month = report.get("month")
-    month_calendar(month, allow_transition=True)
+    _require_completed_month(month)
     if set(path.name for path in stage.iterdir()) != set(staged) | {INDEX, REPORT}:
         raise ValueError("Unexpected stage files")
     if not prior.keys() <= staged.keys():
@@ -211,7 +221,7 @@ def apply(bundle_dir: Path, published_dir: Path, base_sha: str) -> dict:
     ):
         raise ValueError("Invalid release manifest or stale baseline commit")
     month = manifest["month"]
-    month_calendar(month, allow_transition=True)
+    _require_completed_month(month)
     files = manifest["files"]
     allowed = {INDEX} | {f"{prefix}-{month}.json" for prefix in FILES.values()}
     if (

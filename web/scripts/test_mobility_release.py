@@ -7,7 +7,9 @@ import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import mobility_release as release
 from export_mobility_months import catalog
@@ -22,6 +24,12 @@ def state(path):
 
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
+        clock = patch("mobility_release.datetime")
+        self.clock = clock.start()
+        self.addCleanup(clock.stop)
+        self.clock.now.side_effect = lambda zone: datetime(2026, 11, 16, tzinfo=UTC).astimezone(
+            zone
+        )
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
@@ -85,6 +93,17 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Stale"):
             release.apply(self.bundle, self.checkout, BASE)
         self.assertEqual(state(self.checkout), after)
+
+    def test_only_completed_new_york_months_are_eligible(self):
+        self.prepare()
+        for utc_time in (datetime(2026, 9, 30, tzinfo=UTC), datetime(2026, 11, 1, 2, tzinfo=UTC)):
+            self.clock.now.side_effect = lambda zone, stamp=utc_time: stamp.astimezone(zone)
+            with self.subTest(utc_time=utc_time):
+                with self.assertRaisesRegex(ValueError, "completed New York calendar month"):
+                    release.prepare(self.stage, self.bundle.with_name("early"), self.baseline, BASE)
+                with self.assertRaisesRegex(ValueError, "completed New York calendar month"):
+                    release.apply(self.bundle, self.checkout, BASE)
+        self.assertEqual(state(self.checkout), self.original)
 
     def test_stale_base_commit_rejected_before_writes(self):
         self.prepare()
