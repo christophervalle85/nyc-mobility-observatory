@@ -559,7 +559,7 @@ async function loadZones() {
       const timeout = setTimeout(() => abort.abort(), 3000);
       try {
         const fetched = diagnostics.span('land.fetch');
-        const response = await fetch('/data/city-land.json', {signal: abort.signal}).finally(fetched);
+        const response = await fetch(`${import.meta.env.BASE_URL}data/city-land.json`, {signal: abort.signal}).finally(fetched);
         if (!response.ok) return undefined;
         const decoded = diagnostics.span('land.json');
         const input = await response.json().finally(decoded);
@@ -568,7 +568,7 @@ async function loadZones() {
       } catch { return undefined; } finally { clearTimeout(timeout); }
     })() : undefined;
     const fetched = diagnostics.span('geography.fetch');
-    const response = await fetch('/data/taxi-zones.geojson').finally(fetched); if (!response.ok) throw new Error('Local geography unavailable');
+    const response = await fetch(`${import.meta.env.BASE_URL}data/taxi-zones.geojson`).finally(fetched); if (!response.ok) throw new Error('Local geography unavailable');
     const decoded = diagnostics.span('geography.json');
     const input = await response.json().finally(decoded);
     const validated = diagnostics.span('geography.validate');

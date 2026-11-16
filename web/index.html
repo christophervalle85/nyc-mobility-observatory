@@ -29,7 +29,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <defs>
                   <filter id="area-search-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
-                    <feImage href="/area-search-displacement.png" x="0" y="0" width="272" height="48" preserveAspectRatio="none" result="rim"/>
+                    <feImage href="%BASE_URL%area-search-displacement.png" x="0" y="0" width="272" height="48" preserveAspectRatio="none" result="rim"/>
                     <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
                   </filter>
                 </defs>
@@ -70,7 +70,7 @@
               <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <defs>
                   <filter id="area-card-lens" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
-                    <feImage href="/area-card-displacement.png" x="0" y="0" width="272" height="104" preserveAspectRatio="none" result="rim"/>
+                    <feImage href="%BASE_URL%area-card-displacement.png" x="0" y="0" width="272" height="104" preserveAspectRatio="none" result="rim"/>
                     <feDisplacementMap in="SourceGraphic" in2="rim" scale="14" xChannelSelector="R" yChannelSelector="G"/>
                   </filter>
                 </defs>
@@ -249,10 +249,10 @@
             <p>The scene uses Google Photorealistic 3D Tiles via Cesium ion. Imagery dates vary. Color and shadows come from the source imagery.</p>
             <p id="cost-note">Opening 3D and moving its camera can request imagery and use your ion quota.</p>
             <div id="map-2d-sources">
-              <p>The 2D map uses NYC Open Data for <a href="/data/city-land.provenance.json" target="_blank" rel="noreferrer">NYC land</a>, <a href="/data/manhattan-streets-parks.provenance.json" target="_blank" rel="noreferrer">streets and parks</a>. The New Jersey side uses <a href="/data/harbor-context.provenance.json" target="_blank" rel="noreferrer">U.S. Census Bureau TIGER/Line® 2025</a>. The files list the sources and how the geometry was simplified. The map is approximate and does not establish legal boundaries.</p>
+              <p>The 2D map uses NYC Open Data for <a href="%BASE_URL%data/city-land.provenance.json" target="_blank" rel="noreferrer">NYC land</a>, <a href="%BASE_URL%data/manhattan-streets-parks.provenance.json" target="_blank" rel="noreferrer">streets and parks</a>. The New Jersey side uses <a href="%BASE_URL%data/harbor-context.provenance.json" target="_blank" rel="noreferrer">U.S. Census Bureau TIGER/Line® 2025</a>. The files list the sources and how the geometry was simplified. The map is approximate and does not establish legal boundaries.</p>
             </div>
-            <a href="/data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
-            <a id="land-provenance" href="/data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
+            <a href="%BASE_URL%data/taxi-zones.provenance.json" target="_blank" rel="noreferrer">Read TLC area provenance</a>
+            <a id="land-provenance" href="%BASE_URL%data/city-land.provenance.json" target="_blank" rel="noreferrer" hidden>Read DCP cutout provenance</a>
           </div>
         </details>
       </aside>

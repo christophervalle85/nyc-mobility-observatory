@@ -5,9 +5,18 @@ import { resolve } from 'node:path';
 const root = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig(({ command, mode }) => {
   const isolated = command === 'build' || mode === 'verify' || process.env.MOBILITY_AUTOMATION === '1';
+  const pages = command === 'build' && mode === 'pages';
+  const base = pages ? '/nyc-mobility-observatory/' : '/';
+  const clientToken = pages && process.env.MOBILITY_AUTOMATION !== '1'
+    ? process.env.VITE_CESIUM_ION_TOKEN?.trim() ?? ''
+    : '';
   return {
+    base,
     envDir: isolated ? false : root,
-    define: { CESIUM_BASE_URL: JSON.stringify('/cesium/'), ...(isolated ? { 'import.meta.env.VITE_CESIUM_ION_TOKEN': JSON.stringify('') } : {}) },
+    define: {
+      CESIUM_BASE_URL: JSON.stringify(`${base}cesium/`),
+      ...(isolated ? { 'import.meta.env.VITE_CESIUM_ION_TOKEN': JSON.stringify(clientToken) } : {}),
+    },
     plugins: [{ name: 'local-cesium-assets', buildStart() {
       for (const directory of ['Assets', 'ThirdParty', 'Widgets', 'Workers']) {
         const destination = resolve(root, 'public/cesium', directory);

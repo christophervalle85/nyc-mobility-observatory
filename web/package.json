@@ -11,6 +11,7 @@
     "dev:verify": "MOBILITY_AUTOMATION=1 VITE_CESIUM_ION_TOKEN= vite --mode verify --host 127.0.0.1 --port 5174 --strictPort",
     "typecheck": "tsc --noEmit",
     "build": "MOBILITY_AUTOMATION=1 VITE_CESIUM_ION_TOKEN= vite build --mode verify",
+    "build:pages": "vite build --mode pages",
     "preview": "MOBILITY_AUTOMATION=1 VITE_CESIUM_ION_TOKEN= vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "test": "VITE_CESIUM_ION_TOKEN= node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/*.test.ts",
     "test:e2e": "MOBILITY_AUTOMATION=1 VITE_CESIUM_ION_TOKEN= playwright test",

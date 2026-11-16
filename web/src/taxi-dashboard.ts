@@ -46,7 +46,7 @@ interface Dataset<T> {
 async function fetchDataset<T>(path: string, parse: (value: unknown) => T, request: AbortController): Promise<T> {
   const timer = setTimeout(() => request.abort(), requestTimeout);
   try {
-    const response = await fetch(path, {
+    const response = await fetch(`${import.meta.env.BASE_URL}${path}`, {
       signal: request.signal, mode: 'same-origin', redirect: 'error',
     });
     if (!response.ok) throw new Error('Transportation data unavailable');
@@ -562,7 +562,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
       const { month } = entry;
       const dataset = cache.get(month) ?? { failed: false };
       cache.set(month, dataset);
-      void load(dataset, request => fetchDataset(`/data/${file}-${month}.json`, value => {
+      void load(dataset, request => fetchDataset(`data/${file}-${month}.json`, value => {
         const data = parser(value, month);
         if (!mobilityRunMatches(entry, mode, data.runId)) throw new Error('Unexpected monthly run');
         if (publishedClockChange(month, entry) && !data.clockChange) throw new Error('Missing monthly clock change');
@@ -596,7 +596,7 @@ export function taxiDashboard(panel: HTMLElement, opener: HTMLButtonElement, fal
   }
 
   function loadMonths() {
-    void load(catalog, request => fetchDataset('/data/mobility-months.json', parseMobilityMonths, request),
+    void load(catalog, request => fetchDataset('data/mobility-months.json', parseMobilityMonths, request),
       monthRetry, monthStatus, () => true, months => {
         dateRange.setMonths(months.map(entry => entry.month));
         loadRange();

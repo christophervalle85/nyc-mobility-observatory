@@ -1,0 +1,146 @@
+name: Deploy mobility dashboard to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      VITE_CESIUM_ION_TOKEN:
+        required: false
+
+permissions: {}
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'github-pages' || format('github-pages-ineligible-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'christophervalle85/nyc-mobility-observatory' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      source-sha: ${{ steps.source.outputs.sha }}
+      artifact-name: ${{ steps.source.outputs.artifact-name }}
+    steps:
+      - name: Check out current main after obtaining the Pages lock
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - name: Record the build source
+        id: source
+        run: |
+          source_sha=$(git rev-parse HEAD)
+          printf 'sha=%s\nartifact-name=github-pages-%s\n' "$source_sha" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          printf 'Pages build source: `%s`\n' "$source_sha" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.22.3'
+          package-manager-cache: false
+      - name: Install locked web dependencies
+        working-directory: web
+        run: npm ci --ignore-scripts
+      - name: Build the Pages site
+        working-directory: web
+        env:
+          VITE_CESIUM_ION_TOKEN: ${{ secrets.VITE_CESIUM_ION_TOKEN }}
+        run: npm run build:pages
+
+      - name: Verify the Pages artifact
+        working-directory: web
+        run: |
+          python3 - <<'PY'
+          import json
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          root = Path("dist")
+          base = "/nyc-mobility-observatory/"
+
+          class Page(HTMLParser):
+              modules = 0
+              stylesheets = 0
+
+              def handle_starttag(self, tag, attrs):
+                  attributes = dict(attrs)
+                  if tag == "script" and attributes.get("type") == "module":
+                      self.modules += 1
+                  if tag == "link" and attributes.get("rel") == "stylesheet":
+                      self.stylesheets += 1
+                  for key in ("src", "href"):
+                      value = attributes.get(key)
+                      if not value or value.startswith("#"):
+                          continue
+                      url = urlsplit(value)
+                      if url.scheme or url.netloc:
+                          continue
+                      if not url.path.startswith(base):
+                          raise SystemExit("A local HTML asset is missing the Pages prefix")
+                      if not (root / url.path.removeprefix(base)).is_file():
+                          raise SystemExit("An HTML asset is missing from the Pages build")
+
+          page = Page()
+          page.feed((root / "index.html").read_text())
+          if not page.modules or not page.stylesheets:
+              raise SystemExit("The Pages build must contain a module and stylesheet")
+          catalog = json.loads((root / "data/mobility-months.json").read_text())
+          if not catalog["months"]:
+              raise SystemExit("The Pages mobility catalog is empty")
+          for month in catalog["months"]:
+              for mode, stem in (("taxi", "yellow-taxi"), ("subway", "subway")):
+                  if month[mode] and not (root / "data" / f"{stem}-{month['month']}.json").is_file():
+                      raise SystemExit("A catalog asset is missing from the Pages build")
+
+          size = 0
+          for path in root.rglob("*"):
+              if path.is_symlink():
+                  raise SystemExit("Unexpected symbolic link in the Pages artifact")
+              if not path.is_dir():
+                  if not path.is_file() or path.stat().st_nlink != 1:
+                      raise SystemExit("Unexpected linked or non-regular file in the Pages artifact")
+                  size += path.stat().st_size
+          if size >= 1_000_000_000:
+              raise SystemExit("The Pages artifact must be smaller than 1 GB")
+          print(f"Validated project-site paths and mobility assets ({size:,} bytes)")
+          PY
+
+      - name: Upload the verified site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: ${{ steps.source.outputs.artifact-name }}
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Skip this artifact if main has advanced
+        id: current
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source-sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          current=$(git ls-remote --exit-code https://github.com/christophervalle85/nyc-mobility-observatory.git refs/heads/main)
+          if [[ "$current" == "$SOURCE_SHA"$'\t'refs/heads/main ]]; then
+            printf 'publish=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' 'main advanced after the build. Skipping this artifact.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.current.outputs.publish == 'true'
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: ${{ needs.build.outputs.artifact-name }}

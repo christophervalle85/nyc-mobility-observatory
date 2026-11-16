@@ -143,6 +143,8 @@ jobs:
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      published: ${{ steps.publish-commit.outputs.published }}
     permissions:
       contents: write
     env:
@@ -169,14 +171,27 @@ jobs:
             --published-dir web/public/data \
             --base-sha "$GITHUB_SHA" > "$RUNNER_TEMP/mobility-apply-result.json"
       - name: Publish data commit
+        id: publish-commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           bash web/scripts/push_mobility_release.sh "$GITHUB_SHA" \
             "$RUNNER_TEMP/mobility-apply-result.json" \
             https://github.com/christophervalle85/nyc-mobility-observatory.git
+          echo 'published=true' >> "$GITHUB_OUTPUT"
       - name: Flag a provider failure after publishing the verified mode
         if: needs.prepare.outputs.degraded == 'true'
         run: |
           echo '::error::Published the verified mode. A separate provider failed. See the refresh report.'
           exit 1
+
+  deploy-pages:
+    if: ${{ !cancelled() && needs.publish.outputs.published == 'true' }}
+    needs: publish
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
+    secrets:
+      VITE_CESIUM_ION_TOKEN: ${{ secrets.VITE_CESIUM_ION_TOKEN }}

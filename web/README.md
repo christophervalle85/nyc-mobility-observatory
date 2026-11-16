@@ -28,6 +28,14 @@ The app skips Cesium's default imagery, terrain and geocoding services. Request-
 
 Keep the on-screen Cesium and imagery provider credits visible during live 3D. Do not trace imagery, sample Google heights, export imagery-derived boundaries/statistics, or add a persistent imagery cache. See [Cesium usage and attribution guidance](https://cesium.com/learn/ion/content-usage-and-attribution-guide/) and [Google Map Tiles policies](https://developers.google.com/maps/documentation/tile/policies).
 
+## Build for GitHub Pages
+
+Run `npm run build:pages` from `web/`. The build writes to `web/dist` and uses the repository path `/nyc-mobility-observatory/` for data, images, and Cesium assets. The regular `npm run build` serves local verification at `/` with the token disabled.
+
+The Pages build reads `VITE_CESIUM_ION_TOKEN` from the build process. It ignores local `.env` files. With no token, the hosted 2D map and mobility dashboard remain usable. For live 3D, create a separate Cesium ion token with only `assets:read`, select Google Photorealistic 3D Tiles (asset 2275207), and set the allowed URL to `https://christophervalle85.github.io`. Use the site origin because browsers normally send the origin as the referrer for cross-origin requests. The browser receives this restricted client token as part of the build. [Cesium ion token setup](https://cesium.com/learn/ion/cesium-ion-access-tokens/)
+
+Save the token as a GitHub Actions repository secret named `VITE_CESIUM_ION_TOKEN`. The secret keeps the value out of the repository and workflow configuration. The **Deploy mobility dashboard to Pages** workflow passes it to the Pages build. Set the repository's Pages source to **GitHub Actions**. A push to `main` triggers deployment, and a refresh that successfully publishes data calls the same workflow. You can also run it from the **Actions** tab on `main`.
+
 ## 2D map sources and use
 
 The local 2D map uses NYC Open Data for [borough land](public/data/city-land.provenance.json), [street centerlines and park properties](public/data/manhattan-streets-parks.provenance.json), and [taxi-zone geometry](public/data/taxi-zones.provenance.json). NYC makes public datasets available for reuse and may require identification of the source, version, and modifications. The provenance files record each of these. [NYC Open Data public policies](https://cityofnewyork.github.io/opendatatsm/publicpolicies.html)
