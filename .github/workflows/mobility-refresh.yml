@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '23 10 * * 5'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish now if validation passes
+        type: boolean
+        default: false
 
 permissions: {}
 concurrency:
@@ -20,9 +25,18 @@ jobs:
     outputs:
       bundle-id: ${{ steps.bundle.outputs.artifact-id }}
       degraded: ${{ steps.refresh.outputs.degraded }}
+      publish-enabled: ${{ steps.release-policy.outputs.enabled }}
     env:
       PYTHONPATH: src
     steps:
+      - name: Check whether this run can publish
+        id: release-policy
+        if: >-
+          github.ref == 'refs/heads/main'
+          && vars.MOBILITY_AUTO_PUBLISH_PAUSED != 'true'
+          && (github.event_name == 'schedule'
+              || (github.event_name == 'workflow_dispatch' && inputs.publish == true))
+        run: echo 'enabled=true' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.sha }}
@@ -114,14 +128,18 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Flag provider failures without a pending automatic release
-        if: steps.refresh.outputs.degraded == 'true' && (steps.refresh.outputs.changes != 'true' || github.event_name != 'schedule' || vars.MOBILITY_AUTO_PUBLISH_PAUSED == 'true')
+      - name: Flag provider failures without a pending release
+        if: steps.refresh.outputs.degraded == 'true' && (steps.refresh.outputs.changes != 'true' || steps.release-policy.outputs.enabled != 'true')
         run: |
           echo '::error::A mobility provider failed. See the refresh report for individual mode outcomes.'
           exit 1
 
   publish:
-    if: github.repository == 'christophervalle85/nyc-mobility-observatory' && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && vars.MOBILITY_AUTO_PUBLISH_PAUSED != 'true' && needs.prepare.outputs.bundle-id != ''
+    if: >-
+      github.repository == 'christophervalle85/nyc-mobility-observatory'
+      && github.ref == 'refs/heads/main'
+      && needs.prepare.outputs.publish-enabled == 'true'
+      && needs.prepare.outputs.bundle-id != ''
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -8,7 +8,9 @@ The job discovers one newly available calendar month and uses the existing
 refresh and archive validators. An available and validated mode can advance independently. A mode
 whose source is missing or fails validation retains its existing published
 coverage. A run with nothing new makes no data commit. No approval or dashboard
-account is needed for successful runs.
+account is needed for successful runs. On `main`, manual runs default to staging and can
+opt in with **Publish now**. The repository pause switch applies to both entry
+points.
 
 The repository's static dashboard data is the release target. Publish the
 catalog and any new mode files together in one ordinary fast-forward commit

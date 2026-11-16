@@ -7,10 +7,10 @@ so Friday is a reasonable time to check. TLC normally publishes monthly trip
 files after about two months. A release that arrives after a check can wait
 until the following Friday. [MTA hourly ridership](https://data.ny.gov/d/5wq4-mkjj) ·
 [TLC trip records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
-Only scheduled runs on the default `main` of
-`christophervalle85/nyc-mobility-observatory` can publish. A successful release
-uses an ordinary fast-forward data commit with no separate approval or pull
-request. The commit contains the catalog and validated additions for at most
+Publishing runs on the default `main` of
+`christophervalle85/nyc-mobility-observatory` on schedule or when a manual
+run opts in. A successful release uses an ordinary fast-forward data commit
+with no separate approval or pull request. The commit contains the catalog and validated additions for at most
 one completed New York calendar month. Raw source files and archives stay in
 the runner's temporary directory. See the [workflow](../../.github/workflows/mobility-refresh.yml).
 
@@ -22,8 +22,10 @@ pushed with the repository's `GITHUB_TOKEN`. [GitHub token behavior](https://doc
 ## Run and inspect
 
 In GitHub, open **Actions**, select **Mobility data refresh**, and choose
-**Run workflow** on `main` to check a candidate on demand. A manual run prepares
-and tests the candidate without publishing. Check the run summary for each
+**Run workflow** on `main` to check a candidate on demand. Leave **Publish now**
+unchecked to preview and test the candidate. Select it to publish automatically
+once the checks pass. The pause variable applies to
+both scheduled and manual publishing. Check the run summary for each
 mode's outcome, and download the `mobility-refresh-report-<attempt>` artifact
 for details. When a candidate passes, the
 `mobility-release-bundle-<attempt>` artifact contains the catalog, new mode

@@ -188,6 +188,7 @@ provider data. See the [October dry run and dashboard check](docs/reports/automa
 
 GitHub Actions is configured to check for new months on Fridays at 10:23 UTC.
 Scheduled runs on the canonical `main` can publish a validated data commit.
-Manual runs prepare and check a candidate only. The workflow publishes
-repository data, and a hosted dashboard needs its own deployment. See the
+Manual runs default to a preview. Select **Publish now** on `main` to run the
+same publish job on demand. The workflow publishes repository data. A hosted
+dashboard needs its own deployment. See the
 [publishing runbook and pilot evidence](docs/reports/scheduled-mobility-publishing-pilot.md).
