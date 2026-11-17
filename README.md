@@ -7,6 +7,12 @@ to frame the five boroughs. The **Transportation data** dashboard shows yellow t
 dropoffs for a selected TLC area alongside estimated entries at a nearby subway
 station complex. Both modes are available for August and September 2026.
 
+## Case study
+
+[Planning December holiday staffing in NYC](docs/reports/december-holiday-mobility.md)
+compares Rockefeller Center with Union Square and turns three Decembers of mobility
+data into a staffing test for a café. Reproduce the analysis from the checked-in data.
+
 ## Open the local map
 
 Use Node 22.17 or newer:
